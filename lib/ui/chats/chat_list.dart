@@ -30,30 +30,36 @@ class ChatList extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: [
-                _FilterChip(
-                  label: 'Javob kutmoqda',
-                  count: state.waitingCount,
-                  active: state.filter == ChatFilter.waiting,
-                  activeColor: FC.waitingStrong,
-                  dot: state.filter != ChatFilter.waiting,
-                  onTap: () => state.setFilter(ChatFilter.waiting),
-                ),
-                const SizedBox(width: 6),
-                _FilterChip(
-                  label: 'O‘qilmagan',
-                  count: state.unreadChatCount,
-                  active: state.filter == ChatFilter.unread,
-                  onTap: () => state.setFilter(ChatFilter.unread),
-                ),
-                const SizedBox(width: 6),
-                _FilterChip(
-                  label: 'Hammasi',
-                  active: state.filter == ChatFilter.all,
-                  onTap: () => state.setFilter(ChatFilter.all),
-                ),
-              ],
+            // scaleDown keeps the three chips on one line if fonts or text
+            // scaling make them wider than the 340 px column.
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Row(
+                children: [
+                  _FilterChip(
+                    label: 'Javob kutmoqda',
+                    count: state.waitingCount,
+                    active: state.filter == ChatFilter.waiting,
+                    activeColor: FC.waitingStrong,
+                    dot: state.filter != ChatFilter.waiting,
+                    onTap: () => state.setFilter(ChatFilter.waiting),
+                  ),
+                  const SizedBox(width: 4),
+                  _FilterChip(
+                    label: 'O‘qilmagan',
+                    count: state.unreadChatCount,
+                    active: state.filter == ChatFilter.unread,
+                    onTap: () => state.setFilter(ChatFilter.unread),
+                  ),
+                  const SizedBox(width: 4),
+                  _FilterChip(
+                    label: 'Hammasi',
+                    active: state.filter == ChatFilter.all,
+                    onTap: () => state.setFilter(ChatFilter.all),
+                  ),
+                ],
+              ),
             ),
           ),
           Padding(
@@ -137,15 +143,15 @@ class _FilterChip extends StatelessWidget {
       border: Border.all(color: active ? activeColor : const Color(0xFFDDE1E6)),
       child: Container(
         height: 30,
-        padding: const EdgeInsets.symmetric(horizontal: 11),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (dot) ...[const WaitingDot(), const SizedBox(width: 6)],
-            Text(label, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: fg)),
+            Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: fg)),
             if (count != null) ...[
-              const SizedBox(width: 5),
-              Text('$count', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: fg)),
+              const SizedBox(width: 4),
+              Text('$count', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: fg)),
             ],
           ],
         ),
