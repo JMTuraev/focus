@@ -1,4 +1,5 @@
 import 'dart:ffi';
+import 'dart:io';
 
 import 'package:ffi/ffi.dart';
 
@@ -21,7 +22,31 @@ class TdJson {
         _execute = lib.lookupFunction<_ExecuteC, _ExecuteD>('td_execute');
 
   /// Looks for tdjson.dll next to fokus.exe by default.
-  factory TdJson.open([String path = 'tdjson.dll']) => TdJson._(DynamicLibrary.open(path));
+  ///
+  /// For a path into another folder (e.g. `tdlib\tdjson.dll` in
+  /// tool/td_check.dart) that folder is added to the Windows DLL search path,
+  /// so the OpenSSL/zlib DLLs next to tdjson.dll are found as well. The path
+  /// is made absolute because SetDllDirectory drops the current directory
+  /// from the search order.
+  factory TdJson.open([String path = 'tdjson.dll']) {
+    if (Platform.isWindows && path.contains(RegExp(r'[\\/]'))) {
+      final file = File(File(path).absolute.path.replaceAll('/', r'\'));
+      _setDllDirectory(file.parent.path);
+      path = file.path;
+    }
+    return TdJson._(DynamicLibrary.open(path));
+  }
+
+  static void _setDllDirectory(String dir) {
+    final setDllDirectory = DynamicLibrary.open('kernel32.dll')
+        .lookupFunction<Int32 Function(Pointer<Utf16>), int Function(Pointer<Utf16>)>('SetDllDirectoryW');
+    final p = dir.toNativeUtf16();
+    try {
+      setDllDirectory(p);
+    } finally {
+      malloc.free(p);
+    }
+  }
 
   final _CreateD _create;
   final _SendD _send;
