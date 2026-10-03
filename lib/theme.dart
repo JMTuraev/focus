@@ -47,6 +47,7 @@ class FokusColors extends ThemeExtension<FokusColors> {
     required this.online,
     required this.muted,
     required this.toast,
+    required this.danger,
   });
 
   /// Brand color, the same in both modes (logo).
@@ -90,6 +91,9 @@ class FokusColors extends ThemeExtension<FokusColors> {
   final Color muted;
   final Color toast;
 
+  /// Error text and destructive actions.
+  final Color danger;
+
   static const light = FokusColors(
     accent: Color(0xFF3390EC),
     accentStrong: Color(0xFF2874C8),
@@ -128,6 +132,7 @@ class FokusColors extends ThemeExtension<FokusColors> {
     online: Color(0xFF2DB24A),
     muted: Color(0xFF6F767E),
     toast: Color(0xFF1F2A36),
+    danger: Color(0xFFD03A3A),
   );
 
   static const dark = FokusColors(
@@ -168,6 +173,7 @@ class FokusColors extends ThemeExtension<FokusColors> {
     online: Color(0xFF3CC75A),
     muted: Color(0xFF56636F),
     toast: Color(0xFF2B3946),
+    danger: Color(0xFFFF7070),
   );
 
   @override
@@ -216,6 +222,7 @@ class FokusColors extends ThemeExtension<FokusColors> {
       online: l(online, o.online),
       muted: l(muted, o.muted),
       toast: l(toast, o.toast),
+      danger: l(danger, o.danger),
     );
   }
 }

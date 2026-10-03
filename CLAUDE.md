@@ -37,6 +37,14 @@ Breakpoints are in `lib/ui/layout.dart`, modelled on Telegram Desktop:
 - narrow (< 800 px): one column, chat list or chat with a back button.
 `test/layout_test.dart` renders every layout in light and dark mode and must pass (`flutter test`).
 
+## Login (phase 1)
+- `lib/auth/auth.dart`: `AuthService` interface and login states. The UI only talks to this.
+- `lib/auth/mock_auth.dart`: used when `USE_MOCK=true`. Any phone, any 5-digit code (`00000` fails), any password (`xato` fails).
+- `lib/tdlib/td_auth.dart`: `TdAuth`, the real TDLib flow; maps TDLib errors to Uzbek text in `authErrorText`.
+- The TDLib database is encrypted with a random 32-byte key protected by Windows DPAPI (`lib/tdlib/db_key.dart`, file `tdlib/db.key` in the app support folder).
+- Never log, print or store the phone number, login code, password or database key.
+- Real TDLib run: `flutter run -d windows --dart-define-from-file=secrets.json --dart-define=USE_MOCK=false`.
+
 ## Phases
 0. Skeleton: mock UI, TDLib FFI layer, Windows build, TDLib CI build.
 1. Login (phone → code → 2FA password), chat list and messages from TDLib, collections, filters, TDLib database encrypted with a DPAPI-protected key.

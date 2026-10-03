@@ -9,10 +9,11 @@ import 'rail.dart';
 import 'title_bar.dart';
 
 class Shell extends StatelessWidget {
-  const Shell({super.key, required this.state, required this.settings});
+  const Shell({super.key, required this.state, required this.settings, required this.onLogout});
 
   final AppState state;
   final Settings settings;
+  final VoidCallback onLogout;
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +28,7 @@ class Shell extends StatelessWidget {
               builder: (context, _) => Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Rail(state: state, compact: mode == LayoutMode.narrow),
+                  Rail(state: state, compact: mode == LayoutMode.narrow, onLogout: onLogout),
                   Expanded(child: _screenFor(state, mode)),
                 ],
               ),

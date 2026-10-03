@@ -38,15 +38,18 @@ lib/
   main.dart              oyna (1440×900, o'z sarlavha qatori)
   theme.dart             ranglar (yorug‘ va tungi palitra)
   config.dart            api_id/api_hash (build vaqtida)
+  auth/                  login: AuthService, MockAuth (sinov rejimi)
   data/                  modellar va soxta ma'lumot
   state/app_state.dart   UI holati (filtrlar, to'plamlar, yuborish)
   state/settings.dart    sozlamalar (mavzu rejimi)
   ui/                    sarlavha, chap panel, chatlar ekrani
   ui/layout.dart         keng / o‘rtacha / tor joylashuv chegaralari
+  ui/login/             login ekrani: telefon → kod → 2FA parol
   tdlib/
     td_json.dart         tdjson.dll FFI
     td_client.dart       so'rov/javob + update oqimi (alohida isolate)
-    td_auth.dart         login oqimi + LocalMode qoidalari
+    td_auth.dart         login oqimi (TdAuth) + LocalMode qoidalari
+    db_key.dart          TDLib bazasi kaliti (Windows DPAPI)
 tool/
   td_check.dart          DLL tekshiruvi
   setup_windows.ps1      DLL'larni fokus.exe yoniga nusxalash qoidasi
@@ -59,6 +62,18 @@ tool/
 - `viewMessages` va `sendChatAction` chaqirilmaydi — telefoningizda xabarlar o'qilmagan bo'lib qoladi.
 - Cheklov: javob yozsangiz, Telegram chatni o'qilgan deb hisoblaydi.
 
-## Keyingi qadam (1-bosqich)
+## Login
 
-Login ekrani (telefon → kod → 2FA parol), chatlar ro'yxati va xabarlarni TDLib'dan olish, TDLib bazasini DPAPI bilan shifrlash.
+Sinov rejimi (standart, Telegram’ga ulanmaydi): istalgan raqam, istalgan 5 xonali kod, istalgan parol.
+
+Haqiqiy Telegram bilan:
+
+```powershell
+flutter run -d windows --dart-define-from-file=secrets.json --dart-define=USE_MOCK=false
+```
+
+TDLib bazasi Windows DPAPI bilan himoyalangan tasodifiy kalit orqali shifrlanadi.
+
+## Keyingi qadam (1-bosqich davomi)
+
+Chatlar ro‘yxati va xabarlarni TDLib’dan olish, to‘plamlar va filtrlarni haqiqiy chatlarga ulash.

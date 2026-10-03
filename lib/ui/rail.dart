@@ -16,9 +16,10 @@ const _modules = <(Module, String, IconData)>[
 
 /// Narrow vertical panel: modules on top, collections below (like folders).
 class Rail extends StatelessWidget {
-  const Rail({super.key, required this.state, this.compact = false});
+  const Rail({super.key, required this.state, required this.onLogout, this.compact = false});
 
   final AppState state;
+  final VoidCallback onLogout;
 
   /// Narrow layout: thinner rail, labels move into tooltips.
   final bool compact;
@@ -73,6 +74,15 @@ class Rail extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+          _RailItem(
+            label: 'Chiqish',
+            icon: Icons.logout,
+            compact: compact,
+            height: 44,
+            iconSize: 20,
+            tooltip: 'Akkauntdan chiqish',
+            onTap: onLogout,
           ),
         ],
       ),

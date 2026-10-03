@@ -1,29 +1,18 @@
 // Renders the shell at Telegram-like window sizes in light and dark mode and
 // fails on any layout overflow or other exception.
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fokus/auth/mock_auth.dart';
 import 'package:fokus/main.dart';
 import 'package:fokus/state/app_state.dart';
 import 'package:fokus/state/settings.dart';
 
-Future<void> _loadFont(String family, List<String> files) async {
-  final loader = FontLoader(family);
-  for (final f in files) {
-    final file = File(f);
-    if (file.existsSync()) {
-      loader.addFont(file.readAsBytes().then((b) => ByteData.view(b.buffer)));
-    }
-  }
-  await loader.load();
-}
+import 'helpers/fonts.dart';
 
 void main() {
   setUpAll(() async {
     // Real metrics instead of the test font, so overflows match the app.
-    await _loadFont('Segoe UI', [r'C:\Windows\Fonts\segoeui.ttf', r'C:\Windows\Fonts\segoeuib.ttf']);
+    await loadSegoeUi();
   });
 
   const sizes = {
@@ -42,7 +31,11 @@ void main() {
         addTearDown(tester.view.reset);
 
         final state = AppState();
-        await tester.pumpWidget(FokusApp(state: state, settings: Settings.inMemory(dark ? ThemeMode.dark : ThemeMode.light)));
+        await tester.pumpWidget(FokusApp(
+          state: state,
+          settings: Settings.inMemory(dark ? ThemeMode.dark : ThemeMode.light),
+          auth: MockAuth(loggedIn: true),
+        ));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
 
@@ -74,7 +67,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(FokusApp(state: AppState(), settings: Settings.inMemory(ThemeMode.light)));
+    await tester.pumpWidget(FokusApp(state: AppState(), settings: Settings.inMemory(ThemeMode.light), auth: MockAuth(loggedIn: true)));
     await tester.pumpAndSettle();
     expect(find.text('Qidiruv'), findsOneWidget);
     expect(find.text('Xabar yozing…'), findsNothing);
@@ -95,7 +88,7 @@ void main() {
     addTearDown(tester.view.reset);
 
     final settings = Settings.inMemory(ThemeMode.light);
-    await tester.pumpWidget(FokusApp(state: AppState(), settings: settings));
+    await tester.pumpWidget(FokusApp(state: AppState(), settings: settings, auth: MockAuth(loggedIn: true)));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Tungi rejimga o‘tish'));

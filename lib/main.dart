@@ -1,13 +1,18 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:screen_retriever/screen_retriever.dart';
 import 'package:window_manager/window_manager.dart';
 
+import 'auth/auth.dart';
+import 'auth/mock_auth.dart';
+import 'config.dart';
 import 'state/app_state.dart';
 import 'state/settings.dart';
+import 'tdlib/td_auth.dart';
 import 'theme.dart';
-import 'ui/shell.dart';
+import 'ui/auth_gate.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,7 +33,11 @@ Future<void> main() async {
     await windowManager.focus();
   });
 
-  runApp(FokusApp(state: AppState(), settings: settings));
+  // USE_MOCK=true (default): mock login and mock chats, TDLib is not loaded.
+  final AuthService auth = AppConfig.useMock ? MockAuth() : TdAuth();
+  unawaited(auth.start());
+
+  runApp(FokusApp(state: AppState(), settings: settings, auth: auth));
 }
 
 /// Keeps the window (and so the custom title bar) inside the screen's
@@ -50,10 +59,11 @@ Future<void> _fitToScreen() async {
 }
 
 class FokusApp extends StatelessWidget {
-  const FokusApp({super.key, required this.state, required this.settings});
+  const FokusApp({super.key, required this.state, required this.settings, required this.auth});
 
   final AppState state;
   final Settings settings;
+  final AuthService auth;
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +75,7 @@ class FokusApp extends StatelessWidget {
         theme: buildTheme(Brightness.light),
         darkTheme: buildTheme(Brightness.dark),
         themeMode: settings.themeMode,
-        home: Shell(state: state, settings: settings),
+        home: AuthGate(auth: auth, state: state, settings: settings),
       ),
     );
   }
