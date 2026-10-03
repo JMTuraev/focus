@@ -1,0 +1,19 @@
+# Secrets
+secrets.json
+
+# TDLib binaries (built by the workflow, copied locally)
+tdlib/*.dll
+tdlib/*.txt
+
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+.idea/
+.vscode/
+windows/flutter/ephemeral/
