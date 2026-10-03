@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../data/format.dart';
 import '../../data/models.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
@@ -36,10 +37,18 @@ class _ChatViewState extends State<ChatView> {
     super.dispose();
   }
 
-  void _send() {
-    s.send(_input.text);
+  Future<void> _send() async {
+    final text = _input.text;
+    if (text.trim().isEmpty) return;
     _input.clear();
     _focus.requestFocus();
+    try {
+      await s.send(text);
+    } catch (_) {
+      if (!mounted) return;
+      _input.text = text;
+      _toast('Xabar yuborilmadi. Internet aloqasini tekshirib, qayta urinib ko‘ring.');
+    }
   }
 
   void _toast(String text, {String? action, Module? goTo}) {
@@ -56,11 +65,32 @@ class _ChatViewState extends State<ChatView> {
 
   String _short(String t) => t.length > 42 ? '${t.substring(0, 40)}…' : t;
 
+  /// Messages with a date separator before each new day. Mock messages
+  /// have no date and get a single "Bugun" separator.
+  static List<Object> _items(List<Message> msgs) {
+    final out = <Object>[];
+    DateTime? prev;
+    for (var i = 0; i < msgs.length; i++) {
+      final m = msgs[i];
+      final d = m.date;
+      if (d == null) {
+        if (i == 0) out.add('Bugun');
+      } else if (prev == null || !Fmt.sameDay(prev, d)) {
+        out.add(Fmt.dayLabel(d));
+        prev = d;
+      }
+      out.add(m);
+    }
+    return out;
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.fc;
-    final chat = s.activeChat;
+    final chat = s.activeChat!;
     final msgs = s.messagesOf(chat.id);
+    final items = _items(msgs);
+    final loadingHistory = s.loadingHistory;
     final target = s.targetMessage;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -96,13 +126,36 @@ class _ChatViewState extends State<ChatView> {
               builder: (context, box) {
                 final narrow = box.maxWidth < 600;
                 final bubbleMax = math.min(460.0, box.maxWidth * (narrow ? 0.86 : 0.75));
-                return ListView.builder(
+                if (msgs.isEmpty) {
+                  return Center(
+                    child: loadingHistory
+                        ? SizedBox(width: 26, height: 26, child: CircularProgressIndicator(strokeWidth: 2.6, color: c.accent))
+                        : const _DatePill('Hali xabar yo‘q'),
+                  );
+                }
+                return NotificationListener<ScrollNotification>(
+                  // Older messages load when the top of the history comes close.
+                  onNotification: (n) {
+                    if (n.metrics.extentAfter < 600) s.loadOlder();
+                    return false;
+                  },
+                  child: ListView.builder(
                   reverse: true,
                   padding: EdgeInsets.symmetric(horizontal: narrow ? 10 : 22, vertical: 12),
-                  itemCount: msgs.length + 1,
+                  itemCount: items.length + (loadingHistory ? 1 : 0),
                   itemBuilder: (_, i) {
-                    if (i == msgs.length) return const _DatePill('Bugun');
-                    final m = msgs[msgs.length - 1 - i];
+                    if (i == items.length) {
+                      return Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Center(
+                          child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.2, color: c.accent)),
+                        ),
+                      );
+                    }
+                    final item = items[items.length - 1 - i];
+                    if (item is String) return _DatePill(item);
+                    final m = item as Message;
+                    if (m.service) return _DatePill(m.text);
                     return _Bubble(
                       message: m,
                       maxWidth: bubbleMax,
@@ -111,6 +164,7 @@ class _ChatViewState extends State<ChatView> {
                       onAddMeeting: () => _toast('Kalendarga qo‘shildi: ${m.meeting}', action: 'Kalendarni ochish', goTo: Module.calendar),
                     );
                   },
+                  ),
                 );
               },
             ),
@@ -142,7 +196,7 @@ class _Header extends StatelessWidget {
         children: [
           if (onBack != null)
             IconButton(tooltip: 'Orqaga', onPressed: onBack, icon: Icon(Icons.arrow_back, size: 20, color: c.icon)),
-          Avatar(initials: chat.initials, color: chat.color, size: 40),
+          ChatAvatar(chat, size: 40, showOnline: false),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -326,19 +380,21 @@ class _Bubble extends StatelessWidget {
                           child: Text(m.from!, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: c.accentText)),
                         ),
                       if (m.fileName != null) _FileRow(name: m.fileName!, meta: m.fileMeta ?? ''),
+                      if (m.media != null) _MediaRow(kind: m.media!, label: m.mediaLabel ?? ''),
                       Wrap(
                         alignment: WrapAlignment.end,
                         crossAxisAlignment: WrapCrossAlignment.end,
                         spacing: 12,
                         children: [
-                          SelectableText(m.text, style: TextStyle(fontSize: 14.5, height: 1.42, color: c.text), onTap: onTap),
+                          if (m.text.isNotEmpty)
+                            SelectableText(m.text, style: TextStyle(fontSize: 14.5, height: 1.42, color: c.text), onTap: onTap),
                           Padding(
                             padding: const EdgeInsets.only(bottom: 1),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(m.time, style: TextStyle(fontSize: 11.5, color: m.out ? c.outMeta : c.text2)),
-                                if (m.out) ...[const SizedBox(width: 3), Icon(Icons.done_all, size: 15, color: c.outMeta)],
+                                if (m.out) ...[const SizedBox(width: 3), _Tick(m)],
                               ],
                             ),
                           ),
@@ -463,6 +519,86 @@ class _Composer extends StatelessWidget {
           IconButton(tooltip: 'Yuborish', onPressed: onSend, icon: Icon(Icons.send_rounded, color: c.accent)),
         ],
       ),
+    );
+  }
+}
+
+/// Delivery mark for outgoing messages: sending, failed, sent, read.
+class _Tick extends StatelessWidget {
+  const _Tick(this.m);
+
+  final Message m;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.fc;
+    final (icon, color, tip) = m.failed
+        ? (Icons.error_outline, c.danger, 'Yuborilmadi')
+        : m.pending
+            ? (Icons.schedule, c.outMeta, 'Yuborilmoqda')
+            : m.read
+                ? (Icons.done_all, c.outMeta, 'O‘qildi')
+                : (Icons.done, c.outMeta, 'Yuborildi');
+    return Tooltip(message: tip, child: Icon(icon, size: 15, color: color));
+  }
+}
+
+/// Photo, voice, sticker... shown as an icon and a label for now
+/// (previews and players come later).
+class _MediaRow extends StatelessWidget {
+  const _MediaRow({required this.kind, required this.label});
+
+  final MediaKind kind;
+  final String label;
+
+  static IconData _icon(MediaKind k) => switch (k) {
+        MediaKind.photo => Icons.image_outlined,
+        MediaKind.video => Icons.videocam_outlined,
+        MediaKind.gif => Icons.gif_box_outlined,
+        MediaKind.sticker => Icons.emoji_emotions_outlined,
+        MediaKind.voice => Icons.mic_none,
+        MediaKind.videoNote => Icons.radio_button_checked,
+        MediaKind.audio => Icons.music_note_outlined,
+        MediaKind.location => Icons.place_outlined,
+        MediaKind.contact => Icons.person_outline,
+        MediaKind.poll => Icons.poll_outlined,
+        MediaKind.call => Icons.call_outlined,
+        MediaKind.other => Icons.attachment,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.fc;
+    return Padding(
+      padding: const EdgeInsets.only(top: 2, bottom: 4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(color: c.accentSoft, shape: BoxShape.circle),
+            child: Icon(_icon(kind), size: 19, color: c.accentText),
+          ),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Text(label, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: c.text)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Chat area before any chat is selected (Telegram's "Select a chat").
+class NoChatPlaceholder extends StatelessWidget {
+  const NoChatPlaceholder({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: WallpaperPainter.of(context.fc),
+      child: const Center(child: _DatePill('Suhbatni tanlang')),
     );
   }
 }

@@ -1,16 +1,32 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../data/models.dart';
 import '../theme.dart';
 
 class Avatar extends StatelessWidget {
-  const Avatar({super.key, required this.initials, required this.color, this.size = 50, this.online = false});
+  const Avatar({
+    super.key,
+    required this.initials,
+    required this.color,
+    this.size = 50,
+    this.online = false,
+    this.photo,
+    this.icon,
+  });
 
   final String initials;
   final Color color;
   final double size;
   final bool online;
+
+  /// Local path of a downloaded profile photo; initials are shown until then.
+  final String? photo;
+
+  /// Shown instead of initials (e.g. a bookmark for Saved Messages).
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
@@ -26,11 +42,24 @@ class Avatar extends StatelessWidget {
             height: size,
             alignment: Alignment.center,
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            child: Text(
-              initials,
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: size * 0.32),
-            ),
+            child: icon != null
+                ? Icon(icon, color: Colors.white, size: size * 0.46)
+                : Text(
+                    initials,
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: size * 0.32),
+                  ),
           ),
+          if (photo != null && icon == null)
+            ClipOval(
+              child: Image.file(
+                File(photo!),
+                width: size,
+                height: size,
+                fit: BoxFit.cover,
+                cacheWidth: (size * MediaQuery.devicePixelRatioOf(context)).round(),
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+              ),
+            ),
           if (online)
             Positioned(
               right: 1,
@@ -49,6 +78,25 @@ class Avatar extends StatelessWidget {
       ),
     );
   }
+}
+
+/// [Avatar] for a chat: profile photo, bookmark for Saved Messages, online dot.
+class ChatAvatar extends StatelessWidget {
+  const ChatAvatar(this.chat, {super.key, this.size = 50, this.showOnline = true});
+
+  final Chat chat;
+  final double size;
+  final bool showOnline;
+
+  @override
+  Widget build(BuildContext context) => Avatar(
+        initials: chat.initials,
+        color: chat.kind == ChatKind.saved ? context.fc.accent : chat.color,
+        size: size,
+        online: showOnline && chat.online,
+        photo: chat.photo,
+        icon: chat.kind == ChatKind.saved ? Icons.bookmark : null,
+      );
 }
 
 class CountBadge extends StatelessWidget {

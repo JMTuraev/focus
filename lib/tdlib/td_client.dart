@@ -17,10 +17,18 @@ class TdError implements Exception {
   String toString() => 'TdError($code): $message';
 }
 
+/// What the chat layer needs from TDLib; [TdClient] implements it and tests
+/// use a fake.
+abstract class TdApi {
+  Stream<TdObject> get updates;
+
+  Future<TdObject> query(TdObject request, {Duration timeout});
+}
+
 /// One TDLib client. Requests are sent from the main isolate; responses and
 /// updates come from a single shared background isolate that runs
 /// `td_receive` (TDLib allows only one receiving thread).
-class TdClient {
+class TdClient implements TdApi {
   TdClient._(this._td, this._clientId);
 
   final TdJson _td;
@@ -32,6 +40,7 @@ class TdClient {
   final _updates = StreamController<TdObject>.broadcast();
 
   /// All updates (`update*` objects) from TDLib.
+  @override
   Stream<TdObject> get updates => _updates.stream;
 
   static Future<TdClient> start({String libPath = 'tdjson.dll', int logLevel = 1}) async {
@@ -61,6 +70,7 @@ class TdClient {
   }
 
   /// Request with a response. Throws [TdError] when TDLib returns `error`.
+  @override
   Future<TdObject> query(TdObject request, {Duration timeout = const Duration(seconds: 30)}) {
     checkAllowed(request);
     if (_closed) return Future.error(TdError(500, 'Client is closed'));

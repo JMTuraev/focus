@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fokus/auth/mock_auth.dart';
 import 'package:fokus/main.dart';
-import 'package:fokus/state/app_state.dart';
+import 'package:fokus/ui/rail.dart';
 import 'package:fokus/state/settings.dart';
 
 import 'helpers/fonts.dart';
@@ -30,9 +30,7 @@ void main() {
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.reset);
 
-        final state = AppState();
         await tester.pumpWidget(FokusApp(
-          state: state,
           settings: Settings.inMemory(dark ? ThemeMode.dark : ThemeMode.light),
           auth: MockAuth(loggedIn: true),
         ));
@@ -55,7 +53,7 @@ void main() {
         expect(find.text('Ma’lumot').evaluate().isNotEmpty, !wasOpen);
 
         // Other modules render too.
-        state.openModule(Module.tasks);
+        await tester.tap(find.descendant(of: find.byType(Rail), matching: find.byIcon(Icons.checklist)));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
       });
@@ -67,7 +65,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(FokusApp(state: AppState(), settings: Settings.inMemory(ThemeMode.light), auth: MockAuth(loggedIn: true)));
+    await tester.pumpWidget(FokusApp(settings: Settings.inMemory(ThemeMode.light), auth: MockAuth(loggedIn: true)));
     await tester.pumpAndSettle();
     expect(find.text('Qidiruv'), findsOneWidget);
     expect(find.text('Xabar yozing…'), findsNothing);
@@ -88,7 +86,7 @@ void main() {
     addTearDown(tester.view.reset);
 
     final settings = Settings.inMemory(ThemeMode.light);
-    await tester.pumpWidget(FokusApp(state: AppState(), settings: settings, auth: MockAuth(loggedIn: true)));
+    await tester.pumpWidget(FokusApp(settings: settings, auth: MockAuth(loggedIn: true)));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Tungi rejimga o‘tish'));

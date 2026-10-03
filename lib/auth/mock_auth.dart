@@ -1,5 +1,8 @@
 import 'package:flutter/foundation.dart';
 
+import '../data/chat_source.dart';
+import '../data/local_store.dart';
+import '../data/mock_source.dart';
 import 'auth.dart';
 
 /// Login without Telegram, for UI work (`USE_MOCK=true`).
@@ -66,6 +69,10 @@ class MockAuth implements AuthService {
 
   @override
   void editPhone() => _state.value = const AuthState(AuthStep.waitPhone);
+
+  @override
+  Future<ChatSession> openSession() async =>
+      ChatSession(source: MockChatSource(), store: LocalStore.memory(), initialChatId: 'dilshod');
 
   @override
   Future<void> logOut() async {

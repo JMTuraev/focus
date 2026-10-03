@@ -7,7 +7,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fokus/auth/auth.dart';
 import 'package:fokus/auth/mock_auth.dart';
 import 'package:fokus/main.dart';
-import 'package:fokus/state/app_state.dart';
 import 'package:fokus/state/settings.dart';
 
 import 'helpers/fonts.dart';
@@ -23,7 +22,6 @@ Future<MockAuth> _pumpLogin(
   addTearDown(tester.view.reset);
   final auth = MockAuth(delay: delay);
   await tester.pumpWidget(FokusApp(
-    state: AppState(),
     settings: Settings.inMemory(dark ? ThemeMode.dark : ThemeMode.light),
     auth: auth,
   ));
@@ -120,7 +118,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final auth = MockAuth(loggedIn: true, delay: Duration.zero);
-    await tester.pumpWidget(FokusApp(state: AppState(), settings: Settings.inMemory(ThemeMode.light), auth: auth));
+    await tester.pumpWidget(FokusApp(settings: Settings.inMemory(ThemeMode.light), auth: auth));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Akkauntdan chiqish'));

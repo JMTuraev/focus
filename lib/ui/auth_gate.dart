@@ -1,27 +1,84 @@
 import 'package:flutter/material.dart';
 
 import '../auth/auth.dart';
+import '../data/chat_source.dart';
 import '../state/app_state.dart';
 import '../state/settings.dart';
 import '../theme.dart';
 import 'login/login_screen.dart';
 import 'shell.dart';
 
-/// Login screen until TDLib reports `authorizationStateReady`, then the app.
-class AuthGate extends StatelessWidget {
-  const AuthGate({super.key, required this.auth, required this.state, required this.settings});
+/// Login screen until TDLib reports `authorizationStateReady`, then the app
+/// with a chat session for that account. Logging out closes the session.
+class AuthGate extends StatefulWidget {
+  const AuthGate({super.key, required this.auth, required this.settings});
 
   final AuthService auth;
-  final AppState state;
   final Settings settings;
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  ChatSession? _session;
+  AppState? _state;
+  bool _opening = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.auth.state.addListener(_onAuth);
+    _onAuth();
+  }
+
+  @override
+  void dispose() {
+    widget.auth.state.removeListener(_onAuth);
+    _closeSession();
+    super.dispose();
+  }
+
+  Future<void> _onAuth() async {
+    final ready = widget.auth.state.value.step == AuthStep.ready;
+    if (ready && _session == null && !_opening) {
+      _opening = true;
+      try {
+        final session = await widget.auth.openSession();
+        if (!mounted || widget.auth.state.value.step != AuthStep.ready) {
+          await session.close();
+          return;
+        }
+        setState(() {
+          _session = session;
+          _state = AppState(source: session.source, store: session.store, initialChatId: session.initialChatId);
+        });
+      } finally {
+        _opening = false;
+      }
+    } else if (!ready && _session != null) {
+      setState(_closeSession);
+    }
+  }
+
+  void _closeSession() {
+    _state?.dispose();
+    _session?.close();
+    _state = null;
+    _session = null;
+  }
 
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<AuthState>(
-      valueListenable: auth.state,
-      builder: (context, s, _) => s.step == AuthStep.ready
-          ? Shell(state: state, settings: settings, onLogout: () => _confirmLogout(context))
-          : LoginScreen(auth: auth, settings: settings),
+      valueListenable: widget.auth.state,
+      builder: (context, s, _) {
+        final state = _state;
+        if (s.step == AuthStep.ready && state != null) {
+          return Shell(state: state, settings: widget.settings, onLogout: () => _confirmLogout(context));
+        }
+        return LoginScreen(auth: widget.auth, settings: widget.settings);
+      },
     );
   }
 
@@ -50,6 +107,6 @@ class AuthGate extends StatelessWidget {
         ],
       ),
     );
-    if (ok == true) await auth.logOut();
+    if (ok == true) await widget.auth.logOut();
   }
 }

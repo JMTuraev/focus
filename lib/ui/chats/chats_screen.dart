@@ -18,15 +18,18 @@ class ChatsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasChat = state.activeChat != null;
     return switch (mode) {
       LayoutMode.wide => Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             ChatList(state: state),
             Expanded(
-              child: ChatView(state: state, infoActive: state.infoOpen, onInfo: state.toggleInfo),
+              child: hasChat
+                  ? ChatView(state: state, infoActive: state.infoOpen, onInfo: state.toggleInfo)
+                  : const NoChatPlaceholder(),
             ),
-            if (state.infoOpen) InfoPanel(state: state, onClose: state.toggleInfo),
+            if (state.infoOpen && hasChat) InfoPanel(state: state, onClose: state.toggleInfo),
           ],
         ),
       LayoutMode.medium => Row(
@@ -34,40 +37,42 @@ class ChatsScreen extends StatelessWidget {
           children: [
             ChatList(state: state, width: MediaQuery.sizeOf(context).width < 1000 ? 300 : 340),
             Expanded(
-              child: LayoutBuilder(
-                builder: (context, box) => Stack(
-                  children: [
-                    Positioned.fill(
-                      child: ChatView(state: state, infoActive: state.infoOverlayOpen, onInfo: state.toggleInfoOverlay),
-                    ),
-                    if (state.infoOverlayOpen) ...[
-                      Positioned.fill(
-                        child: GestureDetector(
-                          onTap: state.toggleInfoOverlay,
-                          child: const ColoredBox(color: Color(0x33000000)),
-                        ),
-                      ),
-                      Positioned(
-                        top: 0,
-                        right: 0,
-                        bottom: 0,
-                        child: Material(
-                          elevation: 8,
-                          child: InfoPanel(
-                            state: state,
-                            width: math.min(320, box.maxWidth),
-                            onClose: state.toggleInfoOverlay,
+              child: !hasChat
+                  ? const NoChatPlaceholder()
+                  : LayoutBuilder(
+                      builder: (context, box) => Stack(
+                        children: [
+                          Positioned.fill(
+                            child: ChatView(state: state, infoActive: state.infoOverlayOpen, onInfo: state.toggleInfoOverlay),
                           ),
-                        ),
+                          if (state.infoOverlayOpen) ...[
+                            Positioned.fill(
+                              child: GestureDetector(
+                                onTap: state.toggleInfoOverlay,
+                                child: const ColoredBox(color: Color(0x33000000)),
+                              ),
+                            ),
+                            Positioned(
+                              top: 0,
+                              right: 0,
+                              bottom: 0,
+                              child: Material(
+                                elevation: 8,
+                                child: InfoPanel(
+                                  state: state,
+                                  width: math.min(320, box.maxWidth),
+                                  onClose: state.toggleInfoOverlay,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                    ],
-                  ],
-                ),
-              ),
+                    ),
             ),
           ],
         ),
-      LayoutMode.narrow => !state.narrowChatOpen
+      LayoutMode.narrow => !(state.narrowChatOpen && hasChat)
           ? ChatList(state: state, width: double.infinity)
           : state.infoOverlayOpen
               ? InfoPanel(state: state, width: double.infinity, onClose: state.toggleInfoOverlay)

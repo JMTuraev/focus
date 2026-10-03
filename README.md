@@ -39,7 +39,7 @@ lib/
   theme.dart             ranglar (yorug‘ va tungi palitra)
   config.dart            api_id/api_hash (build vaqtida)
   auth/                  login: AuthService, MockAuth (sinov rejimi)
-  data/                  modellar va soxta ma'lumot
+  data/                  modellar, ChatSource, soxta ma’lumot, lokal holat (to‘plamlar)
   state/app_state.dart   UI holati (filtrlar, to'plamlar, yuborish)
   state/settings.dart    sozlamalar (mavzu rejimi)
   ui/                    sarlavha, chap panel, chatlar ekrani
@@ -50,6 +50,7 @@ lib/
     td_client.dart       so'rov/javob + update oqimi (alohida isolate)
     td_auth.dart         login oqimi (TdAuth) + LocalMode qoidalari
     db_key.dart          TDLib bazasi kaliti (Windows DPAPI)
+    td_chats.dart        chatlar va xabarlar TDLib update’laridan (TdChatSource)
 tool/
   td_check.dart          DLL tekshiruvi
   setup_windows.ps1      DLL'larni fokus.exe yoniga nusxalash qoidasi

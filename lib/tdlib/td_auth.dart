@@ -6,8 +6,11 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../auth/auth.dart';
+import '../data/chat_source.dart';
+import '../data/local_store.dart';
 import '../config.dart';
 import 'db_key.dart';
+import 'td_chats.dart';
 import 'td_client.dart';
 
 /// Telegram login through TDLib: phone → code → 2FA password.
@@ -244,6 +247,15 @@ class TdAuth implements AuthService {
     } catch (e) {
       debugPrint('logOut: $e');
     }
+  }
+
+  @override
+  Future<ChatSession> openSession() async {
+    final td = _td;
+    if (td == null) throw StateError('TDLib client is not running');
+    final source = TdChatSource(td);
+    unawaited(source.start());
+    return ChatSession(source: source, store: await LocalStore.open());
   }
 
   Future<void> dispose() async {

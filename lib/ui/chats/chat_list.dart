@@ -79,7 +79,18 @@ class ChatList extends StatelessWidget {
           ),
           Expanded(
             child: chats.isEmpty
-                ? Center(child: Text('Bu filtrda chat yo‘q', style: TextStyle(color: c.text2)))
+                ? Center(
+                    child: state.loadingChats
+                        ? Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.4, color: c.accent)),
+                              const SizedBox(height: 12),
+                              Text('Chatlar yuklanmoqda…', style: TextStyle(color: c.text2)),
+                            ],
+                          )
+                        : Text('Bu filtrda chat yo‘q', style: TextStyle(color: c.text2)),
+                  )
                 : ListView.builder(
                     padding: const EdgeInsets.fromLTRB(6, 0, 6, 8),
                     itemCount: chats.length,
@@ -192,7 +203,7 @@ class _ChatTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 10),
           child: Row(
             children: [
-              Avatar(initials: chat.initials, color: chat.color, online: chat.online),
+              ChatAvatar(chat),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(

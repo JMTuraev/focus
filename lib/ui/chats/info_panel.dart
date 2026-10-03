@@ -19,7 +19,10 @@ class InfoPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.fc;
     final chat = state.activeChat;
+    if (chat == null) return SizedBox(width: width.isFinite ? width : null);
     final current = state.collectionOf(chat);
+    // Phone and bio/description are fetched once per chat when the panel shows.
+    WidgetsBinding.instance.addPostFrameCallback((_) => state.loadDetails(chat.id));
     final accentLabel = TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: c.accentText);
     return Container(
       width: width,
@@ -42,13 +45,22 @@ class InfoPanel extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          Center(child: Avatar(initials: chat.initials, color: chat.color, size: 88)),
+          Center(child: ChatAvatar(chat, size: 88, showOnline: false)),
           const SizedBox(height: 10),
-          Center(child: Text(chat.name, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: c.text))),
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                chat.name,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: c.text),
+              ),
+            ),
+          ),
           Center(child: Text(chat.status, style: TextStyle(fontSize: 13, color: chat.online ? c.accentText : c.text2))),
           const SizedBox(height: 12),
           if (chat.phone.isNotEmpty) _Row(icon: Icons.call_outlined, title: chat.phone, subtitle: 'Telefon'),
-          _Row(icon: Icons.info_outline, title: chat.about, subtitle: 'Izoh'),
+          if (chat.about.isNotEmpty) _Row(icon: Icons.info_outline, title: chat.about, subtitle: 'Izoh'),
           const SizedBox(height: 8),
           Container(height: 8, color: c.bg),
           Padding(

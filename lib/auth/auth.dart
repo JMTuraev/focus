@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../data/chat_source.dart';
+
 /// Login steps shown by the login screen.
 enum AuthStep {
   /// Connecting to Telegram / opening the local database.
@@ -94,6 +96,9 @@ abstract class AuthService {
   void editPhone();
 
   Future<void> logOut();
+
+  /// Chats for the logged-in user; call once the step is [AuthStep.ready].
+  Future<ChatSession> openSession();
 }
 
 /// `+998901234567` → `+998 90 123 45 67`; other countries in groups of 3.

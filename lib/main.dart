@@ -8,7 +8,6 @@ import 'package:window_manager/window_manager.dart';
 import 'auth/auth.dart';
 import 'auth/mock_auth.dart';
 import 'config.dart';
-import 'state/app_state.dart';
 import 'state/settings.dart';
 import 'tdlib/td_auth.dart';
 import 'theme.dart';
@@ -37,7 +36,7 @@ Future<void> main() async {
   final AuthService auth = AppConfig.useMock ? MockAuth() : TdAuth();
   unawaited(auth.start());
 
-  runApp(FokusApp(state: AppState(), settings: settings, auth: auth));
+  runApp(FokusApp(settings: settings, auth: auth));
 }
 
 /// Keeps the window (and so the custom title bar) inside the screen's
@@ -59,9 +58,8 @@ Future<void> _fitToScreen() async {
 }
 
 class FokusApp extends StatelessWidget {
-  const FokusApp({super.key, required this.state, required this.settings, required this.auth});
+  const FokusApp({super.key, required this.settings, required this.auth});
 
-  final AppState state;
   final Settings settings;
   final AuthService auth;
 
@@ -75,7 +73,7 @@ class FokusApp extends StatelessWidget {
         theme: buildTheme(Brightness.light),
         darkTheme: buildTheme(Brightness.dark),
         themeMode: settings.themeMode,
-        home: AuthGate(auth: auth, state: state, settings: settings),
+        home: AuthGate(auth: auth, settings: settings),
       ),
     );
   }

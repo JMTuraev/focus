@@ -1,20 +1,29 @@
 import 'package:flutter/foundation.dart';
 
-import '../data/mock.dart';
+import '../data/chat_source.dart';
+import '../data/local_store.dart';
 import '../data/models.dart';
 
 enum Module { chats, collections, tasks, calendar, notes, files, stats }
 
 enum ChatFilter { waiting, unread, all }
 
-/// UI state for phase 0 (mock data). In phase 1 the chat/message
-/// getters are backed by TDLib, the rest by the local database.
+/// UI state on top of a [ChatSource] (mock or TDLib) and the [LocalStore]
+/// with Fokus-only data (collections, locally seen messages).
 class AppState extends ChangeNotifier {
+  AppState({required this.source, required this.store, String? initialChatId}) : activeChatId = initialChatId {
+    source.addListener(_onSource);
+  }
+
+  final ChatSource source;
+  final LocalStore store;
+
   Module module = Module.chats;
   String collection = 'all';
   ChatFilter filter = ChatFilter.all;
-  String activeChatId = 'dilshod';
+  String? activeChatId;
   String query = '';
+
   /// Docked info column (wide layout).
   bool infoOpen = true;
 
@@ -25,10 +34,21 @@ class AppState extends ChangeNotifier {
   bool narrowChatOpen = false;
   String? selectedMessageId;
 
-  final Map<String, List<Message>> _sent = {};
-  final Set<String> _read = {};
-  final Set<String> _replied = {};
-  final Map<String, String> _collectionOverride = {};
+  void _onSource() {
+    // Messages arriving in the chat the user is looking at count as seen.
+    final c = activeChat;
+    if (c != null) store.setSeen(c.id, c.unread);
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    source.removeListener(_onSource);
+    final id = activeChatId;
+    if (id != null) source.close(id);
+    store.flush();
+    super.dispose();
+  }
 
   // ---- navigation ----
   void openModule(Module m) {
@@ -72,15 +92,31 @@ class AppState extends ChangeNotifier {
   }
 
   // ---- chats ----
-  String collectionOf(Chat c) => _collectionOverride[c.id] ?? c.collection;
-  int unreadOf(Chat c) => _read.contains(c.id) ? 0 : c.unread;
-  bool waitingOf(Chat c) => c.waiting && !_replied.contains(c.id);
+  String collectionOf(Chat c) => store.collectionOf(c.id) ?? c.collection;
 
-  Chat get activeChat => kChats.firstWhere((c) => c.id == activeChatId);
+  /// Unread messages not yet seen in Fokus. Telegram's own counter is left
+  /// untouched (no viewMessages); if it drops because the chat was read on
+  /// another device, the local mark follows it down.
+  int unreadOf(Chat c) {
+    final seen = store.seenOf(c.id);
+    if (c.unread < seen) {
+      store.setSeen(c.id, c.unread);
+      return 0;
+    }
+    return c.unread - seen;
+  }
 
-  List<Chat> get chatsInCollection => kChats
-      .where((c) => collection == 'all' || collectionOf(c) == collection)
-      .toList();
+  bool waitingOf(Chat c) => c.waiting;
+
+  Chat? get activeChat {
+    final id = activeChatId;
+    return id == null ? null : source.chatById(id);
+  }
+
+  bool get loadingChats => source.loading;
+
+  List<Chat> get chatsInCollection =>
+      source.chats.where((c) => collection == 'all' || collectionOf(c) == collection).toList();
 
   List<Chat> get visibleChats {
     final q = query.trim().toLowerCase();
@@ -95,38 +131,47 @@ class AppState extends ChangeNotifier {
   int get waitingCount => chatsInCollection.where(waitingOf).length;
   int get unreadChatCount => chatsInCollection.where((c) => unreadOf(c) > 0).length;
 
-  int badgeFor(String collectionId) => kChats
+  int badgeFor(String collectionId) => source.chats
       .where((c) =>
           (collectionId == 'all' || collectionOf(c) == collectionId) &&
           unreadOf(c) > 0 &&
           !c.muted)
       .length;
 
-  String lastOf(Chat c) {
-    final s = _sent[c.id];
-    return (s != null && s.isNotEmpty) ? 'Siz: ${s.last.text}' : c.last;
-  }
+  String lastOf(Chat c) => c.last;
 
   void openChat(String id) {
+    final previous = activeChatId;
+    if (previous != null && previous != id) source.close(previous);
     activeChatId = id;
     selectedMessageId = null;
     narrowChatOpen = true;
-    // Local mode: this only clears the badge inside Fokus.
+    // Local mode: only the badge inside Fokus is cleared.
     // Nothing is reported to Telegram (no viewMessages call).
-    _read.add(id);
+    final c = source.chatById(id);
+    if (c != null) store.setSeen(id, c.unread);
+    source.open(id);
     notifyListeners();
   }
 
   void moveToCollection(String chatId, String collectionId) {
-    _collectionOverride[chatId] = collectionId;
+    store.setCollection(chatId, collectionId);
     notifyListeners();
   }
 
+  void loadDetails(String chatId) => source.loadDetails(chatId);
+
   // ---- messages ----
-  List<Message> messagesOf(String chatId) {
-    final chat = kChats.firstWhere((c) => c.id == chatId);
-    final base = kMessages[chatId] ?? fallbackMessages(chat);
-    return [...base, ...?_sent[chatId]];
+  List<Message> messagesOf(String chatId) => source.messagesOf(chatId);
+
+  bool get loadingHistory {
+    final id = activeChatId;
+    return id != null && source.loadingHistory(id);
+  }
+
+  void loadOlder() {
+    final id = activeChatId;
+    if (id != null) source.loadOlder(id);
   }
 
   void selectMessage(String id) {
@@ -136,7 +181,9 @@ class AppState extends ChangeNotifier {
 
   /// Selected message, or the latest incoming one.
   Message? get targetMessage {
-    final list = messagesOf(activeChatId);
+    final id = activeChatId;
+    if (id == null) return null;
+    final list = messagesOf(id).where((m) => !m.service).toList();
     if (selectedMessageId != null) {
       for (final m in list) {
         if (m.id == selectedMessageId) return m;
@@ -148,15 +195,9 @@ class AppState extends ChangeNotifier {
     return list.isEmpty ? null : list.last;
   }
 
-  void send(String text) {
-    final t = text.trim();
-    if (t.isEmpty) return;
-    final now = DateTime.now();
-    final time = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-    (_sent[activeChatId] ??= []).add(
-      Message(id: '$activeChatId-s${now.microsecondsSinceEpoch}', text: t, time: time, out: true),
-    );
-    _replied.add(activeChatId);
-    notifyListeners();
+  Future<void> send(String text) async {
+    final id = activeChatId;
+    if (id == null || text.trim().isEmpty) return;
+    await source.send(id, text);
   }
 }

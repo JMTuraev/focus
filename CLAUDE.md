@@ -45,6 +45,13 @@ Breakpoints are in `lib/ui/layout.dart`, modelled on Telegram Desktop:
 - Never log, print or store the phone number, login code, password or database key.
 - Real TDLib run: `flutter run -d windows --dart-define-from-file=secrets.json --dart-define=USE_MOCK=false`.
 
+## Chats (phase 1)
+- `lib/data/chat_source.dart`: `ChatSource` (chats, messages, send, history) and `ChatSession`. UI and `AppState` only use this.
+- `lib/data/mock_source.dart` wraps the mock data; `lib/tdlib/td_chats.dart` (`TdChatSource`) builds chats from TDLib `update*` objects.
+- `TdChatSource` talks to TDLib through `TdApi`, so `test/td_chats_test.dart` can drive it with a fake.
+- Fokus-only data (collections, unread already seen in Fokus) lives in `lib/data/local_store.dart` (`local_state.json`) until phase 2 moves it to drift.
+- `openChat`/`closeChat`/`getChatHistory` are allowed; anything that marks messages as read is not.
+
 ## Phases
 0. Skeleton: mock UI, TDLib FFI layer, Windows build, TDLib CI build.
 1. Login (phone → code → 2FA password), chat list and messages from TDLib, collections, filters, TDLib database encrypted with a DPAPI-protected key.
