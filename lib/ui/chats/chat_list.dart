@@ -232,6 +232,15 @@ class _ChatTile extends StatelessWidget {
                         if (unread > 0) ...[
                           const SizedBox(width: 6),
                           CountBadge(unread, muted: chat.muted, inverted: active),
+                        ] else if (chat.pinned && !waiting) ...[
+                          const SizedBox(width: 6),
+                          Tooltip(
+                            message: 'Qadalgan',
+                            child: Transform.rotate(
+                              angle: 0.75,
+                              child: Icon(Icons.push_pin_outlined, size: 16, color: active ? Colors.white : c.text2),
+                            ),
+                          ),
                         ],
                       ],
                     ),

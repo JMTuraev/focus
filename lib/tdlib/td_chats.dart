@@ -114,6 +114,8 @@ class TdChatSource extends ChatSource {
         chat?['unread_mention_count'] = u['unread_mention_count'];
       case 'updateChatNotificationSettings':
         chat?['notification_settings'] = u['notification_settings'];
+      case 'updateChatPermissions':
+        chat?['permissions'] = u['permissions'];
       case 'updateChatIsMarkedAsUnread':
         chat?['is_marked_as_unread'] = u['is_marked_as_unread'];
       case 'updateUser':
@@ -160,6 +162,14 @@ class TdChatSource extends ChatSource {
     list.removeWhere((p) => _sameList(p['list'] as TdObject, position['list'] as TdObject));
     if (position['order'] != '0' && position['order'] != 0) list.add(position);
     chat['positions'] = list;
+  }
+
+  static bool _mainPinned(TdObject chat) {
+    for (final p in (chat['positions'] as List? ?? const [])) {
+      final pos = p as TdObject;
+      if ((pos['list'] as TdObject)['@type'] == _mainList) return pos['is_pinned'] == true;
+    }
+    return false;
   }
 
   static int _mainOrder(TdObject chat) {
@@ -273,16 +283,58 @@ class TdChatSource extends ChatSource {
       about: _about[id] ?? '',
       photo: _photo(c['photo'] as TdObject?),
       kind: kind,
+      pinned: _mainPinned(c),
+      canSend: _canSend(c, kind, user),
     );
   }
 
-  /// Private chats whose last message is from the other side, and groups
-  /// where we were mentioned and have not looked yet.
+  /// Telegram's own service account (login codes, security notices).
+  static const _serviceUserId = 777000;
+
+  /// Older incoming messages no longer count as "waiting for a reply".
+  static const waitingWindow = Duration(days: 7);
+
+  /// Private chats whose last message is a recent one from a real person,
+  /// and groups where we were mentioned and have not looked yet.
   bool _waiting(TdObject chat, ChatKind kind, TdObject? last) {
     if (kind == ChatKind.group) return ((chat['unread_mention_count'] as int?) ?? 0) > 0;
     if (kind != ChatKind.private || last == null) return false;
     if (last['is_outgoing'] == true) return false;
+    final userId = (chat['type'] as TdObject)['user_id'];
+    if (userId == _serviceUserId) return false;
+    final user = _users[userId];
+    if ((user?['type'] as TdObject?)?['@type'] == 'userTypeDeleted') return false;
+    final date = DateTime.fromMillisecondsSinceEpoch((last['date'] as int) * 1000);
+    if (DateTime.now().difference(date) > waitingWindow) return false;
     return !_isService((last['content'] as TdObject)['@type'] as String);
+  }
+
+  /// Whether the composer should be shown: channels only for admins who may
+  /// post, groups unless we left, were banned or are restricted.
+  bool _canSend(TdObject chat, ChatKind kind, TdObject? user) {
+    final type = chat['type'] as TdObject;
+    switch (kind) {
+      case ChatKind.private || ChatKind.bot || ChatKind.saved:
+        return (user?['type'] as TdObject?)?['@type'] != 'userTypeDeleted';
+      case ChatKind.channel || ChatKind.group:
+        final g = type['@type'] == 'chatTypeBasicGroup'
+            ? _basicGroups[type['basic_group_id']]
+            : _supergroups[type['supergroup_id']];
+        final status = g?['status'] as TdObject?;
+        final st = status?['@type'];
+        if (st == 'chatMemberStatusCreator') return true;
+        if (st == 'chatMemberStatusAdministrator') {
+          if (kind == ChatKind.group) return true;
+          final rights = status!['rights'] as TdObject?;
+          return rights?['can_post_messages'] == true;
+        }
+        if (kind == ChatKind.channel) return false;
+        if (st == 'chatMemberStatusLeft' || st == 'chatMemberStatusBanned') return false;
+        if (st == 'chatMemberStatusRestricted') {
+          return (status!['permissions'] as TdObject?)?['can_send_basic_messages'] == true;
+        }
+        return (chat['permissions'] as TdObject?)?['can_send_basic_messages'] != false;
+    }
   }
 
   String _status(TdObject chat, ChatKind kind, TdObject? user) {

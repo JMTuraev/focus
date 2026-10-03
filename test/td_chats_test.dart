@@ -79,7 +79,8 @@ TdObject user(int id, String first, {String last = '', TdObject? status, String 
       'status': status ?? {'@type': 'userStatusRecently'},
     };
 
-int _date = 1790000000;
+// One day ago, so test messages are inside the 7-day "waiting" window.
+final int _date = DateTime.now().millisecondsSinceEpoch ~/ 1000 - 86400;
 
 TdObject text(int chatId, int id, String body, {bool out = false, int sender = 0, TdObject? sending}) => {
       '@type': 'message',
@@ -305,6 +306,64 @@ void main() {
     });
     expect(source.chats.single.photo, r'C:\tdlib\files\photo.jpg');
     expect(td.sent('downloadFile').length, 1);
+  });
+
+  test('pinned chats, and where the composer is shown', () async {
+    final (td, source) = await started();
+    td.push({
+      '@type': 'updateNewChat',
+      'chat': {
+        ...privateChat(1, 'Dilshod'),
+        'positions': [
+          {'@type': 'chatPosition', 'list': {'@type': 'chatListMain'}, 'order': '9', 'is_pinned': true},
+        ],
+      },
+    });
+    expect(source.chatById('1')!.pinned, isTrue);
+    expect(source.chatById('1')!.canSend, isTrue);
+
+    TdObject channel(int id, int supergroupId) => {
+          ...groupChat(id, 'Kanal', order: 3),
+          'type': {'@type': 'chatTypeSupergroup', 'supergroup_id': supergroupId, 'is_channel': true},
+        };
+    td.push({
+      '@type': 'updateSupergroup',
+      'supergroup': {'id': 11, 'status': {'@type': 'chatMemberStatusMember'}},
+    });
+    td.push({
+      '@type': 'updateSupergroup',
+      'supergroup': {
+        'id': 12,
+        'status': {
+          '@type': 'chatMemberStatusAdministrator',
+          'rights': {'can_post_messages': true},
+        },
+      },
+    });
+    td.push({'@type': 'updateNewChat', 'chat': channel(-11, 11)});
+    td.push({'@type': 'updateNewChat', 'chat': channel(-12, 12)});
+    expect(source.chatById('-11')!.canSend, isFalse, reason: 'subscriber of a channel');
+    expect(source.chatById('-12')!.canSend, isTrue, reason: 'admin who may post');
+
+    td.push({'@type': 'updateNewChat', 'chat': groupChat(-9, 'Jamoa', order: 5)});
+    expect(source.chatById('-9')!.canSend, isTrue);
+    td.push({
+      '@type': 'updateChatPermissions',
+      'chat_id': -9,
+      'permissions': {'can_send_basic_messages': false},
+    });
+    expect(source.chatById('-9')!.canSend, isFalse, reason: 'group closed for members');
+  });
+
+  test('waiting ignores Telegram notifications and old messages', () async {
+    final (td, source) = await started();
+    td.push({'@type': 'updateNewChat', 'chat': privateChat(777000, 'Telegram', order: 9, last: text(777000, 1, 'Login code'))});
+    final old = {...text(2, 1, 'Eski savol'), 'date': DateTime.now().millisecondsSinceEpoch ~/ 1000 - 30 * 86400};
+    td.push({'@type': 'updateNewChat', 'chat': privateChat(2, 'Eski', order: 8, last: old)});
+    td.push({'@type': 'updateNewChat', 'chat': privateChat(3, 'Yangi', order: 7, last: text(3, 1, 'Savol'))});
+    expect(source.chatById('777000')!.waiting, isFalse);
+    expect(source.chatById('2')!.waiting, isFalse);
+    expect(source.chatById('3')!.waiting, isTrue);
   });
 
   test('Fokus-only seen counter hides badges without telling Telegram', () async {

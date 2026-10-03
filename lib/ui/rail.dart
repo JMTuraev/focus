@@ -159,7 +159,10 @@ class _RailItem extends StatelessWidget {
                       borderRadius: BorderRadius.circular(9),
                       border: Border.all(color: c.panel, width: 2),
                     ),
-                    child: Text('$badge', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+                    child: Text(
+                      badge > 99 ? '99+' : '$badge',
+                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
+                    ),
                   ),
                 ),
             ],

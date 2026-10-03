@@ -27,6 +27,8 @@ class Chat {
     this.about = '',
     this.photo,
     this.kind = ChatKind.private,
+    this.pinned = false,
+    this.canSend = true,
   });
 
   final String id;
@@ -57,6 +59,13 @@ class Chat {
   final String? photo;
   final ChatKind kind;
 
+  /// Pinned in the main chat list.
+  final bool pinned;
+
+  /// False for channels where we are not an admin, or groups that do not let
+  /// us write; the composer is replaced by a read-only note.
+  final bool canSend;
+
   Chat copyWith({String? last, String? time, int? unread, bool? waiting, String? phone, String? about}) => Chat(
         id: id,
         name: name,
@@ -74,6 +83,8 @@ class Chat {
         about: about ?? this.about,
         photo: photo,
         kind: kind,
+        pinned: pinned,
+        canSend: canSend,
       );
 }
 

@@ -170,7 +170,10 @@ class _ChatViewState extends State<ChatView> {
             ),
           ),
         ),
-        _Composer(controller: _input, focus: _focus, onSend: _send, onAttach: () => _toast('Fayl tanlash 1-bosqichda ulanadi')),
+        if (chat.canSend)
+          _Composer(controller: _input, focus: _focus, onSend: _send, onAttach: () => _toast('Fayl tanlash 1-bosqichda ulanadi'))
+        else
+          _ReadOnlyBar(channel: chat.kind == ChatKind.channel),
       ],
     );
   }
@@ -599,6 +602,38 @@ class NoChatPlaceholder extends StatelessWidget {
     return CustomPaint(
       painter: WallpaperPainter.of(context.fc),
       child: const Center(child: _DatePill('Suhbatni tanlang')),
+    );
+  }
+}
+
+/// Replaces the composer where we cannot write (channels, restricted groups).
+class _ReadOnlyBar extends StatelessWidget {
+  const _ReadOnlyBar({required this.channel});
+
+  final bool channel;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.fc;
+    return Container(
+      height: 58,
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(color: c.panel, border: Border(top: BorderSide(color: c.border))),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(channel ? Icons.campaign_outlined : Icons.lock_outline, size: 18, color: c.text2),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              channel ? 'Kanal · faqat o‘qish mumkin' : 'Bu guruhga yozish huquqingiz yo‘q',
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 14, color: c.text2),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
