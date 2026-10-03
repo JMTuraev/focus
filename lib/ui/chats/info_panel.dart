@@ -6,61 +6,72 @@ import '../../theme.dart';
 import '../common.dart';
 
 class InfoPanel extends StatelessWidget {
-  const InfoPanel({super.key, required this.state});
+  const InfoPanel({super.key, required this.state, required this.onClose, this.width = 320});
 
   final AppState state;
+  final VoidCallback onClose;
+
+  /// 320 when docked or sliding over the chat; `double.infinity` in the
+  /// narrow (one-column) layout.
+  final double width;
 
   @override
   Widget build(BuildContext context) {
+    final c = context.fc;
     final chat = state.activeChat;
     final current = state.collectionOf(chat);
+    final accentLabel = TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: c.accentText);
     return Container(
-      width: 320,
-      decoration: const BoxDecoration(color: FC.panel, border: Border(left: BorderSide(color: FC.border))),
+      width: width,
+      decoration: BoxDecoration(
+        color: c.panel,
+        border: width.isFinite ? Border(left: BorderSide(color: c.border)) : null,
+      ),
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
           Container(
             height: 56,
             padding: const EdgeInsets.only(left: 18, right: 8),
-            decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: FC.border))),
+            decoration: BoxDecoration(border: Border(bottom: BorderSide(color: c.border))),
             child: Row(
               children: [
-                const Expanded(child: Text('Ma’lumot', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700))),
-                IconButton(tooltip: 'Panelni yopish', onPressed: state.toggleInfo, icon: const Icon(Icons.close, size: 18, color: FC.icon)),
+                Expanded(child: Text('Ma’lumot', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: c.text))),
+                IconButton(tooltip: 'Panelni yopish', onPressed: onClose, icon: Icon(Icons.close, size: 18, color: c.icon)),
               ],
             ),
           ),
           const SizedBox(height: 20),
           Center(child: Avatar(initials: chat.initials, color: chat.color, size: 88)),
           const SizedBox(height: 10),
-          Center(child: Text(chat.name, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700))),
-          Center(child: Text(chat.status, style: TextStyle(fontSize: 13, color: chat.online ? FC.accentStrong : FC.text2))),
+          Center(child: Text(chat.name, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: c.text))),
+          Center(child: Text(chat.status, style: TextStyle(fontSize: 13, color: chat.online ? c.accentText : c.text2))),
           const SizedBox(height: 12),
           if (chat.phone.isNotEmpty) _Row(icon: Icons.call_outlined, title: chat.phone, subtitle: 'Telefon'),
           _Row(icon: Icons.info_outline, title: chat.about, subtitle: 'Izoh'),
           const SizedBox(height: 8),
-          Container(height: 8, color: FC.bg),
+          Container(height: 8, color: c.bg),
           Padding(
             padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('To‘plam', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: FC.accentStrong)),
+                Text('To‘plam', style: accentLabel),
                 const SizedBox(height: 10),
                 Wrap(
                   spacing: 6,
                   runSpacing: 6,
                   children: [
-                    for (final c in kCollections.skip(1))
+                    for (final col in kCollections.skip(1))
                       _TagChip(
-                        label: c.label,
-                        active: current == c.id,
+                        label: col.label,
+                        active: current == col.id,
                         onTap: () {
-                          state.moveToCollection(chat.id, c.id);
-                          ScaffoldMessenger.of(context)
-                            ..hideCurrentSnackBar()
-                            ..showSnackBar(SnackBar(width: 480, content: Text('${chat.name} → ${c.label} to‘plamiga ko‘chirildi')));
+                          state.moveToCollection(chat.id, col.id);
+                          showToast(
+                            context,
+                            (w) => SnackBar(width: w < 480 ? w : 480, content: Text('${chat.name} → ${col.label} to‘plamiga ko‘chirildi')),
+                          );
                         },
                       ),
                   ],
@@ -68,10 +79,10 @@ class InfoPanel extends StatelessWidget {
               ],
             ),
           ),
-          Container(height: 8, color: FC.bg),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(18, 14, 18, 6),
-            child: Text('Shu chatdan', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: FC.accentStrong)),
+          Container(height: 8, color: c.bg),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 6),
+            child: Text('Shu chatdan', style: accentLabel),
           ),
           _Link(icon: Icons.checklist, label: 'Vazifalar', onTap: () => state.openModule(Module.tasks)),
           _Link(icon: Icons.calendar_today_outlined, label: 'Uchrashuvlar', onTap: () => state.openModule(Module.calendar)),
@@ -93,19 +104,20 @@ class _Row extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.fc;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: FC.text2),
+          Icon(icon, size: 20, color: c.text2),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontSize: 14)),
-                Text(subtitle, style: const TextStyle(fontSize: 12, color: FC.text2)),
+                Text(title, style: TextStyle(fontSize: 14, color: c.text)),
+                Text(subtitle, style: TextStyle(fontSize: 12, color: c.text2)),
               ],
             ),
           ),
@@ -124,16 +136,17 @@ class _TagChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.fc;
     return Tap(
       onTap: onTap,
       radius: 14,
-      color: active ? FC.accentSoft : Colors.white,
-      border: Border.all(color: active ? const Color(0xFF9CC2EC) : const Color(0xFFDDE1E6)),
+      color: active ? c.accentSoft : c.panel,
+      border: Border.all(color: active ? c.tagActiveBorder : c.chipBorder),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         child: Text(
           label,
-          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: active ? const Color(0xFF1E5FA6) : const Color(0xFF3A4048)),
+          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: active ? c.qaFg : c.textSoft),
         ),
       ),
     );
@@ -149,6 +162,7 @@ class _Link extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.fc;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Tap(
@@ -159,10 +173,10 @@ class _Link extends StatelessWidget {
           child: Row(
             children: [
               const SizedBox(width: 10),
-              Icon(icon, size: 20, color: FC.text2),
+              Icon(icon, size: 20, color: c.text2),
               const SizedBox(width: 12),
-              Expanded(child: Text(label, style: const TextStyle(fontSize: 14))),
-              const Icon(Icons.chevron_right, size: 18, color: FC.text2),
+              Expanded(child: Text(label, style: TextStyle(fontSize: 14, color: c.text))),
+              Icon(Icons.chevron_right, size: 18, color: c.text2),
               const SizedBox(width: 8),
             ],
           ),

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../theme.dart';
@@ -12,6 +14,7 @@ class Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.fc;
     return SizedBox(
       width: size,
       height: size,
@@ -36,9 +39,9 @@ class Avatar extends StatelessWidget {
                 width: size * 0.24,
                 height: size * 0.24,
                 decoration: BoxDecoration(
-                  color: FC.online,
+                  color: c.online,
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
+                  border: Border.all(color: c.panel, width: 2),
                 ),
               ),
             ),
@@ -57,8 +60,9 @@ class CountBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = inverted ? Colors.white : (muted ? FC.muted : FC.accentStrong);
-    final fg = inverted ? FC.accentStrong : Colors.white;
+    final c = context.fc;
+    final bg = inverted ? Colors.white : (muted ? c.muted : c.accentStrong);
+    final fg = inverted ? c.accentStrong : Colors.white;
     return Container(
       constraints: const BoxConstraints(minWidth: 22),
       height: 22,
@@ -83,7 +87,7 @@ class WaitingDot extends StatelessWidget {
         width: 10,
         height: 10,
         decoration: BoxDecoration(
-          color: FC.waiting,
+          color: context.fc.waiting,
           shape: BoxShape.circle,
           border: ring ? Border.all(color: Colors.white, width: 2) : null,
         ),
@@ -99,7 +103,7 @@ class Tap extends StatelessWidget {
     required this.onTap,
     required this.child,
     this.color = Colors.transparent,
-    this.hover = FC.hover,
+    this.hover,
     this.radius = 10,
     this.border,
   });
@@ -107,13 +111,16 @@ class Tap extends StatelessWidget {
   final VoidCallback? onTap;
   final Widget child;
   final Color color;
-  final Color hover;
+
+  /// Defaults to the palette's hover color.
+  final Color? hover;
   final double radius;
   final BoxBorder? border;
 
   @override
   Widget build(BuildContext context) {
     final r = BorderRadius.circular(radius);
+    final h = hover ?? context.fc.hover;
     return Material(
       color: color,
       shape: RoundedRectangleBorder(borderRadius: r),
@@ -121,8 +128,8 @@ class Tap extends StatelessWidget {
         decoration: BoxDecoration(borderRadius: r, border: border),
         child: InkWell(
           borderRadius: r,
-          hoverColor: hover,
-          highlightColor: hover,
+          hoverColor: h,
+          highlightColor: h,
           onTap: onTap,
           child: child,
         ),
@@ -131,15 +138,29 @@ class Tap extends StatelessWidget {
   }
 }
 
-/// Light doodle-like dot pattern for the chat background.
+/// Floating snack bar that never gets wider than the window.
+void showToast(BuildContext context, SnackBar Function(double width) build) {
+  final width = math.min(560.0, MediaQuery.sizeOf(context).width - 32);
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(build(width));
+}
+
+/// Doodle-like dot pattern for the chat background.
 class WallpaperPainter extends CustomPainter {
-  const WallpaperPainter();
+  const WallpaperPainter({required this.base, required this.dotLight, required this.dotDark});
+
+  WallpaperPainter.of(FokusColors c) : this(base: c.wallpaper, dotLight: c.wallDotLight, dotDark: c.wallDotDark);
+
+  final Color base;
+  final Color dotLight;
+  final Color dotDark;
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Offset.zero & size, Paint()..color = FC.wallpaper);
-    final light = Paint()..color = Colors.white.withValues(alpha: 0.5);
-    final dark = Paint()..color = const Color(0xFF466E32).withValues(alpha: 0.13);
+    canvas.drawRect(Offset.zero & size, Paint()..color = base);
+    final light = Paint()..color = dotLight;
+    final dark = Paint()..color = dotDark;
     for (double y = 0; y < size.height + 52; y += 52) {
       for (double x = 0; x < size.width + 48; x += 48) {
         canvas.drawCircle(Offset(x + 10, y + 10), 2.2, light);
@@ -150,5 +171,6 @@ class WallpaperPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant WallpaperPainter old) =>
+      old.base != base || old.dotLight != dotLight || old.dotDark != dotDark;
 }

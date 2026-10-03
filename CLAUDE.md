@@ -22,10 +22,20 @@ Defined in `lib/tdlib/td_auth.dart` → `LocalMode`.
 - Never call `viewMessages`, `sendChatAction`, `readAllChatMentions` (or `readAllChatReactions`). Opening a chat in Fokus only clears the local badge.
 - Known limit: sending a reply makes Telegram treat the chat as read.
 
-## Palette
-Use the constants in `lib/theme.dart` (`FC`), never hard-coded colors.
-- Accent `#3390EC` for icons, strokes and non-text accents.
-- `#2874C8` (`FC.accentStrong`) for fills under white text and for links.
+## Palette and themes
+Colors live in `lib/theme.dart` as `FokusColors` (light and dark variants). Read them with `final c = context.fc;`, never hard-code colors in widgets.
+- Accent `#3390EC` (`c.accent`) for icons, strokes and non-text accents.
+- `#2874C8` (`c.accentStrong`) for fills under white text.
+- `c.accentText` for links and accent-colored text (lighter blue in dark mode).
+- Every new color needs a light and a dark value.
+- Theme mode (system, light, dark) is stored in `settings.json` by `lib/state/settings.dart`.
+
+## Responsive layout
+Breakpoints are in `lib/ui/layout.dart`, modelled on Telegram Desktop:
+- wide (>= 1200 px): rail, chat list, chat, docked info panel;
+- medium (800–1199 px): info panel slides over the chat;
+- narrow (< 800 px): one column, chat list or chat with a back button.
+`test/layout_test.dart` renders every layout in light and dark mode and must pass (`flutter test`).
 
 ## Phases
 0. Skeleton: mock UI, TDLib FFI layer, Windows build, TDLib CI build.
@@ -45,6 +55,7 @@ Use the constants in `lib/theme.dart` (`FC`), never hard-coded colors.
 ```powershell
 flutter pub get
 flutter analyze
+flutter test
 flutter build windows --debug
 flutter run -d windows --dart-define-from-file=secrets.json
 dart run tool\td_check.dart tdlib\tdjson.dll

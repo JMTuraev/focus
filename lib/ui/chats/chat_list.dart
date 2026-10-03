@@ -7,19 +7,24 @@ import '../../theme.dart';
 import '../common.dart';
 
 class ChatList extends StatelessWidget {
-  const ChatList({super.key, required this.state});
+  const ChatList({super.key, required this.state, this.width = 340});
 
   final AppState state;
 
+  /// Column width; `double.infinity` fills the narrow (one-column) layout.
+  final double width;
+
   @override
   Widget build(BuildContext context) {
+    final c = context.fc;
+    final meta = TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: c.text2);
     final chats = state.visibleChats;
-    final colLabel = kCollections.firstWhere((c) => c.id == state.collection).label;
+    final colLabel = kCollections.firstWhere((col) => col.id == state.collection).label;
     return Container(
-      width: 340,
-      decoration: const BoxDecoration(
-        color: FC.panel,
-        border: Border(right: BorderSide(color: FC.border)),
+      width: width,
+      decoration: BoxDecoration(
+        color: c.panel,
+        border: width.isFinite ? Border(right: BorderSide(color: c.border)) : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -31,7 +36,7 @@ class ChatList extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             // scaleDown keeps the three chips on one line if fonts or text
-            // scaling make them wider than the 340 px column.
+            // scaling make them wider than the column.
             child: FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
@@ -41,7 +46,7 @@ class ChatList extends StatelessWidget {
                     label: 'Javob kutmoqda',
                     count: state.waitingCount,
                     active: state.filter == ChatFilter.waiting,
-                    activeColor: FC.waitingStrong,
+                    activeColor: c.waitingStrong,
                     dot: state.filter != ChatFilter.waiting,
                     onTap: () => state.setFilter(ChatFilter.waiting),
                   ),
@@ -66,15 +71,15 @@ class ChatList extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
             child: Row(
               children: [
-                Text(colLabel == 'Hammasi' ? 'Barcha chatlar' : colLabel, style: _meta),
+                Text(colLabel == 'Hammasi' ? 'Barcha chatlar' : colLabel, style: meta),
                 const Spacer(),
-                Text('${chats.length} ta chat', style: _meta),
+                Text('${chats.length} ta chat', style: meta),
               ],
             ),
           ),
           Expanded(
             child: chats.isEmpty
-                ? const Center(child: Text('Bu filtrda chat yo‘q', style: TextStyle(color: FC.text2)))
+                ? Center(child: Text('Bu filtrda chat yo‘q', style: TextStyle(color: c.text2)))
                 : ListView.builder(
                     padding: const EdgeInsets.fromLTRB(6, 0, 6, 8),
                     itemCount: chats.length,
@@ -85,8 +90,6 @@ class ChatList extends StatelessWidget {
       ),
     );
   }
-
-  static const _meta = TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: FC.text2);
 }
 
 class _SearchField extends StatelessWidget {
@@ -96,17 +99,18 @@ class _SearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.fc;
     return SizedBox(
       height: 38,
       child: TextField(
         onChanged: onChanged,
-        style: const TextStyle(fontSize: 14),
+        style: TextStyle(fontSize: 14, color: c.text),
         decoration: InputDecoration(
           hintText: 'Qidiruv',
-          hintStyle: const TextStyle(color: FC.text2),
-          prefixIcon: const Icon(Icons.search, size: 19, color: FC.text2),
+          hintStyle: TextStyle(color: c.text2),
+          prefixIcon: Icon(Icons.search, size: 19, color: c.text2),
           filled: true,
-          fillColor: FC.bg,
+          fillColor: c.bg,
           contentPadding: EdgeInsets.zero,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(19), borderSide: BorderSide.none),
         ),
@@ -121,7 +125,7 @@ class _FilterChip extends StatelessWidget {
     required this.active,
     required this.onTap,
     this.count,
-    this.activeColor = FC.accentStrong,
+    this.activeColor,
     this.dot = false,
   });
 
@@ -129,18 +133,22 @@ class _FilterChip extends StatelessWidget {
   final bool active;
   final VoidCallback onTap;
   final int? count;
-  final Color activeColor;
+
+  /// Defaults to the palette's accentStrong.
+  final Color? activeColor;
   final bool dot;
 
   @override
   Widget build(BuildContext context) {
-    final fg = active ? Colors.white : const Color(0xFF3A4048);
+    final c = context.fc;
+    final on = activeColor ?? c.accentStrong;
+    final fg = active ? Colors.white : c.textSoft;
     return Tap(
       onTap: onTap,
       radius: 15,
-      color: active ? activeColor : Colors.white,
-      hover: active ? activeColor : FC.hover,
-      border: Border.all(color: active ? activeColor : const Color(0xFFDDE1E6)),
+      color: active ? on : c.panel,
+      hover: active ? on : c.hover,
+      border: Border.all(color: active ? on : c.chipBorder),
       child: Container(
         height: 30,
         padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -168,15 +176,16 @@ class _ChatTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.fc;
     final active = state.activeChatId == chat.id;
     final unread = state.unreadOf(chat);
     final waiting = state.waitingOf(chat);
-    final main = active ? Colors.white : FC.text;
-    final sub = active ? Colors.white : FC.text2;
+    final main = active ? Colors.white : c.text;
+    final sub = active ? Colors.white : c.text2;
     return Tap(
       onTap: () => state.openChat(chat.id),
-      color: active ? FC.accentStrong : Colors.transparent,
-      hover: active ? FC.accentStrong : FC.hover,
+      color: active ? c.accentStrong : Colors.transparent,
+      hover: active ? c.accentStrong : c.hover,
       child: SizedBox(
         height: 66,
         child: Padding(

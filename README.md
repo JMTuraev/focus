@@ -36,11 +36,13 @@ flutter run -d windows --dart-define-from-file=secrets.json
 ```
 lib/
   main.dart              oyna (1440×900, o'z sarlavha qatori)
-  theme.dart             ranglar
+  theme.dart             ranglar (yorug‘ va tungi palitra)
   config.dart            api_id/api_hash (build vaqtida)
   data/                  modellar va soxta ma'lumot
   state/app_state.dart   UI holati (filtrlar, to'plamlar, yuborish)
+  state/settings.dart    sozlamalar (mavzu rejimi)
   ui/                    sarlavha, chap panel, chatlar ekrani
+  ui/layout.dart         keng / o‘rtacha / tor joylashuv chegaralari
   tdlib/
     td_json.dart         tdjson.dll FFI
     td_client.dart       so'rov/javob + update oqimi (alohida isolate)

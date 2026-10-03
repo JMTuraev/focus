@@ -15,7 +15,14 @@ class AppState extends ChangeNotifier {
   ChatFilter filter = ChatFilter.all;
   String activeChatId = 'dilshod';
   String query = '';
+  /// Docked info column (wide layout).
   bool infoOpen = true;
+
+  /// Info panel shown over the chat (medium and narrow layouts).
+  bool infoOverlayOpen = false;
+
+  /// Narrow layout: true while a chat is shown instead of the chat list.
+  bool narrowChatOpen = false;
   String? selectedMessageId;
 
   final Map<String, List<Message>> _sent = {};
@@ -32,6 +39,8 @@ class AppState extends ChangeNotifier {
   void pickCollection(String id) {
     collection = id;
     module = Module.chats;
+    narrowChatOpen = false;
+    infoOverlayOpen = false;
     notifyListeners();
   }
 
@@ -47,6 +56,18 @@ class AppState extends ChangeNotifier {
 
   void toggleInfo() {
     infoOpen = !infoOpen;
+    notifyListeners();
+  }
+
+  void toggleInfoOverlay() {
+    infoOverlayOpen = !infoOverlayOpen;
+    notifyListeners();
+  }
+
+  /// Narrow layout: back from the chat to the chat list.
+  void closeChat() {
+    narrowChatOpen = false;
+    infoOverlayOpen = false;
     notifyListeners();
   }
 
@@ -89,6 +110,7 @@ class AppState extends ChangeNotifier {
   void openChat(String id) {
     activeChatId = id;
     selectedMessageId = null;
+    narrowChatOpen = true;
     // Local mode: this only clears the badge inside Fokus.
     // Nothing is reported to Telegram (no viewMessages call).
     _read.add(id);

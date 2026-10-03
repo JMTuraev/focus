@@ -16,17 +16,21 @@ const _modules = <(Module, String, IconData)>[
 
 /// Narrow vertical panel: modules on top, collections below (like folders).
 class Rail extends StatelessWidget {
-  const Rail({super.key, required this.state});
+  const Rail({super.key, required this.state, this.compact = false});
 
   final AppState state;
 
+  /// Narrow layout: thinner rail, labels move into tooltips.
+  final bool compact;
+
   @override
   Widget build(BuildContext context) {
+    final c = context.fc;
     return Container(
-      width: 84,
-      decoration: const BoxDecoration(
-        color: FC.panel,
-        border: Border(right: BorderSide(color: FC.border)),
+      width: compact ? 64 : 84,
+      decoration: BoxDecoration(
+        color: c.panel,
+        border: Border(right: BorderSide(color: c.border)),
       ),
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
@@ -35,30 +39,33 @@ class Rail extends StatelessWidget {
             _RailItem(
               label: m.$2,
               icon: m.$3,
+              compact: compact,
               active: state.module == m.$1,
               onTap: () => state.openModule(m.$1),
             ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            child: Divider(height: 1, color: FC.border),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            child: Divider(height: 1, color: c.border),
           ),
           Expanded(
             child: ListView(
               padding: EdgeInsets.zero,
               children: [
-                for (final c in kCollections)
+                for (final col in kCollections)
                   _RailItem(
-                    label: c.label,
-                    icon: c.icon,
+                    label: col.label,
+                    icon: col.icon,
+                    compact: compact,
                     height: 44,
                     iconSize: 20,
-                    badge: state.badgeFor(c.id),
-                    active: state.module == Module.chats && state.collection == c.id,
-                    onTap: () => state.pickCollection(c.id),
+                    badge: state.badgeFor(col.id),
+                    active: state.module == Module.chats && state.collection == col.id,
+                    onTap: () => state.pickCollection(col.id),
                   ),
                 _RailItem(
                   label: '',
                   icon: Icons.add,
+                  compact: compact,
                   height: 38,
                   iconSize: 20,
                   tooltip: 'To‘plam qo‘shish',
@@ -79,6 +86,7 @@ class _RailItem extends StatelessWidget {
     required this.icon,
     required this.onTap,
     this.active = false,
+    this.compact = false,
     this.height = 48,
     this.iconSize = 22,
     this.badge = 0,
@@ -89,6 +97,7 @@ class _RailItem extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
   final bool active;
+  final bool compact;
   final double height;
   final double iconSize;
   final int badge;
@@ -96,16 +105,18 @@ class _RailItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = active ? FC.accentStrong : FC.icon;
+    final c = context.fc;
+    final fg = active ? c.accentText : c.icon;
+    final showLabel = label.isNotEmpty && !compact;
     Widget body = Material(
-      color: active ? FC.accentSoft : Colors.transparent,
+      color: active ? c.accentSoft : Colors.transparent,
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
-        hoverColor: const Color(0xFFEEF1F4),
+        hoverColor: c.railHover,
         onTap: onTap,
         child: SizedBox(
-          height: height,
+          height: compact ? 44 : height,
           child: Stack(
             alignment: Alignment.center,
             children: [
@@ -113,7 +124,7 @@ class _RailItem extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(icon, size: iconSize, color: fg),
-                  if (label.isNotEmpty) ...[
+                  if (showLabel) ...[
                     const SizedBox(height: 3),
                     Text(
                       label,
@@ -127,16 +138,16 @@ class _RailItem extends StatelessWidget {
               if (badge > 0)
                 Positioned(
                   top: 2,
-                  right: 10,
+                  right: compact ? 4 : 10,
                   child: Container(
                     constraints: const BoxConstraints(minWidth: 18),
                     height: 18,
                     padding: const EdgeInsets.symmetric(horizontal: 5),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: FC.accentStrong,
+                      color: c.accentStrong,
                       borderRadius: BorderRadius.circular(9),
-                      border: Border.all(color: Colors.white, width: 2),
+                      border: Border.all(color: c.panel, width: 2),
                     ),
                     child: Text('$badge', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
                   ),
@@ -146,7 +157,8 @@ class _RailItem extends StatelessWidget {
         ),
       ),
     );
-    if (tooltip != null) body = Tooltip(message: tooltip!, child: body);
+    final tip = tooltip ?? (compact && label.isNotEmpty ? label : null);
+    if (tip != null) body = Tooltip(message: tip, child: body);
     return Padding(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1), child: body);
   }
 }
