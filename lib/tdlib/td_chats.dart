@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 
@@ -32,7 +34,7 @@ class TdChatSource extends ChatSource {
   final _messages = <int, List<TdObject>>{};
   final _historyLoading = <int>{};
   final _historyDone = <int>{};
-  final _files = <int, String>{};
+  final _files = <int, _FileState>{};
   final _downloads = <int>{};
   final _userRequests = <int>{};
   List<Chat>? _sorted;
@@ -147,7 +149,7 @@ class TdChatSource extends ChatSource {
         _messages[chatId]?.removeWhere((m) => ids.contains(m['id']));
       case 'updateFile':
         final f = u['file'] as TdObject;
-        if (!_fileReady(f)) return;
+        _files[f['id'] as int] = _stateOf(f);
       default:
         return;
     }
@@ -204,15 +206,22 @@ class TdChatSource extends ChatSource {
     _insert(chatId, m);
   }
 
-  /// Records a downloaded file; true when its path is now known.
-  bool _fileReady(TdObject f) {
-    final local = f['local'] as TdObject?;
-    if (local?['is_downloading_completed'] != true) return false;
-    final path = local!['path'] as String? ?? '';
-    if (path.isEmpty) return false;
-    _files[f['id'] as int] = path;
-    return true;
+  static _FileState _stateOf(TdObject f) {
+    final local = f['local'] as Map?;
+    final done = local?['is_downloading_completed'] == true;
+    final path = local?['path'] as String? ?? '';
+    final size = (f['size'] as int?) ?? 0;
+    return _FileState(
+      path: done && path.isNotEmpty ? path : null,
+      downloaded: (local?['downloaded_size'] as int?) ?? 0,
+      total: size > 0 ? size : ((f['expected_size'] as int?) ?? 0),
+      active: local?['is_downloading_active'] == true,
+    );
   }
+
+  /// Latest known state of a file. File objects inside messages can be
+  /// older than `updateFile`, so the first one seen only seeds the map.
+  _FileState _file(TdObject f) => _files.putIfAbsent(f['id'] as int, () => _stateOf(f));
 
   // ------------------------------------------------------------------ chats
 
@@ -370,31 +379,37 @@ class TdChatSource extends ChatSource {
     };
   }
 
+  /// Small profile photo path; starts the download the first time.
   String? _photo(TdObject? photo) {
     final small = photo?['small'] as TdObject?;
     if (small == null) return null;
-    final id = small['id'] as int;
-    final known = _files[id];
-    if (known != null) return known;
-    if (_fileReady(small)) return _files[id];
-    _download(id);
-    return null;
+    final state = _file(small);
+    if (state.path == null) download(small['id'] as int);
+    return state.path;
   }
 
-  void _download(int fileId) {
+  @override
+  void download(int fileId, {int priority = 1}) {
     if (!_downloads.add(fileId)) return;
+    if (_files[fileId]?.path != null) return;
     td.query({
       '@type': 'downloadFile',
       'file_id': fileId,
-      'priority': 1,
+      'priority': priority,
       'offset': 0,
       'limit': 0,
       'synchronous': false,
     }).then<void>(
       (f) {
-        if (_fileReady(f)) _changed();
+        if (f['id'] == fileId) {
+          _files[fileId] = _stateOf(f);
+          _changed();
+        }
       },
-      onError: (Object e) => debugPrint('downloadFile: $e'),
+      onError: (Object e) {
+        _downloads.remove(fileId);
+        debugPrint('downloadFile: $e');
+      },
     );
   }
 
@@ -564,11 +579,14 @@ class TdChatSource extends ChatSource {
     }
 
     final media = _mediaKind(type);
+    final formatted = type == 'messageText' ? content['text'] : content['caption'];
     final text = switch (type) {
       'messageText' => _formatted(content['text']),
       'messageDocument' || 'messageAudio' => _caption(content),
       _ => media == null ? '' : _caption(content),
     };
+    final inGroup = kind == ChatKind.group && !out;
+    final sender = inGroup ? _sender(m) : null;
 
     return Message(
       id: '$id',
@@ -576,7 +594,7 @@ class TdChatSource extends ChatSource {
       time: Fmt.hm(date),
       date: date,
       out: out,
-      from: kind == ChatKind.group && !out ? _senderName(m, full: true) : null,
+      from: inGroup ? _senderName(m, full: true) : null,
       fileName: fileName,
       fileMeta: fileMeta,
       media: media,
@@ -584,7 +602,210 @@ class TdChatSource extends ChatSource {
       pending: sending == 'messageSendingStatePending',
       failed: sending == 'messageSendingStateFailed',
       read: out && id <= readUpTo,
+      entities: text.isEmpty ? const [] : entitiesOf(formatted),
+      info: _mediaInfo(content),
+      senderId: sender?.id,
+      senderInitials: sender?.initials ?? '',
+      senderColor: sender?.color ?? 0,
+      senderPhoto: sender?.photo,
     );
+  }
+
+  /// Who wrote a group message: id, initials, name color index, photo.
+  ({String id, String initials, int color, String? photo})? _sender(TdObject m) {
+    final s = m['sender_id'] as TdObject?;
+    if (s == null) return null;
+    final isChat = s['@type'] == 'messageSenderChat';
+    final id = (isChat ? s['chat_id'] : s['user_id']) as int;
+    final obj = isChat ? _chats[id] : _users[id];
+    final name = isChat ? (obj?['title'] as String? ?? '') : _senderName(m, full: true);
+    // Telegram's accent colors 0..6 are the classic peer colors; higher ids
+    // are custom palettes, which fall back to the id-based color.
+    final accent = obj?['accent_color_id'] as int?;
+    final color = accent != null && accent >= 0 && accent < 7 ? accent : id.abs() % 7;
+    final TdObject? photo;
+    if (isChat) {
+      photo = obj?['photo'] as TdObject?;
+    } else {
+      photo = obj?['profile_photo'] as TdObject?;
+    }
+    return (id: '$id', initials: Fmt.initials(name.isEmpty ? '?' : name), color: color, photo: _photo(photo));
+  }
+
+  /// Telegram text entities → [TextEntity] (offsets are UTF-16, like Dart).
+  @visibleForTesting
+  static List<TextEntity> entitiesOf(Object? formatted) {
+    if (formatted is! Map) return const [];
+    final list = formatted['entities'] as List? ?? const [];
+    final out = <TextEntity>[];
+    for (final e in list) {
+      final type = (e as TdObject)['type'] as TdObject;
+      final (EntityKind? kind, String? url) = switch (type['@type']) {
+        'textEntityTypeBold' => (EntityKind.bold, null),
+        'textEntityTypeItalic' => (EntityKind.italic, null),
+        'textEntityTypeUnderline' => (EntityKind.underline, null),
+        'textEntityTypeStrikethrough' => (EntityKind.strike, null),
+        'textEntityTypeCode' => (EntityKind.code, null),
+        'textEntityTypePre' || 'textEntityTypePreCode' => (EntityKind.pre, null),
+        'textEntityTypeSpoiler' => (EntityKind.spoiler, null),
+        'textEntityTypeBlockQuote' || 'textEntityTypeExpandableBlockQuote' => (EntityKind.quote, null),
+        'textEntityTypeUrl' => (EntityKind.url, null),
+        'textEntityTypeEmailAddress' => (EntityKind.url, 'mailto:'),
+        'textEntityTypePhoneNumber' => (EntityKind.url, 'tel:'),
+        'textEntityTypeTextUrl' => (EntityKind.textUrl, type['url'] as String?),
+        'textEntityTypeMention' || 'textEntityTypeMentionName' => (EntityKind.mention, null),
+        'textEntityTypeHashtag' || 'textEntityTypeCashtag' || 'textEntityTypeBotCommand' => (EntityKind.hashtag, null),
+        _ => (null, null),
+      };
+      if (kind == null) continue;
+      out.add(TextEntity(e['offset'] as int, e['length'] as int, kind, url: url));
+    }
+    return out;
+  }
+
+  static Uint8List? _mini(TdObject? o) {
+    final data = (o?['minithumbnail'] as TdObject?)?['data'] as String?;
+    if (data == null || data.isEmpty) return null;
+    try {
+      return base64Decode(data);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Telegram packs voice waveforms as 5-bit values.
+  @visibleForTesting
+  static List<int> decodeWaveform(String? b64) {
+    if (b64 == null || b64.isEmpty) return const [];
+    final Uint8List bytes;
+    try {
+      bytes = base64Decode(b64);
+    } catch (_) {
+      return const [];
+    }
+    final count = bytes.length * 8 ~/ 5;
+    return List.generate(count, (i) {
+      final bit = i * 5;
+      final byte = bit >> 3;
+      final shift = bit & 7;
+      final lo = bytes[byte];
+      final hi = byte + 1 < bytes.length ? bytes[byte + 1] : 0;
+      return ((lo | (hi << 8)) >> shift) & 31;
+    });
+  }
+
+  /// Picks the photo size shown in the chat (about 800 px) and the largest
+  /// one for the viewer.
+  static (TdObject?, TdObject?) _photoSizes(List sizes) {
+    final list = sizes.cast<TdObject>().where((s) => s['photo'] != null).toList()
+      ..sort((a, b) => ((a['width'] as int) * (a['height'] as int)).compareTo((b['width'] as int) * (b['height'] as int)));
+    if (list.isEmpty) return (null, null);
+    final preview = list.firstWhere(
+      (s) => math.max(s['width'] as int, s['height'] as int) >= 640,
+      orElse: () => list.last,
+    );
+    return (preview, list.last);
+  }
+
+  MediaInfo? _mediaInfo(TdObject content) {
+    MediaInfo build(
+      MediaKind kind, {
+      TdObject? owner,
+      TdObject? preview,
+      TdObject? file,
+      int width = 0,
+      int height = 0,
+      int duration = 0,
+      List<int> waveform = const [],
+    }) {
+      final p = preview == null ? null : _file(preview);
+      final f = file == null ? null : _file(file);
+      return MediaInfo(
+        kind: kind,
+        width: width,
+        height: height,
+        mini: _mini(owner),
+        previewFileId: preview?['id'] as int?,
+        previewPath: p?.path,
+        fileId: file?['id'] as int?,
+        filePath: f?.path,
+        progress: f?.progress ?? 0,
+        downloading: f?.active ?? false,
+        duration: duration,
+        waveform: waveform,
+        size: f?.total ?? 0,
+      );
+    }
+
+    // Only still images can be previews (video thumbnails may be MPEG-4).
+    TdObject? stillThumb(TdObject? owner) {
+      final t = owner?['thumbnail'] as TdObject?;
+      final format = (t?['format'] as TdObject?)?['@type'];
+      if (format == 'thumbnailFormatJpeg' || format == 'thumbnailFormatPng' || format == 'thumbnailFormatWebp') {
+        return t!['file'] as TdObject?;
+      }
+      return null;
+    }
+
+    switch (content['@type']) {
+      case 'messagePhoto':
+        final photo = content['photo'] as TdObject;
+        final (preview, largest) = _photoSizes(photo['sizes'] as List? ?? const []);
+        if (preview == null) return null;
+        return build(
+          MediaKind.photo,
+          owner: photo,
+          preview: preview['photo'] as TdObject,
+          file: largest!['photo'] as TdObject,
+          width: preview['width'] as int,
+          height: preview['height'] as int,
+        );
+      case 'messageVideo':
+        final v = content['video'] as TdObject;
+        return build(MediaKind.video,
+            owner: v,
+            preview: stillThumb(v),
+            file: v['video'] as TdObject?,
+            width: (v['width'] as int?) ?? 0,
+            height: (v['height'] as int?) ?? 0,
+            duration: (v['duration'] as int?) ?? 0);
+      case 'messageAnimation':
+        final a = content['animation'] as TdObject;
+        return build(MediaKind.gif,
+            owner: a,
+            preview: stillThumb(a),
+            file: a['animation'] as TdObject?,
+            width: (a['width'] as int?) ?? 0,
+            height: (a['height'] as int?) ?? 0,
+            duration: (a['duration'] as int?) ?? 0);
+      case 'messageVideoNote':
+        final n = content['video_note'] as TdObject;
+        final side = (n['length'] as int?) ?? 240;
+        return build(MediaKind.videoNote,
+            owner: n,
+            preview: stillThumb(n),
+            file: n['video'] as TdObject?,
+            width: side,
+            height: side,
+            duration: (n['duration'] as int?) ?? 0);
+      case 'messageVoiceNote':
+        final v = content['voice_note'] as TdObject;
+        return build(MediaKind.voice,
+            file: v['voice'] as TdObject?,
+            duration: (v['duration'] as int?) ?? 0,
+            waveform: decodeWaveform(v['waveform'] as String?));
+      case 'messageSticker':
+        final s = content['sticker'] as TdObject;
+        final webp = (s['format'] as TdObject?)?['@type'] == 'stickerFormatWebp';
+        return build(MediaKind.sticker,
+            owner: s,
+            // Animated stickers (TGS/WebM) show their still thumbnail.
+            preview: webp ? s['sticker'] as TdObject? : stillThumb(s),
+            width: (s['width'] as int?) ?? 512,
+            height: (s['height'] as int?) ?? 512);
+      default:
+        return null;
+    }
   }
 
   // ------------------------------------------------------------------ messages
@@ -701,4 +922,16 @@ class TdChatSource extends ChatSource {
       },
     });
   }
+}
+
+class _FileState {
+  const _FileState({this.path, this.downloaded = 0, this.total = 0, this.active = false});
+
+  /// Set once the download is complete.
+  final String? path;
+  final int downloaded;
+  final int total;
+  final bool active;
+
+  double get progress => path != null ? 1 : (total > 0 ? downloaded / total : 0);
 }

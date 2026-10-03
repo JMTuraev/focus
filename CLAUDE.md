@@ -52,6 +52,11 @@ Breakpoints are in `lib/ui/layout.dart`, modelled on Telegram Desktop:
 - Fokus-only data (collections, unread already seen in Fokus) lives in `lib/data/local_store.dart` (`local_state.json`) until phase 2 moves it to drift.
 - `openChat`/`closeChat`/`getChatHistory` are allowed; anything that marks messages as read is not.
 
+## Messages: formatting and media
+- Text entities are mapped in `TdChatSource.entitiesOf` and drawn by `lib/ui/chats/message_text.dart`. Links open only for http, https, mailto, tel and tg; hidden links (`textUrl`) ask for confirmation first.
+- Media (`MediaInfo`): photos and video thumbnails download automatically; videos and voice messages download on click. Playback uses media_kit (libmpv), which adds about 45 MB to the build.
+- Media viewers must stay closable by mouse and Escape and must not cover the title bar close button.
+
 ## Phases
 0. Skeleton: mock UI, TDLib FFI layer, Windows build, TDLib CI build.
 1. Login (phone → code → 2FA password), chat list and messages from TDLib, collections, filters, TDLib database encrypted with a DPAPI-protected key.

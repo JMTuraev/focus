@@ -7,6 +7,8 @@ import '../../data/models.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
 import '../common.dart';
+import 'media.dart';
+import 'message_text.dart';
 
 class ChatView extends StatefulWidget {
   const ChatView({super.key, required this.state, required this.infoActive, required this.onInfo, this.onBack});
@@ -65,9 +67,14 @@ class _ChatViewState extends State<ChatView> {
 
   String _short(String t) => t.length > 42 ? '${t.substring(0, 40)}…' : t;
 
-  /// Messages with a date separator before each new day. Mock messages
-  /// have no date and get a single "Bugun" separator.
+  /// Messages with a date separator before each new day, grouped into runs
+  /// from the same sender (name on the first, avatar on the last, like
+  /// Telegram). Mock messages have no date and get one "Bugun" separator.
   static List<Object> _items(List<Message> msgs) {
+    String? key(Message m) => m.out || m.service ? null : (m.senderId ?? m.from);
+    bool sameDay(Message a, Message b) => a.date == null || b.date == null || Fmt.sameDay(a.date!, b.date!);
+    bool sameRun(Message a, Message? b) => b != null && key(a) != null && key(a) == key(b) && sameDay(a, b);
+
     final out = <Object>[];
     DateTime? prev;
     for (var i = 0; i < msgs.length; i++) {
@@ -79,7 +86,11 @@ class _ChatViewState extends State<ChatView> {
         out.add(Fmt.dayLabel(d));
         prev = d;
       }
-      out.add(m);
+      out.add(_Entry(
+        m,
+        first: !sameRun(m, i > 0 ? msgs[i - 1] : null),
+        last: !sameRun(m, i + 1 < msgs.length ? msgs[i + 1] : null),
+      ));
     }
     return out;
   }
@@ -133,12 +144,15 @@ class _ChatViewState extends State<ChatView> {
                         : const _DatePill('Hali xabar yo‘q'),
                   );
                 }
+                final groupStyle = chat.kind == ChatKind.group || msgs.any((m) => m.from != null && !m.out);
                 return NotificationListener<ScrollNotification>(
                   // Older messages load when the top of the history comes close.
                   onNotification: (n) {
                     if (n.metrics.extentAfter < 600) s.loadOlder();
                     return false;
                   },
+                  // Text can be selected and copied across messages.
+                  child: SelectionArea(
                   child: ListView.builder(
                   reverse: true,
                   padding: EdgeInsets.symmetric(horizontal: narrow ? 10 : 22, vertical: 12),
@@ -154,16 +168,22 @@ class _ChatViewState extends State<ChatView> {
                     }
                     final item = items[items.length - 1 - i];
                     if (item is String) return _DatePill(item);
-                    final m = item as Message;
+                    final e = item as _Entry;
+                    final m = e.m;
                     if (m.service) return _DatePill(m.text);
                     return _Bubble(
                       message: m,
+                      state: s,
                       maxWidth: bubbleMax,
+                      groupStyle: groupStyle,
+                      first: e.first,
+                      last: e.last,
                       selected: s.selectedMessageId == m.id,
                       onTap: () => s.selectMessage(m.id),
                       onAddMeeting: () => _toast('Kalendarga qo‘shildi: ${m.meeting}', action: 'Kalendarni ochish', goTo: Module.calendar),
                     );
                   },
+                  ),
                   ),
                 );
               },
@@ -329,86 +349,164 @@ class _DatePill extends StatelessWidget {
   }
 }
 
+/// One message in the list with its place in a run from the same sender.
+class _Entry {
+  const _Entry(this.m, {required this.first, required this.last});
+
+  final Message m;
+
+  /// First of the run: shows the sender name.
+  final bool first;
+
+  /// Last of the run: shows the sender avatar.
+  final bool last;
+}
+
 class _Bubble extends StatelessWidget {
   const _Bubble({
     required this.message,
+    required this.state,
     required this.maxWidth,
     required this.selected,
     required this.onTap,
     required this.onAddMeeting,
+    this.groupStyle = false,
+    this.first = true,
+    this.last = true,
   });
 
   final Message message;
+  final AppState state;
   final double maxWidth;
   final bool selected;
   final VoidCallback onTap;
   final VoidCallback onAddMeeting;
 
+  /// Group chat: avatar column and colored sender names.
+  final bool groupStyle;
+  final bool first;
+  final bool last;
+
+  static const _avatar = 34.0;
+
+  /// Mock messages have no sender id: derive a stable color from the name.
+  int get _colorIndex => message.senderId != null ? message.senderColor : (message.from ?? '').codeUnits.fold(0, (a, b) => a + b) % 7;
+
   @override
   Widget build(BuildContext context) {
     final c = context.fc;
     final m = message;
+    final info = m.info;
+    final sticker = info?.kind == MediaKind.sticker;
+    final showAvatarColumn = groupStyle && !m.out;
+    final width = showAvatarColumn ? maxWidth - _avatar - 8 : maxWidth;
     final radius = BorderRadius.only(
       topLeft: const Radius.circular(14),
       topRight: const Radius.circular(14),
-      bottomLeft: Radius.circular(m.out ? 14 : 5),
-      bottomRight: Radius.circular(m.out ? 5 : 14),
+      bottomLeft: Radius.circular(m.out || !last ? 14 : 5),
+      bottomRight: Radius.circular(m.out && last ? 5 : 14),
     );
+    final meta = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(m.time, style: TextStyle(fontSize: 11.5, color: sticker ? Colors.white : (m.out ? c.outMeta : c.text2))),
+        if (m.out) ...[const SizedBox(width: 3), _Tick(m)],
+      ],
+    );
+
+    final Widget content;
+    if (sticker) {
+      // Stickers float without a bubble, like in Telegram.
+      content = Column(
+        crossAxisAlignment: m.out ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          MessageMedia(message: m, state: state, maxWidth: width),
+          Container(
+            margin: const EdgeInsets.only(top: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+            decoration: BoxDecoration(color: c.datePill, borderRadius: BorderRadius.circular(8)),
+            child: meta,
+          ),
+        ],
+      );
+    } else {
+      content = Container(
+        padding: const EdgeInsets.fromLTRB(12, 7, 10, 6),
+        decoration: BoxDecoration(
+          color: m.out ? c.outBubble : c.inBubble,
+          borderRadius: radius,
+          border: selected ? Border.all(color: c.accent, width: 2) : null,
+          boxShadow: [BoxShadow(color: c.bubbleShadow, blurRadius: 1, offset: const Offset(0, 1))],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (m.from != null && first)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 2),
+                child: Text(
+                  m.from!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: c.senderName(_colorIndex)),
+                ),
+              ),
+            if (m.fileName != null) _FileRow(name: m.fileName!, meta: m.fileMeta ?? ''),
+            if (info != null)
+              MessageMedia(message: m, state: state, maxWidth: width - 22)
+            else if (m.media != null)
+              _MediaRow(kind: m.media!, label: m.mediaLabel ?? ''),
+            Wrap(
+              alignment: WrapAlignment.end,
+              crossAxisAlignment: WrapCrossAlignment.end,
+              spacing: 12,
+              children: [
+                if (m.text.isNotEmpty)
+                  MessageText(m.text, entities: m.entities, style: TextStyle(fontSize: 14.5, height: 1.42, color: c.text)),
+                Padding(padding: const EdgeInsets.only(bottom: 1), child: meta),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
+    final bubble = ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: width),
+      child: GestureDetector(
+        onTap: onTap,
+        child: MouseRegion(cursor: SystemMouseCursors.click, child: content),
+      ),
+    );
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
+      padding: EdgeInsets.only(top: first ? 3 : 1, bottom: last ? 3 : 1),
       child: Column(
         crossAxisAlignment: m.out ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
-          ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxWidth),
-            child: GestureDetector(
-              onTap: onTap,
-              child: MouseRegion(
-                cursor: SystemMouseCursors.click,
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(12, 7, 10, 6),
-                  decoration: BoxDecoration(
-                    color: m.out ? c.outBubble : c.inBubble,
-                    borderRadius: radius,
-                    border: selected ? Border.all(color: c.accent, width: 2) : null,
-                    boxShadow: [BoxShadow(color: c.bubbleShadow, blurRadius: 1, offset: const Offset(0, 1))],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (m.from != null)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 2),
-                          child: Text(m.from!, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: c.accentText)),
-                        ),
-                      if (m.fileName != null) _FileRow(name: m.fileName!, meta: m.fileMeta ?? ''),
-                      if (m.media != null) _MediaRow(kind: m.media!, label: m.mediaLabel ?? ''),
-                      Wrap(
-                        alignment: WrapAlignment.end,
-                        crossAxisAlignment: WrapCrossAlignment.end,
-                        spacing: 12,
-                        children: [
-                          if (m.text.isNotEmpty)
-                            SelectableText(m.text, style: TextStyle(fontSize: 14.5, height: 1.42, color: c.text), onTap: onTap),
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 1),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(m.time, style: TextStyle(fontSize: 11.5, color: m.out ? c.outMeta : c.text2)),
-                                if (m.out) ...[const SizedBox(width: 3), _Tick(m)],
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+          if (showAvatarColumn)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                SizedBox(
+                  width: _avatar,
+                  child: last
+                      ? Avatar(
+                          initials: m.senderInitials.isNotEmpty ? m.senderInitials : Fmt.initials(m.from ?? '?'),
+                          color: Fmt.avatarColors[_colorIndex % Fmt.avatarColors.length],
+                          size: _avatar,
+                          photo: m.senderPhoto,
+                        )
+                      : null,
                 ),
-              ),
-            ),
-          ),
+                const SizedBox(width: 8),
+                Flexible(child: bubble),
+              ],
+            )
+          else
+            bubble,
           if (m.meeting != null)
             Container(
               margin: const EdgeInsets.only(top: 6),

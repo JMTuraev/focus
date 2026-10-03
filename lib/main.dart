@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:screen_retriever/screen_retriever.dart';
+import 'package:media_kit/media_kit.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'auth/auth.dart';
@@ -15,6 +16,7 @@ import 'ui/auth_gate.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  MediaKit.ensureInitialized();
   await windowManager.ensureInitialized();
   final settings = await Settings.load();
 

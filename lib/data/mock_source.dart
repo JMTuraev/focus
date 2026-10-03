@@ -47,6 +47,9 @@ class MockChatSource extends ChatSource {
   Future<void> loadDetails(String chatId) async {}
 
   @override
+  void download(int fileId, {int priority = 1}) {}
+
+  @override
   Future<void> send(String chatId, String text) async {
     final t = text.trim();
     if (t.isEmpty) return;

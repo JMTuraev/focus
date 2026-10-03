@@ -13,6 +13,10 @@ dependencies:
   path_provider: ^2.1.4
   window_manager: ^0.4.3
   screen_retriever: ^0.2.0
+  media_kit: ^1.2.6
+  media_kit_video: ^2.0.1
+  media_kit_libs_windows_video: ^1.0.11
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

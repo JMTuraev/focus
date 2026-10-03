@@ -54,7 +54,20 @@ const kMessages = <String, List<Message>>{
   ],
   'team': [
     Message(id: 't1', from: 'Sardor Aliyev', text: 'Codemagic’da build o‘tdi, TestFlight’ga yuklandi.', time: '13:20'),
-    Message(id: 't2', from: 'Malika Jo‘rayeva', text: 'Kirish nazorati moduli bo‘yicha 2 ta xato yopildi.', time: '13:31'),
+    Message(
+      id: 't2',
+      from: 'Malika Jo‘rayeva',
+      text: 'Kirish nazorati moduli bo‘yicha 2 ta xato yopildi.',
+      time: '13:31',
+      entities: [TextEntity(0, 22, EntityKind.bold)],
+    ),
+    Message(
+      id: 't2b',
+      from: 'Malika Jo‘rayeva',
+      text: 'Reliz qaydlari: https://allclubs.uz/reliz. Parol: 4417',
+      time: '13:33',
+      entities: [TextEntity(16, 25, EntityKind.url), TextEntity(50, 4, EntityKind.spoiler)],
+    ),
     Message(id: 't3', out: true, text: 'Zo‘r! Bugun kechgacha reliz qilamiz.', time: '13:40'),
     Message(id: 't4', from: 'Sardor Aliyev', text: 'Reliz tayyor, test qilyapmiz.', time: '13:48'),
   ],

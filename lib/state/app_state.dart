@@ -161,6 +161,8 @@ class AppState extends ChangeNotifier {
 
   void loadDetails(String chatId) => source.loadDetails(chatId);
 
+  void download(int fileId, {int priority = 1}) => source.download(fileId, priority: priority);
+
   // ---- messages ----
   List<Message> messagesOf(String chatId) => source.messagesOf(chatId);
 

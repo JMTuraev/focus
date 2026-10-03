@@ -6,6 +6,10 @@ import 'models.dart';
 /// Where chats and messages come from: mock data or TDLib.
 /// Notifies listeners whenever chats or loaded messages change.
 abstract class ChatSource extends ChangeNotifier {
+  /// Start downloading a file (photo, video, voice) by its TDLib file id.
+  /// Progress and the local path show up in [MediaInfo] on later rebuilds.
+  void download(int fileId, {int priority = 1});
+
   /// Chats in Telegram order (pinned first).
   List<Chat> get chats;
 

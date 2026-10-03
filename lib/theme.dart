@@ -48,6 +48,7 @@ class FokusColors extends ThemeExtension<FokusColors> {
     required this.muted,
     required this.toast,
     required this.danger,
+    required this.senderNames,
   });
 
   /// Brand color, the same in both modes (logo).
@@ -94,6 +95,11 @@ class FokusColors extends ThemeExtension<FokusColors> {
   /// Error text and destructive actions.
   final Color danger;
 
+  /// Sender name colors in groups (Telegram's 7 peer colors).
+  final List<Color> senderNames;
+
+  Color senderName(int index) => senderNames[index.abs() % senderNames.length];
+
   static const light = FokusColors(
     accent: Color(0xFF3390EC),
     accentStrong: Color(0xFF2874C8),
@@ -133,6 +139,15 @@ class FokusColors extends ThemeExtension<FokusColors> {
     muted: Color(0xFF6F767E),
     toast: Color(0xFF1F2A36),
     danger: Color(0xFFD03A3A),
+    senderNames: [
+      Color(0xFFCC5049), // red
+      Color(0xFFD67722), // orange
+      Color(0xFF955CDB), // violet
+      Color(0xFF40A920), // green
+      Color(0xFF309EBA), // cyan
+      Color(0xFF368AD1), // blue
+      Color(0xFFC7508B), // pink
+    ],
   );
 
   static const dark = FokusColors(
@@ -174,6 +189,15 @@ class FokusColors extends ThemeExtension<FokusColors> {
     muted: Color(0xFF56636F),
     toast: Color(0xFF2B3946),
     danger: Color(0xFFFF7070),
+    senderNames: [
+      Color(0xFFFF7B72),
+      Color(0xFFFFA45C),
+      Color(0xFFB49BFF),
+      Color(0xFF6FD27A),
+      Color(0xFF5ED3E6),
+      Color(0xFF72B6FF),
+      Color(0xFFFF85C0),
+    ],
   );
 
   @override
@@ -223,6 +247,7 @@ class FokusColors extends ThemeExtension<FokusColors> {
       muted: l(muted, o.muted),
       toast: l(toast, o.toast),
       danger: l(danger, o.danger),
+      senderNames: [for (var i = 0; i < senderNames.length; i++) l(senderNames[i], o.senderNames[i])],
     );
   }
 }
