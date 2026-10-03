@@ -43,9 +43,11 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
           Copy-Item td\tdlib\bin\tdjson.dll dist\
-          Copy-Item vcpkg\installed\x64-windows\bin\libcrypto-3-x64.dll dist\
-          Copy-Item vcpkg\installed\x64-windows\bin\libssl-3-x64.dll dist\
-          Copy-Item vcpkg\installed\x64-windows\bin\zlib1.dll dist\
+          # Runtime DLLs from vcpkg (OpenSSL, zlib). File names change between
+          # vcpkg releases (e.g. zlib1.dll vs z.dll), so copy them all.
+          Get-ChildItem vcpkg\installed\x64-windows\bin\*.dll | Format-Table Name, Length
+          Copy-Item vcpkg\installed\x64-windows\bin\*.dll dist\
+          if (-not (Get-ChildItem dist\libcrypto-*.dll)) { throw 'OpenSSL DLLs missing' }
           git -C td rev-parse HEAD | Out-File dist\TDLIB_COMMIT.txt
           Get-ChildItem dist
 
