@@ -1,15 +1,23 @@
 import 'package:flutter/material.dart';
 
 import '../../data/format.dart';
-import '../../data/meeting_parser.dart';
 import '../../db/database.dart';
+import '../../l10n/l10n.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
 import '../common.dart';
 import '../source_box.dart';
 
-/// Reminder choices (minutes before the start).
-const kReminderChoices = <int?, String>{null: 'Yo‘q', 10: '10 daqiqa', 30: '30 daqiqa', 60: '1 soat', 1440: '1 kun'};
+/// Reminder choices (minutes before the start; null: no reminder).
+const kReminderChoices = <int?>[null, 10, 30, 60, 1440];
+
+/// Chip text of a reminder choice: "Yo‘q", "10 daqiqa", "1 soat", "1 kun".
+String reminderChoiceLabel(CalendarStrings t, int? minutes) => switch (minutes) {
+      null => t.reminderNone,
+      final m when m % 1440 == 0 => t.days(m ~/ 1440),
+      final m when m % 60 == 0 => t.hours(m ~/ 60),
+      final m => t.minutes(m),
+    };
 
 /// Create an event (prefilled from a click in the grid or a chat message),
 /// or edit [event].
@@ -57,8 +65,8 @@ Future<void> deleteEventWithUndo(BuildContext context, AppState state, Event e) 
     context,
     (w) => SnackBar(
       width: w < 480 ? w : 480,
-      content: Text('Uchrashuv o‘chirildi: “${e.title}”', maxLines: 1, overflow: TextOverflow.ellipsis),
-      action: SnackBarAction(label: 'Qaytarish', onPressed: () => state.events.restore(e)),
+      content: Text(context.s.calendar.eventDeleted(e.title), maxLines: 1, overflow: TextOverflow.ellipsis),
+      action: SnackBarAction(label: context.s.calendar.undo, onPressed: () => state.events.restore(e)),
     ),
   );
 }
@@ -147,11 +155,11 @@ class _EventEditorState extends State<_EventEditor> {
   Future<void> _save() async {
     final title = _title.text.trim();
     if (title.isEmpty) {
-      setState(() => _error = 'Uchrashuv nomini kiriting.');
+      setState(() => _error = context.s.calendar.titleRequired);
       return;
     }
     if (!_allDay && _minutes <= 0) {
-      setState(() => _error = 'Tugash vaqti boshlanishdan keyin bo‘lishi kerak.');
+      setState(() => _error = context.s.calendar.endBeforeStart);
       return;
     }
     final start = _allDay ? _day : _at(_from);
@@ -181,6 +189,8 @@ class _EventEditorState extends State<_EventEditor> {
   Widget build(BuildContext context) {
     final c = context.fc;
     final e = widget.event;
+    final t = context.s.calendar;
+    final common = context.s.common;
     OutlineInputBorder border(Color color, [double w = 1]) =>
         OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: color, width: w));
     InputDecoration deco(String hint) => InputDecoration(
@@ -193,9 +203,9 @@ class _EventEditorState extends State<_EventEditor> {
           enabledBorder: border(c.chipBorder),
           focusedBorder: border(c.accent, 2),
         );
-    Widget label(String t) => Padding(
+    Widget label(String text) => Padding(
           padding: const EdgeInsets.only(top: 14, bottom: 6),
-          child: Text(t, style: TextStyle(color: c.text2, fontSize: 12.5, fontWeight: FontWeight.w700)),
+          child: Text(text, style: TextStyle(color: c.text2, fontSize: 12.5, fontWeight: FontWeight.w700)),
         );
     Widget chip(String text, bool selected, VoidCallback onTap, {IconData? icon}) => ChoiceChip(
           avatar: icon == null ? null : Icon(icon, size: 16, color: selected ? Colors.white : c.icon),
@@ -208,11 +218,11 @@ class _EventEditorState extends State<_EventEditor> {
           backgroundColor: c.panel,
           side: BorderSide(color: selected ? c.accentStrong : c.chipBorder),
         );
-    String hm(TimeOfDay t) => '${Fmt.two(t.hour)}:${Fmt.two(t.minute)}';
+    String hm(TimeOfDay time) => '${Fmt.two(time.hour)}:${Fmt.two(time.minute)}';
 
     return AlertDialog(
       backgroundColor: c.panel,
-      title: Text(e == null ? 'Yangi uchrashuv' : 'Uchrashuv', style: TextStyle(color: c.text, fontSize: 18, fontWeight: FontWeight.w700)),
+      title: Text(e == null ? t.newEvent : t.event, style: TextStyle(color: c.text, fontSize: 18, fontWeight: FontWeight.w700)),
       content: SizedBox(
         width: 440,
         child: SingleChildScrollView(
@@ -227,20 +237,20 @@ class _EventEditorState extends State<_EventEditor> {
                 onChanged: (_) {
                   if (_error != null) setState(() => _error = null);
                 },
-                decoration: deco('Nima? Masalan: Demo, «Olimp» bilan'),
+                decoration: deco(t.titleHint),
               ),
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 6),
                   child: Text(_error!, style: TextStyle(color: c.danger, fontSize: 13)),
                 ),
-              label('Qachon'),
+              label(t.when),
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  chip('${MeetingParser.weekdayNames[_day.weekday - 1]}, ${Fmt.dueLabel(_day)}', false, _pickDay,
+                  chip('${Fmt.weekday(_day.weekday)}, ${Fmt.dueLabel(_day)}', false, _pickDay,
                       icon: Icons.event_outlined),
                   if (!_allDay) ...[
                     chip(hm(_from), false, () => _pickTime(true), icon: Icons.schedule),
@@ -248,7 +258,7 @@ class _EventEditorState extends State<_EventEditor> {
                     chip(hm(_to), false, () => _pickTime(false)),
                   ],
                   FilterChip(
-                    label: const Text('Kun bo‘yi'),
+                    label: Text(t.allDay),
                     selected: _allDay,
                     onSelected: (v) => setState(() => _allDay = v),
                     labelStyle: TextStyle(color: c.textSoft, fontWeight: FontWeight.w600, fontSize: 13),
@@ -260,35 +270,36 @@ class _EventEditorState extends State<_EventEditor> {
                 ],
               ),
               if (!_allDay) ...[
-                label('Davomiyligi'),
+                label(t.duration),
                 Wrap(
                   spacing: 6,
                   runSpacing: 6,
                   children: [
                     for (final m in const [30, 60, 90, 120])
-                      chip(m < 60 ? '$m daqiqa' : (m % 60 == 0 ? '${m ~/ 60} soat' : '${m ~/ 60},5 soat'), _minutes == m,
+                      chip(m < 60 ? t.minutes(m) : (m % 60 == 0 ? t.hours(m ~/ 60) : t.hoursAndHalf(m ~/ 60)), _minutes == m,
                           () => _duration(m)),
                   ],
                 ),
               ],
-              label('Eslatma'),
+              label(t.reminder),
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
                 children: [
-                  for (final r in kReminderChoices.entries) chip(r.value, _remind == r.key, () => setState(() => _remind = r.key)),
+                  for (final r in kReminderChoices)
+                    chip(reminderChoiceLabel(t, r), _remind == r, () => setState(() => _remind = r)),
                 ],
               ),
-              label('Izoh'),
+              label(t.note),
               TextField(
                 controller: _note,
                 minLines: 2,
                 maxLines: 6,
                 style: TextStyle(color: c.text, fontSize: 14),
-                decoration: deco('Manzil, havola yoki qo‘shimcha ma’lumot'),
+                decoration: deco(t.noteHint),
               ),
               if (widget.chatId != null) ...[
-                label('Chatdan'),
+                label(t.fromChat),
                 ChatSourceBox(
                   state: widget.state,
                   chatId: widget.chatId!,
@@ -313,17 +324,17 @@ class _EventEditorState extends State<_EventEditor> {
               deleteEventWithUndo(context, widget.state, e);
             },
             style: TextButton.styleFrom(foregroundColor: c.danger),
-            child: const Text('O‘chirish'),
+            child: Text(common.delete),
           ),
         TextButton(
           onPressed: () => Navigator.pop(context),
           style: TextButton.styleFrom(foregroundColor: c.text2),
-          child: const Text('Bekor qilish'),
+          child: Text(common.cancel),
         ),
         FilledButton(
           onPressed: _save,
           style: FilledButton.styleFrom(backgroundColor: c.accentStrong, foregroundColor: Colors.white),
-          child: Text(e == null ? 'Qo‘shish' : 'Saqlash'),
+          child: Text(e == null ? common.add : common.save),
         ),
       ],
     );

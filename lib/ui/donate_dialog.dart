@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../config.dart';
 import '../donate/donate_info.dart';
 import '../theme.dart';
+import '../l10n/l10n.dart';
 
 /// Opens a link outside the app. Tests replace it.
 typedef LinkOpener = Future<bool> Function(Uri url);
@@ -58,7 +59,7 @@ class _DonateDialogState extends State<DonateDialog> {
       ok = await widget.open(url);
     } catch (_) {}
     if (!mounted) return;
-    setState(() => _error = ok ? null : 'Havolani ochib bo‘lmadi: ${url.host}');
+    setState(() => _error = ok ? null : S.current.app.linkFailed(url.host));
   }
 
   @override
@@ -67,6 +68,7 @@ class _DonateDialogState extends State<DonateDialog> {
     final info = widget.info;
     final card = info.cardNumber;
     final telegram = info.telegramUrl;
+    final t = context.s.app;
 
     Widget label(String t) => Padding(
           padding: const EdgeInsets.only(top: 18, bottom: 6),
@@ -108,7 +110,7 @@ class _DonateDialogState extends State<DonateDialog> {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Text('Focus’ni qo‘llab-quvvatlash',
+            child: Text(t.supportFocus,
                 style: TextStyle(color: c.text, fontSize: 18, fontWeight: FontWeight.w700)),
           ),
         ],
@@ -122,35 +124,34 @@ class _DonateDialogState extends State<DonateDialog> {
             children: [
               const SizedBox(height: 4),
               Text(
-                'Focus bepul, reklamasiz va serversiz ishlaydi: ma’lumotlaringiz faqat kompyuteringizda va '
-                'Telegram’ingizda turadi. Donatlar yangi imkoniyatlar ustida ishlashga vaqt ajratishga yordam beradi.',
+                t.donateIntro,
                 style: TextStyle(color: c.textSoft, fontSize: 14, height: 1.45),
               ),
               const SizedBox(height: 8),
               Text(
-                'Donat ixtiyoriy. Hech bir imkoniyat pullik emas va donatsiz ham yopilmaydi.',
+                t.donateVoluntary,
                 style: TextStyle(color: c.text2, fontSize: 12.5, height: 1.4),
               ),
-              label('Donat qilish'),
+              label(t.donateSection),
               if (!info.hasPayment)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 6),
                   child: Text(
-                    'To‘lov usullari hali qo‘shilmagan. Tez orada shu yerda paydo bo‘ladi.',
+                    t.donateNoMethods,
                     style: TextStyle(color: c.text2, fontSize: 13.5),
                   ),
                 ),
               if (card != null)
                 tile(
                   icon: Icons.credit_card,
-                  title: info.cardLabel.trim().isEmpty ? 'Bank kartasi' : info.cardLabel.trim(),
+                  title: info.cardLabel.trim().isEmpty ? t.bankCard : info.cardLabel.trim(),
                   subtitle: [card, if (info.cardHolder.trim().isNotEmpty) info.cardHolder.trim()].join('\n'),
                   onTap: _copyCard,
                   trailing: TextButton.icon(
                     onPressed: _copyCard,
                     style: TextButton.styleFrom(foregroundColor: c.accentText),
                     icon: Icon(_copied ? Icons.check : Icons.copy, size: 17),
-                    label: Text(_copied ? 'Nusxalandi' : 'Nusxalash'),
+                    label: Text(_copied ? t.copied : t.copy),
                   ),
                 ),
               for (final l in info.links)
@@ -164,23 +165,23 @@ class _DonateDialogState extends State<DonateDialog> {
                   subtitle: l.url.host,
                   onTap: () => _open(l.url),
                 ),
-              label('Boshqa yo‘llar bilan yordam'),
+              label(t.otherWays),
               tile(
                 icon: Icons.star_border,
-                title: 'GitHub’da yulduzcha qo‘yish',
-                subtitle: 'Loyiha ko‘proq odamga ko‘rinadi',
+                title: t.starOnGitHub,
+                subtitle: t.starOnGitHubSubtitle,
                 onTap: () => _open(Uri.parse(AppConfig.repoUrl)),
               ),
               tile(
                 icon: Icons.bug_report_outlined,
-                title: 'Xato yoki taklif yozish',
+                title: t.reportIssue,
                 subtitle: 'GitHub Issues',
                 onTap: () => _open(Uri.parse('${AppConfig.repoUrl}/issues/new')),
               ),
               if (telegram != null)
                 tile(
                   icon: Icons.campaign_outlined,
-                  title: 'Yangiliklar kanali',
+                  title: t.newsChannel,
                   subtitle: telegram.host + telegram.path,
                   onTap: () => _open(telegram),
                 ),
@@ -190,7 +191,7 @@ class _DonateDialogState extends State<DonateDialog> {
                   child: Text(_error!, style: TextStyle(color: c.danger, fontSize: 13)),
                 ),
               const SizedBox(height: 14),
-              Text('Rahmat!', style: TextStyle(color: c.text, fontSize: 14, fontWeight: FontWeight.w600)),
+              Text(t.thanks, style: TextStyle(color: c.text, fontSize: 14, fontWeight: FontWeight.w600)),
             ],
           ),
         ),
@@ -199,7 +200,7 @@ class _DonateDialogState extends State<DonateDialog> {
         FilledButton(
           onPressed: () => Navigator.pop(context),
           style: FilledButton.styleFrom(backgroundColor: c.accentStrong, foregroundColor: Colors.white),
-          child: const Text('Yopish'),
+          child: Text(context.s.common.close),
         ),
       ],
     );

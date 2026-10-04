@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../data/models.dart';
+import '../../l10n/l10n.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
 
@@ -37,13 +38,13 @@ class _CollectionEditorState extends State<_CollectionEditor> {
   void _save() {
     final name = _name.text.trim();
     if (name.isEmpty) {
-      setState(() => _error = 'Nomini kiriting.');
+      setState(() => _error = context.s.notes.collectionNameEmpty);
       return;
     }
     final taken =
         widget.state.collections.any((c) => c.id != widget.existing?.id && c.label.toLowerCase() == name.toLowerCase());
     if (taken || name.toLowerCase() == kAllCollection.label.toLowerCase()) {
-      setState(() => _error = 'Bu nomdagi to‘plam allaqachon bor.');
+      setState(() => _error = context.s.notes.collectionExists);
       return;
     }
     final existing = widget.existing;
@@ -58,12 +59,13 @@ class _CollectionEditorState extends State<_CollectionEditor> {
   @override
   Widget build(BuildContext context) {
     final c = context.fc;
+    final s = context.s;
     OutlineInputBorder border(Color color, [double w = 1]) =>
         OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: color, width: w));
     return AlertDialog(
       backgroundColor: c.panel,
       title: Text(
-        widget.existing == null ? 'Yangi to‘plam' : 'To‘plamni tahrirlash',
+        widget.existing == null ? s.notes.newCollection : s.notes.editCollection,
         style: TextStyle(color: c.text, fontSize: 18, fontWeight: FontWeight.w700),
       ),
       content: SizedBox(
@@ -82,7 +84,7 @@ class _CollectionEditorState extends State<_CollectionEditor> {
               },
               style: TextStyle(color: c.text, fontSize: 15),
               decoration: InputDecoration(
-                hintText: 'Masalan: Yetkazib beruvchilar',
+                hintText: s.notes.collectionNameHint,
                 hintStyle: TextStyle(color: c.text2),
                 errorText: _error,
                 filled: true,
@@ -94,7 +96,7 @@ class _CollectionEditorState extends State<_CollectionEditor> {
               ),
             ),
             const SizedBox(height: 8),
-            Text('Ikonka', style: TextStyle(color: c.text2, fontSize: 13, fontWeight: FontWeight.w600)),
+            Text(s.notes.icon, style: TextStyle(color: c.text2, fontSize: 13, fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             Wrap(
               spacing: 6,
@@ -128,12 +130,12 @@ class _CollectionEditorState extends State<_CollectionEditor> {
         TextButton(
           onPressed: () => Navigator.pop(context),
           style: TextButton.styleFrom(foregroundColor: c.text2),
-          child: const Text('Bekor qilish'),
+          child: Text(s.common.cancel),
         ),
         FilledButton(
           onPressed: _save,
           style: FilledButton.styleFrom(backgroundColor: c.accentStrong, foregroundColor: Colors.white),
-          child: Text(widget.existing == null ? 'Yaratish' : 'Saqlash'),
+          child: Text(widget.existing == null ? s.common.create : s.common.save),
         ),
       ],
     );
@@ -143,29 +145,28 @@ class _CollectionEditorState extends State<_CollectionEditor> {
 /// Asks before deleting [col]; its chats become unsorted (nothing is lost).
 Future<void> confirmDeleteCollection(BuildContext context, AppState state, Collection col) async {
   final c = context.fc;
+  final s = context.s;
   final count = state.countIn(col.id);
   final ok = await showDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
       backgroundColor: c.panel,
-      title: Text('«${col.label}» o‘chirilsinmi?',
+      title: Text(s.notes.deleteCollectionTitle(col.label),
           style: TextStyle(color: c.text, fontSize: 18, fontWeight: FontWeight.w700)),
       content: Text(
-        count == 0
-            ? 'To‘plam bo‘sh. Telegram’dagi chatlarga ta’sir qilmaydi.'
-            : 'Undagi $count ta chat «Saralanmagan»ga qaytadi. Telegram’dagi chatlarga ta’sir qilmaydi.',
+        count == 0 ? s.notes.deleteEmptyCollection : s.notes.deleteCollectionBody(count),
         style: TextStyle(color: c.text2, fontSize: 14, height: 1.4),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
           style: TextButton.styleFrom(foregroundColor: c.text2),
-          child: const Text('Bekor qilish'),
+          child: Text(s.common.cancel),
         ),
         TextButton(
           onPressed: () => Navigator.pop(context, true),
           style: TextButton.styleFrom(foregroundColor: c.danger),
-          child: const Text('O‘chirish'),
+          child: Text(s.common.delete),
         ),
       ],
     ),
@@ -176,6 +177,7 @@ Future<void> confirmDeleteCollection(BuildContext context, AppState state, Colle
 /// Context menu for a chat: move it to a collection or back to unsorted.
 Future<void> showAssignMenu(BuildContext context, AppState state, Chat chat, Offset globalPosition) async {
   final c = context.fc;
+  final t = context.s.notes;
   final current = state.collectionOf(chat);
   final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
   final choice = await showMenu<String>(
@@ -187,7 +189,7 @@ Future<void> showAssignMenu(BuildContext context, AppState state, Chat chat, Off
         enabled: false,
         height: 32,
         child:
-            Text('To‘plamga qo‘shish', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: c.text2)),
+            Text(t.addToCollection, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: c.text2)),
       ),
       for (final col in state.collections)
         PopupMenuItem<String>(
@@ -210,7 +212,7 @@ Future<void> showAssignMenu(BuildContext context, AppState state, Chat chat, Off
           children: [
             Icon(Icons.add, size: 18, color: c.accentText),
             const SizedBox(width: 10),
-            Text('Yangi to‘plam…', style: TextStyle(color: c.accentText, fontSize: 14)),
+            Text(t.newCollectionMenu, style: TextStyle(color: c.accentText, fontSize: 14)),
           ],
         ),
       ),
@@ -222,7 +224,7 @@ Future<void> showAssignMenu(BuildContext context, AppState state, Chat chat, Off
             children: [
               Icon(Icons.remove_circle_outline, size: 18, color: c.icon),
               const SizedBox(width: 10),
-              Text('To‘plamdan chiqarish', style: TextStyle(color: c.text, fontSize: 14)),
+              Text(t.removeFromCollection, style: TextStyle(color: c.text, fontSize: 14)),
             ],
           ),
         ),

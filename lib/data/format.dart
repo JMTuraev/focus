@@ -1,18 +1,20 @@
 import 'package:flutter/widgets.dart';
 
-/// Uzbek date/time texts and avatar helpers shared by data sources and UI.
+import '../l10n/l10n.dart';
+
+/// Date/time texts in the current UI language ([S.current]) and avatar
+/// helpers shared by data sources and UI.
 class Fmt {
-  static const _weekdays = ['Dush', 'Sesh', 'Chor', 'Pay', 'Jum', 'Shan', 'Yak'];
-  static const _months = [
-    'yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', //
-    'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr',
-  ];
+  static CommonStrings get _t => S.current.common;
 
-  /// "oktabr".
-  static String monthName(int month) => _months[month - 1];
+  /// "oktabr" / "октября" / "October".
+  static String monthName(int month) => _t.months[month - 1];
 
-  /// "Dush".
-  static String weekdayShort(int weekday) => _weekdays[weekday - 1];
+  /// "Dush" / "Пн" / "Mon".
+  static String weekdayShort(int weekday) => _t.weekdaysShort[weekday - 1];
+
+  /// "Dushanba" / "Понедельник" / "Monday".
+  static String weekday(int weekday) => _t.weekdays[weekday - 1];
 
   static String two(int n) => n.toString().padLeft(2, '0');
 
@@ -25,8 +27,8 @@ class Fmt {
     final today = _day(now ?? DateTime.now());
     final days = today.difference(_day(d)).inDays;
     if (days <= 0) return hm(d);
-    if (days == 1) return 'Kecha';
-    if (days < 7) return _weekdays[d.weekday - 1];
+    if (days == 1) return _t.yesterday;
+    if (days < 7) return _t.weekdaysShort[d.weekday - 1];
     return '${two(d.day)}.${two(d.month)}.${two(d.year % 100)}';
   }
 
@@ -34,20 +36,19 @@ class Fmt {
   static String dayLabel(DateTime d, {DateTime? now}) {
     final n = now ?? DateTime.now();
     final days = _day(n).difference(_day(d)).inDays;
-    if (days == 0) return 'Bugun';
-    if (days == 1) return 'Kecha';
-    final base = '${d.day}-${_months[d.month - 1]}';
-    return d.year == n.year ? base : '$base, ${d.year}';
+    if (days == 0) return _t.today;
+    if (days == 1) return _t.yesterday;
+    return d.year == n.year ? _t.dayMonth(d.day, d.month) : _t.dayMonthYear(d.day, d.month, d.year);
   }
 
   /// Due date: "Bugun", "Ertaga", "Kecha", "12-okt", "12-okt 2027".
   static String dueLabel(DateTime d, {DateTime? now}) {
     final n = now ?? DateTime.now();
     final days = _day(d).difference(_day(n)).inDays;
-    if (days == 0) return 'Bugun';
-    if (days == 1) return 'Ertaga';
-    if (days == -1) return 'Kecha';
-    final base = '${d.day}-${_months[d.month - 1].substring(0, 3)}';
+    if (days == 0) return _t.today;
+    if (days == 1) return _t.tomorrow;
+    if (days == -1) return _t.yesterday;
+    final base = _t.dayMonthShort(d.day, d.month);
     return d.year == n.year ? base : '$base ${d.year}';
   }
 
@@ -64,25 +65,25 @@ class Fmt {
     return b.toString();
   }
 
-  /// "4,2 MB", "84 KB".
+  /// "4,2 MB", "84 KB" ("4,2 МБ" in Russian, "4.2 MB" in English).
   static String size(int bytes) {
-    if (bytes >= 1024 * 1024) {
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(1).replaceAll('.', ',')} MB';
-    }
-    if (bytes >= 1024) return '${(bytes / 1024).round()} KB';
-    return '$bytes B';
+    String one(double v) => v.toStringAsFixed(1).replaceAll('.', _t.decimalSeparator);
+    if (bytes >= 1024 * 1024 * 1024) return '${one(bytes / (1024 * 1024 * 1024))} ${_t.gigabytes}';
+    if (bytes >= 1024 * 1024) return '${one(bytes / (1024 * 1024))} ${_t.megabytes}';
+    if (bytes >= 1024) return '${(bytes / 1024).round()} ${_t.kilobytes}';
+    return '$bytes ${_t.bytes}';
   }
 
-  /// "Last seen" text for a user status, Uzbek.
+  /// "Last seen" text for a user status.
   static String lastSeen(DateTime wasOnline, {DateTime? now}) {
     final n = now ?? DateTime.now();
     final diff = n.difference(wasOnline);
-    if (diff.inMinutes < 1) return 'hozirgina onlayn edi';
-    if (diff.inMinutes < 60) return '${diff.inMinutes} daqiqa oldin onlayn edi';
+    if (diff.inMinutes < 1) return _t.lastSeenJustNow;
+    if (diff.inMinutes < 60) return _t.lastSeenMinutes(diff.inMinutes);
     final days = _day(n).difference(_day(wasOnline)).inDays;
-    if (days == 0) return 'bugun ${hm(wasOnline)} da onlayn edi';
-    if (days == 1) return 'kecha ${hm(wasOnline)} da onlayn edi';
-    return '${two(wasOnline.day)}.${two(wasOnline.month)}.${wasOnline.year} da onlayn edi';
+    if (days == 0) return _t.lastSeenToday(hm(wasOnline));
+    if (days == 1) return _t.lastSeenYesterday(hm(wasOnline));
+    return _t.lastSeenOn('${two(wasOnline.day)}.${two(wasOnline.month)}.${wasOnline.year}');
   }
 
   /// Up to two letters from the first two words ("Dilshod Karimov" → "DK").

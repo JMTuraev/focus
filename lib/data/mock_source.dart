@@ -1,6 +1,7 @@
 import 'models.dart';
 import 'chat_source.dart';
 import 'format.dart';
+import '../l10n/l10n.dart';
 import 'meeting_parser.dart';
 import 'mock.dart';
 
@@ -70,7 +71,7 @@ class MockChatSource extends ChatSource {
     final time = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
     (_sent[chatId] ??= []).add(Message(id: '$chatId-s${now.microsecondsSinceEpoch}', text: t, time: time, out: true));
     final i = _chats.indexWhere((c) => c.id == chatId);
-    if (i >= 0) _chats[i] = _chats[i].copyWith(last: 'Siz: $t', time: time, waiting: false);
+    if (i >= 0) _chats[i] = _chats[i].copyWith(last: '${S.current.chats.youPrefix}$t', time: time, waiting: false);
     notifyListeners();
   }
 
@@ -87,12 +88,12 @@ class MockChatSource extends ChatSource {
         time: time,
         out: true,
         fileName: f.name,
-        fileMeta: '${Fmt.size(f.size)} · ${f.extension.isEmpty ? 'Fayl' : f.extension.toUpperCase()}',
+        fileMeta: '${Fmt.size(f.size)} · ${f.extension.isEmpty ? S.current.common.file : f.extension.toUpperCase()}',
         file: FileInfo(fileId: -1, size: f.size, path: f.path, progress: 1),
       ));
     }
     final idx = _chats.indexWhere((c) => c.id == chatId);
-    if (idx >= 0) _chats[idx] = _chats[idx].copyWith(last: 'Siz: ${files.last.name}', time: time, waiting: false);
+    if (idx >= 0) _chats[idx] = _chats[idx].copyWith(last: '${S.current.chats.youPrefix}${files.last.name}', time: time, waiting: false);
     notifyListeners();
   }
 }

@@ -4,8 +4,8 @@ import 'package:drift/drift.dart' show InsertMode;
 import 'package:flutter/foundation.dart';
 
 import '../data/format.dart';
-import '../data/meeting_parser.dart';
 import '../db/database.dart';
+import '../l10n/l10n.dart';
 import 'backup_crypto.dart';
 import 'backup_key_store.dart';
 import 'backup_transport.dart';
@@ -13,7 +13,7 @@ import 'snapshot.dart';
 
 /// The backup was made with another password than the one on this PC.
 class NeedPasswordException extends BackupException {
-  NeedPasswordException() : super('Bu nusxa boshqa parol bilan shifrlangan. Parolni kiriting.');
+  NeedPasswordException() : super(S.current.backup.needPassword);
 }
 
 /// Encrypted backups of fokus.sqlite to the user's Saved Messages.
@@ -74,7 +74,7 @@ class BackupService extends ChangeNotifier {
   /// Sets (or changes) the backup password. Old backups keep their password.
   Future<void> setPassword(String password) async {
     if (password.length < minPasswordLength) {
-      throw BackupException('Parol kamida $minPasswordLength ta belgidan iborat bo‘lsin.');
+      throw BackupException(S.current.backup.passwordTooShort(minPasswordLength));
     }
     final key = await BackupCrypto.deriveKey(password, params: kdf);
     await keys.save(key);
@@ -89,30 +89,34 @@ class BackupService extends ChangeNotifier {
     if (v) unawaited(maybeAutoBackup());
   }
 
+  /// "Shanba, 4-okt · 12:30" in the current language.
+  static String _captionDate(DateTime t) =>
+      '${Fmt.weekday(t.weekday)}, ${S.current.common.dayMonthShort(t.day, t.month)} · ${Fmt.hm(t)}';
+
   static String fileName(DateTime t) =>
       'fokus-backup-${t.year}-${Fmt.two(t.month)}-${Fmt.two(t.day)}_${Fmt.two(t.hour)}${Fmt.two(t.minute)}.fokusbak';
 
   /// Encrypts the database and uploads it. Throws [BackupException].
   Future<void> backupNow() async {
     final key = _key;
-    if (key == null) throw BackupException('Avval zaxira parolini o‘rnating.');
+    if (key == null) throw BackupException(S.current.backup.setPasswordFirst);
     if (busy) return;
     busy = true;
     progress = null;
-    status = 'Tayyorlanmoqda…';
+    status = S.current.backup.statusPreparing;
     lastError = null;
     notifyListeners();
     try {
       final plain = await Snapshot.capture(db);
       final data = await BackupCrypto.encrypt(plain, key);
       final now = _clock();
-      status = 'Saved Messages’ga yuklanmoqda…';
+      status = S.current.backup.statusUploading;
       notifyListeners();
       await transport.upload(
         data,
         fileName: fileName(now),
-        caption: '$tag Focus zaxira nusxasi · ${MeetingParser.label(now)}\n'
-            'Shifrlangan: faqat backup parolingiz bilan ochiladi.',
+        // The tag must stay first: it is how backups are found again.
+        caption: '$tag ${S.current.backup.caption(_captionDate(now))}',
         progress: (p) {
           progress = p;
           notifyListeners();
@@ -124,7 +128,7 @@ class BackupService extends ChangeNotifier {
       lastError = e.message;
       rethrow;
     } catch (e) {
-      lastError = 'Zaxira nusxasini saqlab bo‘lmadi: $e';
+      lastError = S.current.backup.backupFailed('$e');
       throw BackupException(lastError!);
     } finally {
       busy = false;
@@ -141,12 +145,12 @@ class BackupService extends ChangeNotifier {
   Future<void> restore(BackupEntry entry, {String? password}) async {
     if (busy) return;
     busy = true;
-    status = 'Yuklab olinmoqda…';
+    status = S.current.backup.statusDownloading;
     progress = null;
     notifyListeners();
     try {
       final data = await transport.download(entry);
-      status = 'Tiklanmoqda…';
+      status = S.current.backup.statusRestoring;
       notifyListeners();
       final Uint8List plain;
       if (password != null) {

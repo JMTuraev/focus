@@ -61,7 +61,7 @@ class AuthState {
   final String message;
 }
 
-/// User-facing error (Uzbek text) from a login action.
+/// User-facing error (text in the current language) from a login action.
 class AuthException implements Exception {
   AuthException(this.message);
 

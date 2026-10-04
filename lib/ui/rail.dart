@@ -2,16 +2,31 @@ import 'package:flutter/material.dart';
 
 import '../state/app_state.dart';
 import '../theme.dart';
+import '../l10n/l10n.dart';
 
-const _modules = <(Module, String, IconData)>[
-  (Module.chats, 'Chatlar', Icons.chat_bubble_outline),
-  (Module.collections, 'To‘plamlar', Icons.grid_view_outlined),
-  (Module.tasks, 'Vazifalar', Icons.checklist),
-  (Module.calendar, 'Kalendar', Icons.calendar_today_outlined),
-  (Module.notes, 'Eslatmalar', Icons.sticky_note_2_outlined),
-  (Module.files, 'Fayllar', Icons.folder_outlined),
-  (Module.stats, 'Statistika', Icons.bar_chart),
+const _modules = <(Module, IconData)>[
+  (Module.chats, Icons.chat_bubble_outline),
+  (Module.collections, Icons.grid_view_outlined),
+  (Module.tasks, Icons.checklist),
+  (Module.calendar, Icons.calendar_today_outlined),
+  (Module.notes, Icons.sticky_note_2_outlined),
+  (Module.files, Icons.folder_outlined),
+  (Module.stats, Icons.bar_chart),
 ];
+
+/// Module name in the current language.
+String moduleLabel(BuildContext context, Module m) {
+  final t = context.s.app;
+  return switch (m) {
+    Module.chats => t.chats,
+    Module.collections => t.collections,
+    Module.tasks => t.tasks,
+    Module.calendar => t.calendar,
+    Module.notes => t.notes,
+    Module.files => t.files,
+    Module.stats => t.stats,
+  };
+}
 
 /// Narrow vertical panel with the modules. Collections live as tabs above
 /// the chat list.
@@ -39,8 +54,8 @@ class Rail extends StatelessWidget {
         children: [
           for (final m in _modules)
             _RailItem(
-              label: m.$2,
-              icon: m.$3,
+              label: moduleLabel(context, m.$1),
+              icon: m.$2,
               compact: compact,
               active: state.module == m.$1,
               // Tasks: overdue or due today.
@@ -54,21 +69,21 @@ class Rail extends StatelessWidget {
             ),
           const Spacer(),
           _RailItem(
-            label: 'Sozlamalar',
+            label: context.s.app.settings,
             icon: Icons.settings_outlined,
             compact: compact,
             height: 44,
             iconSize: 20,
-            tooltip: 'Sozlamalar',
+            tooltip: context.s.app.settings,
             onTap: onSettings,
           ),
           _RailItem(
-            label: 'Chiqish',
+            label: context.s.app.logout,
             icon: Icons.logout,
             compact: compact,
             height: 44,
             iconSize: 20,
-            tooltip: 'Akkauntdan chiqish',
+            tooltip: context.s.app.logoutTip,
             onTap: onLogout,
           ),
         ],

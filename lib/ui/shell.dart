@@ -11,6 +11,7 @@ import 'notes/notes_screen.dart';
 import 'rail.dart';
 import 'tasks/tasks_screen.dart';
 import 'title_bar.dart';
+import '../l10n/l10n.dart';
 
 class Shell extends StatelessWidget {
   const Shell({super.key, required this.state, required this.settings, required this.onLogout, required this.onSettings});
@@ -34,7 +35,7 @@ class Shell extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Rail(state: state, compact: mode == LayoutMode.narrow, onLogout: onLogout, onSettings: onSettings),
-                  Expanded(child: _screenFor(state, mode)),
+                  Expanded(child: _screenFor(context, state, mode)),
                 ],
               ),
             ),
@@ -44,25 +45,25 @@ class Shell extends StatelessWidget {
     );
   }
 
-  Widget _screenFor(AppState s, LayoutMode mode) {
+  Widget _screenFor(BuildContext context, AppState s, LayoutMode mode) {
+    final t = context.s.app;
     return switch (s.module) {
       Module.chats => ChatsScreen(state: s, mode: mode),
       Module.collections => CollectionsScreen(state: s),
       Module.tasks => TasksScreen(state: s),
       Module.calendar => CalendarScreen(state: s),
       Module.notes => NotesScreen(state: s),
-      Module.files => const _Planned('Fayllar', 'AI bo‘limlari va «AI’dan so‘rang»', 4),
-      Module.stats => const _Planned('Statistika', 'Kunlik chatlar, javob vaqti, grafiklar', 4),
+      Module.files => _Planned(t.files, t.filesSubtitle),
+      Module.stats => _Planned(t.stats, t.statsSubtitle),
     };
   }
 }
 
 class _Planned extends StatelessWidget {
-  const _Planned(this.title, this.subtitle, this.phase);
+  const _Planned(this.title, this.subtitle);
 
   final String title;
   final String subtitle;
-  final int phase;
 
   @override
   Widget build(BuildContext context) {
@@ -80,7 +81,7 @@ class _Planned extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
               decoration: BoxDecoration(color: c.accentSoft, borderRadius: BorderRadius.circular(12)),
-              child: Text('$phase-bosqichda', style: TextStyle(color: c.accentText, fontWeight: FontWeight.w700, fontSize: 12.5)),
+              child: Text(context.s.app.comingSoon, style: TextStyle(color: c.accentText, fontWeight: FontWeight.w700, fontSize: 12.5)),
             ),
           ],
         ),

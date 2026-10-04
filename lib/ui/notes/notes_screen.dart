@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../db/database.dart';
+import '../../l10n/l10n.dart';
 import '../../notes/note_store.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
@@ -29,6 +30,7 @@ class _NotesScreenState extends State<NotesScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.fc;
+    final t = context.s.notes;
     return ListenableBuilder(
       listenable: s.notes,
       builder: (context, _) => LayoutBuilder(
@@ -54,11 +56,11 @@ class _NotesScreenState extends State<NotesScreen> {
                   SliverFillRemaining(hasScrollBody: false, child: _empty(c))
                 else ...[
                   if (pinned.isNotEmpty) ...[
-                    _sectionTitle(c, 'Qadalgan', pad),
+                    _sectionTitle(c, t.pinnedSection, pad),
                     _grid(pinned, width, pad),
                   ],
                   if (others.isNotEmpty) ...[
-                    if (pinned.isNotEmpty) _sectionTitle(c, 'Boshqalar', pad),
+                    if (pinned.isNotEmpty) _sectionTitle(c, t.othersSection, pad),
                     _grid(others, width, pad),
                   ],
                   const SliverToBoxAdapter(child: SizedBox(height: 24)),
@@ -73,6 +75,7 @@ class _NotesScreenState extends State<NotesScreen> {
 
   Widget _header(FokusColors c, double width) {
     final total = s.notes.all.length;
+    final t = context.s.notes;
     return Wrap(
       alignment: WrapAlignment.spaceBetween,
       crossAxisAlignment: WrapCrossAlignment.center,
@@ -83,8 +86,8 @@ class _NotesScreenState extends State<NotesScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Eslatmalar', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: c.text)),
-            Text('$total ta eslatma', style: TextStyle(fontSize: 13, color: c.text2)),
+            Text(t.notesTitle, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: c.text)),
+            Text(t.notesCount(total), style: TextStyle(fontSize: 13, color: c.text2)),
           ],
         ),
         Wrap(
@@ -99,7 +102,7 @@ class _NotesScreenState extends State<NotesScreen> {
                 onChanged: (v) => setState(() => _query = v),
                 style: TextStyle(fontSize: 14, color: c.text),
                 decoration: InputDecoration(
-                  hintText: 'Eslatma qidirish',
+                  hintText: t.searchHint,
                   hintStyle: TextStyle(color: c.text2),
                   prefixIcon: Icon(Icons.search, size: 18, color: c.text2),
                   filled: true,
@@ -112,13 +115,13 @@ class _NotesScreenState extends State<NotesScreen> {
             OutlinedButton.icon(
               onPressed: () => showNoteEditor(context, s, checklist: true),
               icon: Icon(Icons.checklist, size: 18, color: c.accentText),
-              label: Text(width < 600 ? 'Ro‘yxat' : 'Yangi ro‘yxat', style: TextStyle(color: c.accentText)),
+              label: Text(width < 600 ? t.newChecklistShort : t.newChecklist, style: TextStyle(color: c.accentText)),
               style: OutlinedButton.styleFrom(side: BorderSide(color: c.chipBorder)),
             ),
             FilledButton.icon(
               onPressed: () => showNoteEditor(context, s),
               icon: const Icon(Icons.add, size: 18),
-              label: Text(width < 600 ? 'Yangi' : 'Yangi eslatma'),
+              label: Text(width < 600 ? t.newNoteShort : t.newNote),
               style: FilledButton.styleFrom(backgroundColor: c.accentStrong, foregroundColor: Colors.white),
             ),
           ],
@@ -149,11 +152,12 @@ class _NotesScreenState extends State<NotesScreen> {
         if (chatId != null)
           InputChip(
             avatar: chat == null ? null : ChatAvatar(chat, size: 22, showOnline: false),
-            label: Text('Faqat: ${chat?.name ?? 'chat'}', style: TextStyle(color: c.text, fontWeight: FontWeight.w600)),
+            label: Text(context.s.notes.onlyChat(chat?.name),
+                maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: c.text, fontWeight: FontWeight.w600)),
             backgroundColor: c.accentSoft,
             side: BorderSide.none,
             deleteIcon: Icon(Icons.close, size: 16, color: c.icon),
-            deleteButtonTooltipMessage: 'Filtrni olib tashlash',
+            deleteButtonTooltipMessage: context.s.notes.removeFilter,
             onDeleted: s.clearNoteChatFilter,
           ),
       ],
@@ -171,9 +175,7 @@ class _NotesScreenState extends State<NotesScreen> {
             Icon(Icons.sticky_note_2_outlined, size: 48, color: c.text2),
             const SizedBox(height: 10),
             Text(
-              searching
-                  ? 'Mos eslatma topilmadi.'
-                  : 'Hali eslatma yo‘q. Chatdagi xabarni «Eslatmaga» tugmasi bilan saqlang yoki yangisini yozing.',
+              searching ? context.s.notes.noMatches : context.s.notes.emptyHint,
               textAlign: TextAlign.center,
               style: TextStyle(color: c.text2, fontSize: 14, height: 1.4),
             ),
@@ -242,6 +244,7 @@ class _NoteCard extends StatelessWidget {
 
   Future<void> _menu(BuildContext context, Offset pos) async {
     final c = context.fc;
+    final t = context.s.notes;
     final n = note;
     final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
     final choice = await showMenu<String>(
@@ -252,12 +255,12 @@ class _NoteCard extends StatelessWidget {
         PopupMenuItem(
           value: 'pin',
           height: 38,
-          child: Text(n.pinned ? 'Qadashni olib tashlash' : 'Qadash', style: TextStyle(color: c.text)),
+          child: Text(n.pinned ? t.unpin : t.pin, style: TextStyle(color: c.text)),
         ),
         PopupMenuItem(
           value: 'convert',
           height: 38,
-          child: Text(n.checklist ? 'Matnga aylantirish' : 'Ro‘yxatga aylantirish', style: TextStyle(color: c.text)),
+          child: Text(n.checklist ? t.toText : t.toChecklist, style: TextStyle(color: c.text)),
         ),
         PopupMenuItem(
           enabled: false,
@@ -289,8 +292,9 @@ class _NoteCard extends StatelessWidget {
           ),
         ),
         if (n.chatId != null)
-          PopupMenuItem(value: 'chat', height: 38, child: Text('Chatni ochish', style: TextStyle(color: c.text))),
-        PopupMenuItem(value: 'delete', height: 38, child: Text('O‘chirish', style: TextStyle(color: c.danger))),
+          PopupMenuItem(value: 'chat', height: 38, child: Text(t.openChat, style: TextStyle(color: c.text))),
+        PopupMenuItem(
+            value: 'delete', height: 38, child: Text(context.s.common.delete, style: TextStyle(color: c.danger))),
       ],
     );
     if (choice == null || !context.mounted) return;
@@ -368,7 +372,8 @@ class _NoteCard extends StatelessWidget {
                 if (n.items.length > _maxItems)
                   Padding(
                     padding: const EdgeInsets.only(top: 2, left: 26),
-                    child: Text('yana ${n.items.length - _maxItems} ta', style: TextStyle(fontSize: 12.5, color: c.text2)),
+                    child: Text(context.s.notes.moreItems(n.items.length - _maxItems),
+                        style: TextStyle(fontSize: 12.5, color: c.text2)),
                   ),
               ],
               if (n.chatId != null) ...[
@@ -385,7 +390,7 @@ class _NoteCard extends StatelessWidget {
                         Icon(Icons.chat_bubble_outline, size: 14, color: c.text2),
                       const SizedBox(width: 6),
                       Flexible(
-                        child: Text(chat?.name ?? n.chatTitle ?? 'Chat',
+                        child: Text(chat?.name ?? n.chatTitle ?? context.s.notes.unknownChat,
                             maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: c.text2)),
                       ),
                     ],

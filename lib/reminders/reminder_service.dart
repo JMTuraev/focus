@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../calendar/event_store.dart';
 import '../data/format.dart';
 import '../db/database.dart';
+import '../l10n/l10n.dart';
 import '../state/settings.dart';
 import '../tasks/task_store.dart';
 import 'notifier.dart';
@@ -90,13 +91,16 @@ class ReminderService {
     final until = now.add(horizon);
     final hour = Duration(hours: settings.taskReminderHour);
     final out = <int, PlannedReminder>{};
+    // Texts in the current UI language; a language change notifies
+    // [settings], which reschedules everything.
+    final s = S.current.calendar;
 
     for (final e in events.all) {
       final before = e.remindBefore;
       if (before == null) continue;
       final at = e.allDay ? EventStore.day(e.start).add(hour) : e.start.subtract(Duration(minutes: before));
       if (!at.isAfter(now) || at.isAfter(until)) continue;
-      final when = e.allDay ? '${Fmt.dueLabel(e.start)}, kun bo‘yi' : '${Fmt.dueLabel(e.start)}, ${Fmt.hm(e.start)}–${Fmt.hm(e.end)}';
+      final when = e.allDay ? s.reminderAllDay(Fmt.dueLabel(e.start)) : '${Fmt.dueLabel(e.start)}, ${Fmt.hm(e.start)}–${Fmt.hm(e.end)}';
       out[eventBase + e.id] = PlannedReminder(
         at: at,
         title: e.title,
@@ -112,8 +116,8 @@ class ReminderService {
       if (!at.isAfter(now) || at.isAfter(until)) continue;
       out[taskBase + t.id] = PlannedReminder(
         at: at,
-        title: 'Vazifa: ${t.title}',
-        body: ['Muddati: ${Fmt.dueLabel(due).toLowerCase()}', if (t.chatTitle != null) t.chatTitle!].join(' · '),
+        title: s.taskReminderTitle(t.title),
+        body: [s.taskReminderDue(Fmt.dueLabel(due)), if (t.chatTitle != null) t.chatTitle!].join(' · '),
         payload: 'task:${t.id}',
       );
     }

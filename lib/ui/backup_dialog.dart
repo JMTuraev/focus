@@ -4,6 +4,7 @@ import '../backup/backup_crypto.dart';
 import '../backup/backup_service.dart';
 import '../backup/backup_transport.dart';
 import '../data/format.dart';
+import '../l10n/l10n.dart';
 import '../theme.dart';
 import 'common.dart';
 
@@ -70,7 +71,7 @@ class _BackupDialogState extends State<_BackupDialog> {
 
   Future<void> _savePassword() async {
     if (_pass.text != _pass2.text) {
-      setState(() => _passError = 'Parollar bir xil emas.');
+      setState(() => _passError = context.s.backup.passwordsDontMatch);
       return;
     }
     setState(() {
@@ -94,7 +95,7 @@ class _BackupDialogState extends State<_BackupDialog> {
     try {
       await b.backupNow();
       if (!mounted) return;
-      showToast(context, (w) => SnackBar(width: w < 460 ? w : 460, content: const Text('Zaxira nusxa Saved Messages’ga saqlandi')));
+      showToast(context, (w) => SnackBar(width: w < 460 ? w : 460, content: Text(context.s.backup.saved)));
       await _loadList();
     } on BackupException catch (e) {
       if (mounted) showToast(context, (w) => SnackBar(width: w < 460 ? w : 460, content: Text(e.message)));
@@ -103,19 +104,19 @@ class _BackupDialogState extends State<_BackupDialog> {
 
   Future<void> _restore(BackupEntry e) async {
     final c = context.fc;
+    final s = context.s;
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: c.panel,
-        title: Text('Shu nusxani tiklaysizmi?', style: TextStyle(color: c.text, fontSize: 18, fontWeight: FontWeight.w700)),
+        title: Text(s.backup.restoreTitle, style: TextStyle(color: c.text, fontSize: 18, fontWeight: FontWeight.w700)),
         content: Text(
-          '${_when(e.date)} dagi nusxa. Hozirgi vazifalar, kalendar, eslatmalar va to‘plamlar shu nusxadagisi bilan almashtiriladi. '
-          'Telegram chatlariga ta’sir qilmaydi.',
+          s.backup.restoreBody(_when(e.date)),
           style: TextStyle(color: c.text2, fontSize: 14, height: 1.4),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text('Bekor qilish', style: TextStyle(color: c.text2))),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: Text('Tiklash', style: TextStyle(color: c.danger))),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(s.common.cancel, style: TextStyle(color: c.text2))),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: Text(s.backup.restore, style: TextStyle(color: c.danger))),
         ],
       ),
     );
@@ -126,7 +127,7 @@ class _BackupDialogState extends State<_BackupDialog> {
         await b.restore(e, password: password);
         await widget.onRestored();
         if (mounted) {
-          showToast(context, (w) => SnackBar(width: w < 460 ? w : 460, content: Text('${_when(e.date)} dagi nusxa tiklandi')));
+          showToast(context, (w) => SnackBar(width: w < 460 ? w : 460, content: Text(context.s.backup.restored(_when(e.date)))));
         }
         return;
       } on NeedPasswordException {
@@ -135,7 +136,7 @@ class _BackupDialogState extends State<_BackupDialog> {
         if (password == null) return;
       } on BackupException catch (err) {
         if (!mounted) return;
-        if (password != null && err.message.startsWith('Parol')) {
+        if (password != null && err is WrongPasswordException) {
           password = await _askPassword(err.message);
           if (password == null) return;
         } else {
@@ -148,12 +149,13 @@ class _BackupDialogState extends State<_BackupDialog> {
 
   Future<String?> _askPassword(String? error) {
     final c = context.fc;
+    final s = context.s;
     final ctrl = TextEditingController();
     return showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: c.panel,
-        title: Text('Zaxira paroli', style: TextStyle(color: c.text, fontSize: 18, fontWeight: FontWeight.w700)),
+        title: Text(s.backup.passwordTitle, style: TextStyle(color: c.text, fontSize: 18, fontWeight: FontWeight.w700)),
         content: TextField(
           controller: ctrl,
           autofocus: true,
@@ -161,17 +163,17 @@ class _BackupDialogState extends State<_BackupDialog> {
           onSubmitted: (v) => Navigator.pop(context, v),
           style: TextStyle(color: c.text),
           decoration: InputDecoration(
-            hintText: 'Nusxa yaratilgandagi parol',
+            hintText: s.backup.askPasswordHint,
             hintStyle: TextStyle(color: c.text2),
             errorText: error,
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text('Bekor qilish', style: TextStyle(color: c.text2))),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(s.common.cancel, style: TextStyle(color: c.text2))),
           FilledButton(
             onPressed: () => Navigator.pop(context, ctrl.text),
             style: FilledButton.styleFrom(backgroundColor: c.accentStrong, foregroundColor: Colors.white),
-            child: const Text('Ochish'),
+            child: Text(s.common.open),
           ),
         ],
       ),
@@ -181,11 +183,12 @@ class _BackupDialogState extends State<_BackupDialog> {
   @override
   Widget build(BuildContext context) {
     final c = context.fc;
+    final s = context.s;
     return ListenableBuilder(
       listenable: b,
       builder: (context, _) => AlertDialog(
         backgroundColor: c.panel,
-        title: Text('Zaxira nusxa', style: TextStyle(color: c.text, fontSize: 18, fontWeight: FontWeight.w700)),
+        title: Text(s.backup.title, style: TextStyle(color: c.text, fontSize: 18, fontWeight: FontWeight.w700)),
         content: SizedBox(
           width: 460,
           child: SingleChildScrollView(
@@ -196,7 +199,7 @@ class _BackupDialogState extends State<_BackupDialog> {
           FilledButton(
             onPressed: () => Navigator.pop(context),
             style: FilledButton.styleFrom(backgroundColor: c.accentStrong, foregroundColor: Colors.white),
-            child: const Text('Yopish'),
+            child: Text(s.common.close),
           ),
         ],
       ),
@@ -204,6 +207,7 @@ class _BackupDialogState extends State<_BackupDialog> {
   }
 
   Widget _passwordForm(FokusColors c) {
+    final s = context.s;
     InputDecoration deco(String hint) => InputDecoration(
           hintText: hint,
           hintStyle: TextStyle(color: c.text2),
@@ -219,41 +223,41 @@ class _BackupDialogState extends State<_BackupDialog> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Vazifalar, kalendar, eslatmalar va to‘plamlar shifrlanib, Telegram’dagi Saved Messages’ga saqlanadi. '
-          'Ochish uchun alohida zaxira paroli kerak. Uni faqat siz bilasiz: parolni unutsangiz, nusxani hech kim, '
-          'hatto biz ham ocha olmaymiz.',
+          s.backup.intro,
           style: TextStyle(color: c.textSoft, fontSize: 13.5, height: 1.45),
         ),
         if (_changing)
           Padding(
             padding: const EdgeInsets.only(top: 8),
-            child: Text('Eski nusxalar eski parol bilan ochiladi.', style: TextStyle(color: c.waitingStrong, fontSize: 13)),
+            child: Text(s.backup.passwordChangeNote, style: TextStyle(color: c.waitingStrong, fontSize: 13)),
           ),
         const SizedBox(height: 14),
-        TextField(controller: _pass, obscureText: true, autofocus: true, style: TextStyle(color: c.text), decoration: deco('Zaxira paroli (kamida 8 belgi)')),
+        TextField(controller: _pass, obscureText: true, autofocus: true, style: TextStyle(color: c.text), decoration: deco(s.backup.newPasswordHint(BackupService.minPasswordLength))),
         const SizedBox(height: 8),
         TextField(
           controller: _pass2,
           obscureText: true,
           onSubmitted: (_) => _savePassword(),
           style: TextStyle(color: c.text),
-          decoration: deco('Parolni takrorlang'),
+          decoration: deco(s.backup.repeatPasswordHint),
         ),
         if (_passError != null)
           Padding(padding: const EdgeInsets.only(top: 8), child: Text(_passError!, style: TextStyle(color: c.danger, fontSize: 13))),
         const SizedBox(height: 14),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
+        Wrap(
+          alignment: WrapAlignment.end,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 4,
           children: [
             if (_changing)
-              TextButton(onPressed: () => setState(() => _changing = false), child: Text('Bekor qilish', style: TextStyle(color: c.text2))),
-            const SizedBox(width: 8),
+              TextButton(onPressed: () => setState(() => _changing = false), child: Text(s.common.cancel, style: TextStyle(color: c.text2))),
             FilledButton(
               onPressed: _savingPassword ? null : _savePassword,
               style: FilledButton.styleFrom(backgroundColor: c.accentStrong, foregroundColor: Colors.white),
               child: _savingPassword
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Text('Parolni saqlash'),
+                  : Text(s.backup.savePassword),
             ),
           ],
         ),
@@ -262,6 +266,7 @@ class _BackupDialogState extends State<_BackupDialog> {
   }
 
   Widget _main(FokusColors c) {
+    final s = context.s;
     final last = b.lastBackupAt;
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -273,7 +278,7 @@ class _BackupDialogState extends State<_BackupDialog> {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                last == null ? 'Hali zaxira nusxa saqlanmagan' : 'Oxirgi nusxa: ${_when(last)}',
+                last == null ? s.backup.noBackupYet : s.backup.lastBackup(_when(last)),
                 style: TextStyle(color: c.text, fontSize: 14.5, fontWeight: FontWeight.w600),
               ),
             ),
@@ -292,7 +297,7 @@ class _BackupDialogState extends State<_BackupDialog> {
             child: FilledButton.icon(
               onPressed: _backupNow,
               icon: const Icon(Icons.cloud_upload_outlined, size: 18),
-              label: const Text('Hozir saqlash'),
+              label: Text(s.backup.backupNow),
               style: FilledButton.styleFrom(backgroundColor: c.accentStrong, foregroundColor: Colors.white),
             ),
           ),
@@ -302,25 +307,25 @@ class _BackupDialogState extends State<_BackupDialog> {
           onChanged: b.setAutoDaily,
           activeThumbColor: Colors.white,
           activeTrackColor: c.accentStrong,
-          title: Text('Har kuni avtomatik saqlash', style: TextStyle(color: c.text, fontSize: 14)),
-          subtitle: Text('Focus ochiq bo‘lganda, kuniga bir marta', style: TextStyle(color: c.text2, fontSize: 12.5)),
+          title: Text(s.backup.autoDaily, style: TextStyle(color: c.text, fontSize: 14)),
+          subtitle: Text(s.backup.autoDailyHint, style: TextStyle(color: c.text2, fontSize: 12.5)),
         ),
         Align(
           alignment: Alignment.centerLeft,
           child: TextButton(
             onPressed: () => setState(() => _changing = true),
             style: TextButton.styleFrom(foregroundColor: c.accentText, padding: EdgeInsets.zero),
-            child: const Text('Parolni o‘zgartirish'),
+            child: Text(s.backup.changePassword),
           ),
         ),
         Divider(color: c.border, height: 24),
         Row(
           children: [
             Expanded(
-              child: Text('Saved Messages’dagi nusxalar', style: TextStyle(color: c.text2, fontSize: 12.5, fontWeight: FontWeight.w700)),
+              child: Text(s.backup.listTitle, style: TextStyle(color: c.text2, fontSize: 12.5, fontWeight: FontWeight.w700)),
             ),
             IconButton(
-              tooltip: 'Yangilash',
+              tooltip: s.backup.refresh,
               onPressed: _listing ? null : _loadList,
               icon: Icon(Icons.refresh, size: 18, color: c.icon),
             ),
@@ -331,7 +336,7 @@ class _BackupDialogState extends State<_BackupDialog> {
         else if (_listError != null)
           Text(_listError!, style: TextStyle(color: c.danger, fontSize: 13))
         else if ((_entries ?? const []).isEmpty)
-          Text('Hali nusxa yo‘q.', style: TextStyle(color: c.text2, fontSize: 13))
+          Text(s.backup.listEmpty, style: TextStyle(color: c.text2, fontSize: 13))
         else
           for (final e in _entries!.take(10))
             Padding(
@@ -346,7 +351,7 @@ class _BackupDialogState extends State<_BackupDialog> {
                   TextButton(
                     onPressed: b.busy ? null : () => _restore(e),
                     style: TextButton.styleFrom(foregroundColor: c.accentText),
-                    child: const Text('Tiklash'),
+                    child: Text(s.backup.restore),
                   ),
                 ],
               ),

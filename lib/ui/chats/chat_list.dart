@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../data/models.dart';
+import '../../l10n/l10n.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
 import '../collections/collection_dialogs.dart';
@@ -18,8 +19,9 @@ class ChatList extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.fc;
     final meta = TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: c.text2);
+    final t = context.s.chats;
     final chats = state.visibleChats;
-    final colLabel = state.collectionById(state.collection)?.label ?? kAllCollection.label;
+    final col = state.collectionById(state.collection);
     return Container(
       width: width,
       decoration: BoxDecoration(
@@ -45,7 +47,7 @@ class ChatList extends StatelessWidget {
               child: Row(
                 children: [
                   _FilterChip(
-                    label: 'Javob kutmoqda',
+                    label: t.filterWaiting,
                     count: state.waitingCount,
                     active: state.filter == ChatFilter.waiting,
                     activeColor: c.waitingStrong,
@@ -54,14 +56,14 @@ class ChatList extends StatelessWidget {
                   ),
                   const SizedBox(width: 4),
                   _FilterChip(
-                    label: 'O‘qilmagan',
+                    label: t.filterUnread,
                     count: state.unreadChatCount,
                     active: state.filter == ChatFilter.unread,
                     onTap: () => state.setFilter(ChatFilter.unread),
                   ),
                   const SizedBox(width: 4),
                   _FilterChip(
-                    label: 'Hammasi',
+                    label: t.filterAll,
                     active: state.filter == ChatFilter.all,
                     onTap: () => state.setFilter(ChatFilter.all),
                   ),
@@ -73,9 +75,11 @@ class ChatList extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
             child: Row(
               children: [
-                Text(colLabel == 'Hammasi' ? 'Barcha chatlar' : colLabel, style: meta),
-                const Spacer(),
-                Text('${chats.length} ta chat', style: meta),
+                Expanded(
+                  child: Text(col == null || col.id == kAllCollection.id ? t.allChats : col.label,
+                      maxLines: 1, overflow: TextOverflow.ellipsis, style: meta),
+                ),
+                Text(context.s.common.chatsCount(chats.length), style: meta),
                 const SizedBox(width: 4),
                 _TypeFilterButton(state: state),
               ],
@@ -93,10 +97,10 @@ class ChatList extends StatelessWidget {
                                   height: 24,
                                   child: CircularProgressIndicator(strokeWidth: 2.4, color: c.accent)),
                               const SizedBox(height: 12),
-                              Text('Chatlar yuklanmoqda…', style: TextStyle(color: c.text2)),
+                              Text(t.loadingChats, style: TextStyle(color: c.text2)),
                             ],
                           )
-                        : Text('Bu filtrda chat yo‘q', style: TextStyle(color: c.text2)),
+                        : Text(t.noChatsInFilter, style: TextStyle(color: c.text2)),
                   )
                 : ListView.builder(
                     padding: const EdgeInsets.fromLTRB(6, 0, 6, 8),
@@ -132,14 +136,14 @@ class _CollectionTabs extends StatelessWidget {
           children: [
             for (final col in [kAllCollection, ...state.collections])
               _CollectionTab(
-                label: col.label,
+                label: col.id == kAllCollection.id ? context.s.chats.allTab : col.label,
                 badge: state.badgeFor(col.id),
                 active: state.collection == col.id,
                 onTap: () => state.pickCollection(col.id),
                 onMenu: col.id == kAllCollection.id ? null : (pos) => _menu(context, col, pos),
               ),
             Tooltip(
-              message: 'To‘plam qo‘shish',
+              message: context.s.chats.addCollection,
               child: IconButton(
                 onPressed: () => showCollectionEditor(context, state),
                 visualDensity: VisualDensity.compact,
@@ -161,9 +165,9 @@ class _CollectionTabs extends StatelessWidget {
       position: RelativeRect.fromRect(pos & const Size(1, 1), Offset.zero & overlay.size),
       items: [
         PopupMenuItem(
-            value: 'edit', height: 38, child: Text('Tahrirlash', style: TextStyle(color: c.text, fontSize: 14))),
+            value: 'edit', height: 38, child: Text(context.s.common.edit, style: TextStyle(color: c.text, fontSize: 14))),
         PopupMenuItem(
-            value: 'delete', height: 38, child: Text('O‘chirish', style: TextStyle(color: c.danger, fontSize: 14))),
+            value: 'delete', height: 38, child: Text(context.s.common.delete, style: TextStyle(color: c.danger, fontSize: 14))),
       ],
     );
     if (!context.mounted) return;
@@ -243,7 +247,7 @@ class _SearchField extends StatelessWidget {
         onChanged: onChanged,
         style: TextStyle(fontSize: 14, color: c.text),
         decoration: InputDecoration(
-          hintText: 'Qidiruv',
+          hintText: context.s.common.search,
           hintStyle: TextStyle(color: c.text2),
           prefixIcon: Icon(Icons.search, size: 19, color: c.text2),
           filled: true,
@@ -366,7 +370,7 @@ class _ChatTile extends StatelessWidget {
                           ] else if (chat.pinned && !waiting) ...[
                             const SizedBox(width: 6),
                             Tooltip(
-                              message: 'Qadalgan',
+                              message: context.s.chats.pinned,
                               child: Transform.rotate(
                                 angle: 0.75,
                                 child: Icon(Icons.push_pin_outlined, size: 16, color: active ? Colors.white : c.text2),
@@ -413,16 +417,16 @@ class _TypeFilterButton extends StatelessWidget {
           value: state.hideMuted,
           closeOnActivate: false,
           onChanged: (v) => state.setHideMuted(v ?? false),
-          child: Text('Ovozsizlarni yashirish', style: item),
+          child: Text(context.s.chats.hideMuted, style: item),
         ),
         if (active > 0)
           MenuItemButton(
             onPressed: state.clearTypeFilter,
-            child: Text('Filtrni tozalash', style: TextStyle(color: c.accentText, fontSize: 14)),
+            child: Text(context.s.chats.clearFilter, style: TextStyle(color: c.accentText, fontSize: 14)),
           ),
       ],
       builder: (context, controller, _) => Tooltip(
-        message: 'Chat turi bo‘yicha filtr',
+        message: context.s.chats.typeFilter,
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
           onTap: () => controller.isOpen ? controller.close() : controller.open(),

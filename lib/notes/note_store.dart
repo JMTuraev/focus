@@ -2,15 +2,20 @@ import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 
 import '../db/database.dart';
+import '../l10n/l10n.dart';
 
 /// Which notes the notes screen shows.
 enum NoteFilter {
-  all('Hammasi'),
-  fromChats('Chatdan saqlangan'),
-  checklists('Ro‘yxatlar');
+  all,
+  fromChats,
+  checklists;
 
-  const NoteFilter(this.label);
-  final String label;
+  /// Chip text in the current language.
+  String get label => switch (this) {
+        NoteFilter.all => S.current.notes.filterAll,
+        NoteFilter.fromChats => S.current.notes.filterFromChats,
+        NoteFilter.checklists => S.current.notes.filterChecklists,
+      };
 }
 
 /// Notes from the local database, kept in memory (pinned first, then the

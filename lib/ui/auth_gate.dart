@@ -17,6 +17,7 @@ import '../theme.dart';
 import 'login/login_screen.dart';
 import 'settings_dialog.dart';
 import 'shell.dart';
+import '../l10n/l10n.dart';
 
 /// Login screen until TDLib reports `authorizationStateReady`, then the app
 /// with a chat session for that account. Logging out closes the session.
@@ -169,21 +170,21 @@ class _AuthGateState extends State<AuthGate> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: c.panel,
-        title: Text('Akkauntdan chiqasizmi?', style: TextStyle(color: c.text, fontSize: 18, fontWeight: FontWeight.w700)),
+        title: Text(context.s.app.logoutQuestion, style: TextStyle(color: c.text, fontSize: 18, fontWeight: FontWeight.w700)),
         content: Text(
-          'Focus’dagi Telegram sessiyasi yopiladi. Telefoningizdagi Telegram ishlashda davom etadi.',
+          context.s.app.logoutBody,
           style: TextStyle(color: c.text2, fontSize: 14, height: 1.4),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             style: TextButton.styleFrom(foregroundColor: c.accentText),
-            child: const Text('Bekor qilish'),
+            child: Text(context.s.common.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: c.danger),
-            child: const Text('Chiqish'),
+            child: Text(context.s.app.logout),
           ),
         ],
       ),

@@ -5,6 +5,7 @@ import '../data/chat_source.dart';
 import '../data/local_store.dart';
 import '../data/models.dart';
 import '../db/database.dart';
+import '../l10n/l10n.dart';
 import '../notes/note_store.dart';
 import '../tasks/task_store.dart';
 
@@ -14,13 +15,18 @@ enum ChatFilter { waiting, unread, all }
 
 /// Chat types for the type filter and the "Saralanmagan" tabs.
 enum ChatType {
-  private('Shaxsiy'),
-  group('Guruhlar'),
-  channel('Kanallar'),
-  bot('Botlar');
+  private,
+  group,
+  channel,
+  bot;
 
-  const ChatType(this.label);
-  final String label;
+  /// "Shaxsiy", "Guruhlar"... in the current UI language.
+  String get label => switch (this) {
+        ChatType.private => S.current.chats.typePrivate,
+        ChatType.group => S.current.chats.typeGroups,
+        ChatType.channel => S.current.chats.typeChannels,
+        ChatType.bot => S.current.chats.typeBots,
+      };
 
   static ChatType of(Chat c) => switch (c.kind) {
         ChatKind.private || ChatKind.saved => ChatType.private,
@@ -366,7 +372,7 @@ class AppState extends ChangeNotifier {
     final chat = activeChat;
     if (chat == null) return null;
     var title = m.text.trim().split('\n').first.trim();
-    if (title.isEmpty) title = m.fileName ?? m.mediaLabel ?? 'Xabar';
+    if (title.isEmpty) title = m.fileName ?? m.mediaLabel ?? S.current.chats.message;
     if (title.length > 140) title = '${title.substring(0, 139)}…';
     return tasks.add(
       title: title,
@@ -414,7 +420,7 @@ class AppState extends ChangeNotifier {
     final at = m.meetingAt;
     if (chat == null || at == null) return null;
     return events.add(
-      title: 'Uchrashuv: ${chat.name}',
+      title: S.current.chats.meetingTitle(chat.name),
       start: at,
       end: at.add(const Duration(hours: 1)),
       note: m.text,

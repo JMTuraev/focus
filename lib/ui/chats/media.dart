@@ -8,6 +8,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 import '../../data/models.dart';
+import '../../l10n/l10n.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
 import 'voice_player.dart';
@@ -297,7 +298,7 @@ class _VoiceTileState extends State<_VoiceTile> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Tooltip(
-                message: playing ? 'To‘xtatish' : 'Tinglash',
+                message: playing ? context.s.chats.pause : context.s.chats.play,
                 child: InkWell(
                   onTap: _tap,
                   customBorder: const CircleBorder(),
@@ -457,7 +458,7 @@ class _ViewerFrame extends StatelessWidget {
               top: 48,
               right: 16,
               child: IconButton(
-                tooltip: 'Yopish (Esc)',
+                tooltip: context.s.chats.closeEsc,
                 onPressed: () => Navigator.of(context).pop(),
                 style: IconButton.styleFrom(backgroundColor: const Color(0x66000000)),
                 icon: const Icon(Icons.close, color: Colors.white, size: 24),

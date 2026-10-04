@@ -5,17 +5,19 @@ import 'package:drift/native.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../l10n/l10n.dart';
+
 part 'database.g.dart';
 
 /// Kanban columns. Stored by name, so the order can change safely.
 enum TaskStatus {
-  planned('Rejada'),
-  inProgress('Jarayonda'),
-  waiting('Kutilmoqda'),
-  done('Bajarildi');
+  planned,
+  inProgress,
+  waiting,
+  done;
 
-  const TaskStatus(this.label);
-  final String label;
+  /// Column title in the current UI language.
+  String get label => S.current.tasks.statusLabels[index];
 }
 
 /// A to-do, optionally created from a chat message.
@@ -45,16 +47,16 @@ class Tasks extends Table {
 
 /// Note background. Stored by name.
 enum NoteColor {
-  none('Rangsiz'),
-  yellow('Sariq'),
-  green('Yashil'),
-  blue('Ko‘k'),
-  purple('Binafsha'),
-  pink('Pushti'),
-  orange('To‘q sariq');
+  none,
+  yellow,
+  green,
+  blue,
+  purple,
+  pink,
+  orange;
 
-  const NoteColor(this.label);
-  final String label;
+  /// Color name in the current UI language.
+  String get label => S.current.notes.colorLabels[index];
 }
 
 /// One line of a checklist note.

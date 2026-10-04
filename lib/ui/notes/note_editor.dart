@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../db/database.dart';
+import '../../l10n/l10n.dart';
 import '../../notes/note_store.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
@@ -21,17 +22,18 @@ Future<void> showNoteEditor(BuildContext context, AppState state, {Note? note, b
 Future<void> deleteNoteWithUndo(BuildContext context, AppState state, Note n) async {
   await state.notes.remove(n.id);
   if (!context.mounted) return;
+  final t = context.s.notes;
   final what = n.title.isNotEmpty
       ? n.title
       : n.body.isNotEmpty
           ? n.body
-          : (n.items.isNotEmpty ? n.items.first.text : 'ro‘yxat');
+          : (n.items.isNotEmpty ? n.items.first.text : t.checklistFallback);
   showToast(
     context,
     (w) => SnackBar(
       width: w < 480 ? w : 480,
-      content: Text('Eslatma o‘chirildi: “$what”', maxLines: 1, overflow: TextOverflow.ellipsis),
-      action: SnackBarAction(label: 'Qaytarish', onPressed: () => state.notes.restore(n)),
+      content: Text(t.noteDeleted(what), maxLines: 1, overflow: TextOverflow.ellipsis),
+      action: SnackBarAction(label: t.undo, onPressed: () => state.notes.restore(n)),
     ),
   );
 }
@@ -156,6 +158,7 @@ class _NoteEditorState extends State<_NoteEditor> {
   @override
   Widget build(BuildContext context) {
     final c = context.fc;
+    final t = context.s.notes;
     final n = widget.note;
     final bg = c.noteColors[_color.index];
     final plain = InputDecoration(
@@ -182,7 +185,7 @@ class _NoteEditorState extends State<_NoteEditor> {
                       controller: _title,
                       autofocus: n == null && !_checklist,
                       style: TextStyle(color: c.text, fontSize: 17, fontWeight: FontWeight.w700),
-                      decoration: plain.copyWith(hintText: 'Sarlavha'),
+                      decoration: plain.copyWith(hintText: t.titleHint),
                     ),
                     const SizedBox(height: 6),
                     if (!_checklist)
@@ -191,7 +194,7 @@ class _NoteEditorState extends State<_NoteEditor> {
                         minLines: 4,
                         maxLines: null,
                         style: TextStyle(color: c.text, fontSize: 14.5, height: 1.4),
-                        decoration: plain.copyWith(hintText: 'Eslatma…'),
+                        decoration: plain.copyWith(hintText: t.bodyHint),
                       )
                     else ...[
                       for (var i = 0; i < _items.length; i++) _itemRow(c, i, plain),
@@ -200,7 +203,7 @@ class _NoteEditorState extends State<_NoteEditor> {
                         child: TextButton.icon(
                           onPressed: _addItem,
                           icon: Icon(Icons.add, size: 18, color: c.accentText),
-                          label: Text('Element qo‘shish', style: TextStyle(color: c.accentText)),
+                          label: Text(t.addItem, style: TextStyle(color: c.accentText)),
                         ),
                       ),
                     ],
@@ -261,11 +264,11 @@ class _NoteEditorState extends State<_NoteEditor> {
               fontSize: 14.5,
               decoration: r.done ? TextDecoration.lineThrough : null,
             ),
-            decoration: plain.copyWith(hintText: 'Element'),
+            decoration: plain.copyWith(hintText: context.s.notes.itemHint),
           ),
         ),
         IconButton(
-          tooltip: 'Olib tashlash',
+          tooltip: context.s.notes.removeItem,
           visualDensity: VisualDensity.compact,
           onPressed: () => _removeItem(i),
           icon: Icon(Icons.close, size: 16, color: c.text2),
@@ -275,6 +278,7 @@ class _NoteEditorState extends State<_NoteEditor> {
   }
 
   Widget _toolbar(FokusColors c, Note? n) {
+    final t = context.s.notes;
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
       child: Wrap(
@@ -310,19 +314,19 @@ class _NoteEditorState extends State<_NoteEditor> {
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
-                tooltip: _pinned ? 'Qadashni olib tashlash' : 'Qadash',
+                tooltip: _pinned ? t.unpin : t.pin,
                 onPressed: () => setState(() => _pinned = !_pinned),
                 icon: Icon(_pinned ? Icons.push_pin : Icons.push_pin_outlined,
                     size: 20, color: _pinned ? c.accentText : c.icon),
               ),
               IconButton(
-                tooltip: _checklist ? 'Matnga aylantirish' : 'Ro‘yxatga aylantirish',
+                tooltip: _checklist ? t.toText : t.toChecklist,
                 onPressed: _toggleChecklist,
                 icon: Icon(_checklist ? Icons.notes : Icons.checklist, size: 20, color: c.icon),
               ),
               if (n != null)
                 IconButton(
-                  tooltip: 'O‘chirish',
+                  tooltip: context.s.common.delete,
                   onPressed: () {
                     _deleted = true;
                     Navigator.pop(context);
@@ -334,7 +338,7 @@ class _NoteEditorState extends State<_NoteEditor> {
               FilledButton(
                 onPressed: () => Navigator.pop(context),
                 style: FilledButton.styleFrom(backgroundColor: c.accentStrong, foregroundColor: Colors.white),
-                child: const Text('Tayyor'),
+                child: Text(t.done),
               ),
             ],
           ),

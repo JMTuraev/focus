@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 
 import '../../data/format.dart';
 import '../../data/models.dart';
+import '../../l10n/l10n.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
 import '../calendar/event_editor.dart';
@@ -55,7 +56,7 @@ class _ChatViewState extends State<ChatView> {
     try {
       await s.sendFiles(choice.files, caption: choice.caption, compressImages: choice.compressImages);
     } catch (_) {
-      if (mounted) _toast('Fayl yuborilmadi. Internet aloqasini tekshirib, qayta urinib ko‘ring.');
+      if (mounted) _toast(context.s.chats.fileSendFailed);
     }
     _focus.requestFocus();
   }
@@ -82,7 +83,7 @@ class _ChatViewState extends State<ChatView> {
     } catch (_) {
       if (!mounted) return;
       _input.text = text;
-      _toast('Xabar yuborilmadi. Internet aloqasini tekshirib, qayta urinib ko‘ring.');
+      _toast(context.s.chats.messageSendFailed);
     }
   }
 
@@ -104,7 +105,9 @@ class _ChatViewState extends State<ChatView> {
     final at = m.meetingAt;
     if (at != null) {
       await s.eventFromMeeting(m);
-      _toast('Kalendarga qo‘shildi: ${m.meeting}', action: 'Kalendarni ochish', onAction: () => s.showCalendarAt(at));
+      if (!mounted) return;
+      final t = context.s.chats;
+      _toast(t.addedToCalendar(m.meeting ?? ''), action: t.openCalendar, onAction: () => s.showCalendarAt(at));
       return;
     }
     final chat = s.activeChat;
@@ -126,8 +129,9 @@ class _ChatViewState extends State<ChatView> {
 
   /// Messages with a date separator before each new day, grouped into runs
   /// from the same sender (name on the first, avatar on the last, like
-  /// Telegram). Mock messages have no date and get one "Bugun" separator.
-  static List<Object> _items(List<Message> msgs) {
+  /// Telegram). Mock messages have no date and get one "Bugun" ([today])
+  /// separator.
+  static List<Object> _items(List<Message> msgs, String today) {
     String? key(Message m) => m.out || m.service ? null : (m.senderId ?? m.from);
     bool sameDay(Message a, Message b) => a.date == null || b.date == null || Fmt.sameDay(a.date!, b.date!);
     bool sameRun(Message a, Message? b) => b != null && key(a) != null && key(a) == key(b) && sameDay(a, b);
@@ -138,7 +142,7 @@ class _ChatViewState extends State<ChatView> {
       final m = msgs[i];
       final d = m.date;
       if (d == null) {
-        if (i == 0) out.add('Bugun');
+        if (i == 0) out.add(today);
       } else if (prev == null || !Fmt.sameDay(prev, d)) {
         out.add(Fmt.dayLabel(d));
         prev = d;
@@ -157,7 +161,8 @@ class _ChatViewState extends State<ChatView> {
     final c = context.fc;
     final chat = s.activeChat!;
     final msgs = s.messagesOf(chat.id);
-    final items = _items(msgs);
+    final t = context.s.chats;
+    final items = _items(msgs, context.s.common.today);
     final loadingHistory = s.loadingHistory;
     final target = s.targetMessage;
     final body = Column(
@@ -168,25 +173,25 @@ class _ChatViewState extends State<ChatView> {
           infoOpen: widget.infoActive,
           onInfo: widget.onInfo,
           onBack: widget.onBack,
-          onCall: () => _toast('Qo‘ng‘iroqlar telefon ilovasida qoladi'),
+          onCall: () => _toast(t.callsOnPhone),
         ),
         _QuickActions(
-          label: s.selectedMessageId != null ? 'Tanlangan xabar' : 'Oxirgi xabar · boshqasini tanlash uchun xabarni bosing',
+          label: s.selectedMessageId != null ? t.selectedMessage : t.lastMessageHint,
           text: target?.text ?? '',
           onTask: target == null
               ? null
               : () async {
                   await s.taskFromMessage(target);
-                  final what = target.text.isEmpty ? (target.fileName ?? target.mediaLabel ?? 'xabar') : target.text;
-                  _toast('Vazifa yaratildi: “${_short(what)}”', action: 'Vazifalarga o‘tish', goTo: Module.tasks);
+                  final what = target.text.isEmpty ? (target.fileName ?? target.mediaLabel ?? t.messageLower) : target.text;
+                  _toast(t.taskCreated(_short(what)), action: t.goToTasks, goTo: Module.tasks);
                 },
           onCalendar: target == null ? null : () => _toCalendar(target),
           onNote: target == null
               ? null
               : () async {
                   await s.noteFromMessage(target);
-                  final what = target.text.isEmpty ? (target.fileName ?? target.mediaLabel ?? 'xabar') : target.text;
-                  _toast('Eslatmaga saqlandi: “${_short(what)}”', action: 'Eslatmalarni ochish', goTo: Module.notes);
+                  final what = target.text.isEmpty ? (target.fileName ?? target.mediaLabel ?? t.messageLower) : target.text;
+                  _toast(t.savedToNotes(_short(what)), action: t.openNotes, goTo: Module.notes);
                 },
         ),
         Expanded(
@@ -200,7 +205,7 @@ class _ChatViewState extends State<ChatView> {
                   return Center(
                     child: loadingHistory
                         ? SizedBox(width: 26, height: 26, child: CircularProgressIndicator(strokeWidth: 2.6, color: c.accent))
-                        : const _DatePill('Hali xabar yo‘q'),
+                        : _DatePill(t.noMessages),
                   );
                 }
                 final groupStyle = chat.kind == ChatKind.group || msgs.any((m) => m.from != null && !m.out);
@@ -304,10 +309,10 @@ class _DropOverlay extends StatelessWidget {
               children: [
                 Icon(Icons.upload_file, size: 44, color: c.accent),
                 const SizedBox(height: 10),
-                Text('Fayllarni shu yerga tashlang',
+                Text(context.s.chats.dropFiles,
                     style: TextStyle(color: c.text, fontSize: 16, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
-                Text('Yuborishdan oldin ko‘rib chiqasiz', style: TextStyle(color: c.text2, fontSize: 13)),
+                Text(context.s.chats.dropFilesHint, style: TextStyle(color: c.text2, fontSize: 13)),
               ],
             ),
           ),
@@ -342,7 +347,7 @@ class _EmojiPanel extends StatelessWidget {
             columns: 10,
             emojiSizeMax: 26,
             backgroundColor: c.panel,
-            noRecents: Text('Hali emoji tanlanmagan', style: TextStyle(color: c.text2, fontSize: 13)),
+            noRecents: Text(context.s.chats.noRecentEmoji, style: TextStyle(color: c.text2, fontSize: 13)),
             buttonMode: ButtonMode.MATERIAL,
           ),
           categoryViewConfig: CategoryViewConfig(
@@ -357,7 +362,7 @@ class _EmojiPanel extends StatelessWidget {
           searchViewConfig: SearchViewConfig(
             backgroundColor: c.panel,
             buttonIconColor: c.text2,
-            hintText: 'Qidirish',
+            hintText: context.s.chats.emojiSearch,
           ),
           skinToneConfig: SkinToneConfig(dialogBackgroundColor: c.panel, indicatorColor: c.text2),
         ),
@@ -385,7 +390,7 @@ class _Header extends StatelessWidget {
       child: Row(
         children: [
           if (onBack != null)
-            IconButton(tooltip: 'Orqaga', onPressed: onBack, icon: Icon(Icons.arrow_back, size: 20, color: c.icon)),
+            IconButton(tooltip: context.s.common.back, onPressed: onBack, icon: Icon(Icons.arrow_back, size: 20, color: c.icon)),
           ChatAvatar(chat, size: 40, showOnline: false),
           const SizedBox(width: 12),
           Expanded(
@@ -400,9 +405,9 @@ class _Header extends StatelessWidget {
               ],
             ),
           ),
-          IconButton(tooltip: 'Qo‘ng‘iroq', onPressed: onCall, icon: Icon(Icons.call_outlined, size: 20, color: c.icon)),
+          IconButton(tooltip: context.s.chats.call, onPressed: onCall, icon: Icon(Icons.call_outlined, size: 20, color: c.icon)),
           IconButton(
-            tooltip: 'Ma’lumot paneli',
+            tooltip: context.s.chats.infoPanel,
             onPressed: onInfo,
             isSelected: infoOpen,
             icon: Icon(Icons.info_outline, size: 20, color: c.icon),
@@ -451,9 +456,9 @@ class _QuickActions extends StatelessWidget {
                   ],
                 ),
               ),
-              _QA(icon: Icons.checklist, label: 'Vazifa qilish', iconOnly: iconsOnly, onTap: onTask),
-              _QA(icon: Icons.calendar_today_outlined, label: 'Kalendarga', iconOnly: iconsOnly, onTap: onCalendar),
-              _QA(icon: Icons.sticky_note_2_outlined, label: 'Eslatmaga', iconOnly: iconsOnly, onTap: onNote),
+              _QA(icon: Icons.checklist, label: context.s.chats.toTask, iconOnly: iconsOnly, onTap: onTask),
+              _QA(icon: Icons.calendar_today_outlined, label: context.s.chats.toCalendar, iconOnly: iconsOnly, onTap: onCalendar),
+              _QA(icon: Icons.sticky_note_2_outlined, label: context.s.chats.toNote, iconOnly: iconsOnly, onTap: onNote),
             ],
           ),
         );
@@ -687,7 +692,7 @@ class _Bubble extends StatelessWidget {
                   Flexible(
                     child: Text.rich(
                       TextSpan(children: [
-                        const TextSpan(text: 'Uchrashuv aniqlandi: '),
+                        TextSpan(text: context.s.chats.meetingFound),
                         TextSpan(text: m.meeting, style: const TextStyle(fontWeight: FontWeight.w700)),
                       ]),
                       maxLines: 2,
@@ -706,7 +711,7 @@ class _Bubble extends StatelessWidget {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
                       textStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
                     ),
-                    child: const Text('Kalendarga'),
+                    child: Text(context.s.chats.toCalendar),
                   ),
                 ],
               ),
@@ -747,7 +752,7 @@ class _Composer extends StatelessWidget {
       onSubmitted: (_) => onSend(),
       style: TextStyle(fontSize: 14.5, color: c.text),
       decoration: InputDecoration(
-        hintText: 'Xabar yozing…',
+        hintText: context.s.chats.messageHint,
         hintStyle: TextStyle(color: c.text2),
         border: InputBorder.none,
       ),
@@ -758,7 +763,7 @@ class _Composer extends StatelessWidget {
       decoration: BoxDecoration(color: c.panel, border: Border(top: BorderSide(color: c.border))),
       child: Row(
         children: [
-          IconButton(tooltip: 'Fayl biriktirish', onPressed: onAttach, icon: Icon(Icons.attach_file, color: c.icon)),
+          IconButton(tooltip: context.s.chats.attachFile, onPressed: onAttach, icon: Icon(Icons.attach_file, color: c.icon)),
           Expanded(
             child: onEscape == null
                 ? field
@@ -768,12 +773,12 @@ class _Composer extends StatelessWidget {
                   ),
           ),
           IconButton(
-            tooltip: emojiOpen ? 'Emojilarni yopish' : 'Emoji',
+            tooltip: emojiOpen ? context.s.chats.closeEmoji : context.s.chats.emoji,
             onPressed: onEmoji,
             icon: Icon(emojiOpen ? Icons.keyboard_alt_outlined : Icons.emoji_emotions_outlined,
                 color: emojiOpen ? c.accent : c.icon),
           ),
-          IconButton(tooltip: 'Yuborish', onPressed: onSend, icon: Icon(Icons.send_rounded, color: c.accent)),
+          IconButton(tooltip: context.s.common.send, onPressed: onSend, icon: Icon(Icons.send_rounded, color: c.accent)),
         ],
       ),
     );
@@ -789,13 +794,14 @@ class _Tick extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.fc;
+    final t = context.s.chats;
     final (icon, color, tip) = m.failed
-        ? (Icons.error_outline, c.danger, 'Yuborilmadi')
+        ? (Icons.error_outline, c.danger, t.tickFailed)
         : m.pending
-            ? (Icons.schedule, c.outMeta, 'Yuborilmoqda')
+            ? (Icons.schedule, c.outMeta, t.tickSending)
             : m.read
-                ? (Icons.done_all, c.outMeta, 'O‘qildi')
-                : (Icons.done, c.outMeta, 'Yuborildi');
+                ? (Icons.done_all, c.outMeta, t.tickRead)
+                : (Icons.done, c.outMeta, t.tickSent);
     return Tooltip(message: tip, child: Icon(icon, size: 15, color: color));
   }
 }
@@ -855,7 +861,7 @@ class NoChatPlaceholder extends StatelessWidget {
   Widget build(BuildContext context) {
     return CustomPaint(
       painter: WallpaperPainter.of(context.fc),
-      child: const Center(child: _DatePill('Suhbatni tanlang')),
+      child: Center(child: _DatePill(context.s.chats.selectChat)),
     );
   }
 }
@@ -881,7 +887,7 @@ class _ReadOnlyBar extends StatelessWidget {
           const SizedBox(width: 8),
           Flexible(
             child: Text(
-              channel ? 'Kanal · faqat o‘qish mumkin' : 'Bu guruhga yozish huquqingiz yo‘q',
+              channel ? context.s.chats.channelReadOnly : context.s.chats.groupNoRights,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(fontSize: 14, color: c.text2),
             ),

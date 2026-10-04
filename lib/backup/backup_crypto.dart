@@ -3,7 +3,9 @@ import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
 
-/// Backup errors with Uzbek messages for the UI.
+import '../l10n/l10n.dart';
+
+/// Backup errors with messages for the UI, in the current language.
 class BackupException implements Exception {
   BackupException(this.message);
 
@@ -11,6 +13,11 @@ class BackupException implements Exception {
 
   @override
   String toString() => message;
+}
+
+/// The password (or key) does not open the backup, or the file was changed.
+class WrongPasswordException extends BackupException {
+  WrongPasswordException() : super(S.current.backup.wrongPassword);
 }
 
 /// Key-derivation settings stored in every backup header, so a backup can be
@@ -98,10 +105,10 @@ class BackupCrypto {
   /// The salt and settings in a backup header (to derive the key).
   static (Uint8List salt, KdfParams params) readHeader(Uint8List data) {
     if (data.length < _headerLength + 16 || !_startsWithMagic(data)) {
-      throw BackupException('Bu Focus zaxira nusxasi emas yoki fayl buzilgan.');
+      throw BackupException(S.current.backup.notABackup);
     }
     if (data[8] != version || data[9] != _kdfArgon2id) {
-      throw BackupException('Bu zaxira nusxasi Focus’ning yangiroq versiyasida yaratilgan. Ilovani yangilang.');
+      throw BackupException(S.current.backup.newerVersion);
     }
     final b = ByteData.sublistView(data);
     final params = KdfParams(memoryKiB: b.getUint32(10), iterations: b.getUint32(14), parallelism: data[18]);
@@ -121,7 +128,7 @@ class BackupCrypto {
       final plain = await _aes.decrypt(SecretBox(cipher, nonce: nonce, mac: mac), secretKey: SecretKey(key.key), aad: aad);
       return Uint8List.fromList(plain);
     } on SecretBoxAuthenticationError {
-      throw BackupException('Parol noto‘g‘ri yoki zaxira fayli buzilgan.');
+      throw WrongPasswordException();
     }
   }
 

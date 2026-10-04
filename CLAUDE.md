@@ -3,9 +3,12 @@
 Unofficial, local-first Telegram desktop client for Windows (Flutter + TDLib). The app is called **Focus** (window title, `focus.exe`, all UI text). Internal names stay `fokus`: the Dart package, `Fokus*` classes, `fokus.sqlite`, the `#fokus_backup` tag and the `FOKUSBAK` format.
 
 ## Language
-- All UI text is Uzbek (Latin script). Use the proper apostrophes `‘` (o‘, g‘) and `’` (tutuq belgisi: ma’lumot, so‘z), not a plain `'`.
+- The UI is in Uzbek (Latin, default), Russian and English. Uzbek texts use the proper apostrophes `‘` (o‘, g‘) and `’` (tutuq belgisi: ma’lumot, so‘z), not a plain `'`.
 - Code, identifiers, comments and commit messages are in English.
-- Flutter's built-in texts use the Uzbek locale (`flutter_localizations`, `Locale('uz')`).
+- No UI text in widgets: every text lives in `lib/l10n/areas/<area>.dart` (`common`, `app`, `auth`, `chats`, `tasks`, `calendar`, `notes`, `backup`) with a value for all three languages; a missing translation does not compile. Widgets read `context.s.<area>.<text>`; services, data sources and exceptions read `S.current`.
+- Texts with values are functions (`(n) => …`); Russian plurals use `ruPlural`, English `enPlural`. Reuse `common` for buttons, dates and sizes; `Fmt` formats dates in the current language.
+- The language is chosen in Settings or with the title bar button (`Settings.language`, saved in `settings.json`); `LanguageScope` above `MaterialApp` rebuilds the UI and sets the Flutter locale. Tests run in Uzbek; `test/l10n_test.dart` renders every module in Russian and English at the minimum window sizes.
+- User content (messages, chat titles, task and note text, collection names the user created, seeded default collections) is never translated.
 
 ## Workflow
 - UI-first: build every screen with mock data first (`lib/data/mock.dart`, `USE_MOCK=true`), then wire the backend.

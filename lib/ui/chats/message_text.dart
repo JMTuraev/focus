@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/models.dart';
+import '../../l10n/l10n.dart';
 import '../../theme.dart';
 
 /// Message text with Telegram formatting: bold, italic, code, links,
@@ -145,18 +146,18 @@ Future<void> openLink(BuildContext context, TextEntity e, String visibleText) as
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: c.panel,
-        title: Text('Havolani ochasizmi?', style: TextStyle(color: c.text, fontSize: 18, fontWeight: FontWeight.w700)),
+        title: Text(context.s.chats.openLinkTitle, style: TextStyle(color: c.text, fontSize: 18, fontWeight: FontWeight.w700)),
         content: SelectableText(uri.toString(), style: TextStyle(color: c.accentText, fontSize: 14)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             style: TextButton.styleFrom(foregroundColor: c.text2),
-            child: const Text('Bekor qilish'),
+            child: Text(context.s.common.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: c.accentText),
-            child: const Text('Ochish'),
+            child: Text(context.s.common.open),
           ),
         ],
       ),

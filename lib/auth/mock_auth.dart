@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../data/chat_source.dart';
 import '../data/local_store.dart';
 import '../data/mock_source.dart';
+import '../l10n/l10n.dart';
 import 'auth.dart';
 
 /// Login without Telegram, for UI work (`USE_MOCK=true`).
@@ -36,7 +37,7 @@ class MockAuth implements AuthService {
   Future<void> sendPhone(String phone) async {
     await _wait();
     final digits = phone.replaceAll(RegExp(r'\D'), '');
-    if (digits.length < 9) throw AuthException('Telefon raqami noto‘g‘ri. Mamlakat kodi bilan to‘liq kiriting.');
+    if (digits.length < 9) throw AuthException(S.current.auth.errPhoneInvalid);
     _phone = '+$digits';
     _state.value = AuthState(
       AuthStep.waitCode,
@@ -47,14 +48,14 @@ class MockAuth implements AuthService {
   @override
   Future<void> sendCode(String code) async {
     await _wait();
-    if (code.length != 5 || code == '00000') throw AuthException('Kod noto‘g‘ri. Qaytadan tekshirib kiriting.');
+    if (code.length != 5 || code == '00000') throw AuthException(S.current.auth.errCodeInvalid);
     _state.value = const AuthState(AuthStep.waitPassword, passwordHint: 'sevimli shahar');
   }
 
   @override
   Future<void> sendPassword(String password) async {
     await _wait();
-    if (password.isEmpty || password == 'xato') throw AuthException('Parol noto‘g‘ri.');
+    if (password.isEmpty || password == 'xato') throw AuthException(S.current.auth.errPasswordInvalid);
     _state.value = const AuthState(AuthStep.ready);
   }
 

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../data/models.dart';
 import '../theme.dart';
+import '../l10n/l10n.dart';
 
 class Avatar extends StatelessWidget {
   const Avatar({
@@ -130,7 +131,7 @@ class WaitingDot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: 'Javob kutmoqda',
+      message: context.s.app.waitingReply,
       child: Container(
         width: 10,
         height: 10,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/format.dart';
 import '../../db/database.dart';
+import '../../l10n/l10n.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
 import '../common.dart';
@@ -54,9 +55,10 @@ class _TasksScreenState extends State<TasksScreen> {
 
   Widget _header(FokusColors c, double width) {
     final tasks = s.tasks;
+    final tx = context.s.tasks;
     final stats = [
-      '${tasks.openCount} ta ochiq',
-      if (tasks.overdueCount > 0) '${tasks.overdueCount} tasi muddati o‘tgan',
+      tx.openCount(tasks.openCount),
+      if (tasks.overdueCount > 0) tx.overdueCount(tasks.overdueCount),
     ].join(' · ');
     return Wrap(
       alignment: WrapAlignment.spaceBetween,
@@ -68,7 +70,7 @@ class _TasksScreenState extends State<TasksScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Vazifalar', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: c.text)),
+            Text(tx.title, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: c.text)),
             Text(stats, style: TextStyle(fontSize: 13, color: tasks.overdueCount > 0 ? c.danger : c.text2)),
           ],
         ),
@@ -82,7 +84,7 @@ class _TasksScreenState extends State<TasksScreen> {
                 onChanged: (v) => setState(() => _query = v),
                 style: TextStyle(fontSize: 14, color: c.text),
                 decoration: InputDecoration(
-                  hintText: 'Vazifa qidirish',
+                  hintText: tx.searchHint,
                   hintStyle: TextStyle(color: c.text2),
                   prefixIcon: Icon(Icons.search, size: 18, color: c.text2),
                   filled: true,
@@ -96,7 +98,7 @@ class _TasksScreenState extends State<TasksScreen> {
             FilledButton.icon(
               onPressed: () => showTaskEditor(context, s, status: _tab),
               icon: const Icon(Icons.add, size: 18),
-              label: Text(width < 600 ? 'Yangi' : 'Yangi vazifa'),
+              label: Text(width < 600 ? tx.newTaskShort : tx.newTask),
               style: FilledButton.styleFrom(backgroundColor: c.accentStrong, foregroundColor: Colors.white),
             ),
           ],
@@ -114,11 +116,11 @@ class _TasksScreenState extends State<TasksScreen> {
         alignment: Alignment.centerLeft,
         child: InputChip(
           avatar: chat == null ? null : ChatAvatar(chat, size: 22, showOnline: false),
-          label: Text('Faqat: ${chat?.name ?? 'chat'}', style: TextStyle(color: c.text, fontWeight: FontWeight.w600)),
+          label: Text(context.s.tasks.onlyChat(chat?.name), style: TextStyle(color: c.text, fontWeight: FontWeight.w600)),
           backgroundColor: c.accentSoft,
           side: BorderSide.none,
           deleteIcon: Icon(Icons.close, size: 16, color: c.icon),
-          deleteButtonTooltipMessage: 'Filtrni olib tashlash',
+          deleteButtonTooltipMessage: context.s.tasks.removeFilter,
           onDeleted: s.clearTaskChatFilter,
         ),
       ),
@@ -216,7 +218,12 @@ class _Column extends StatelessWidget {
                   children: [
                     Container(width: 8, height: 8, decoration: BoxDecoration(color: _statusColor(c, status), shape: BoxShape.circle)),
                     const SizedBox(width: 8),
-                    Text(status.label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: c.text)),
+                    Flexible(
+                      child: Text(status.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: c.text)),
+                    ),
                     const SizedBox(width: 6),
                     Text('${tasks.length}', style: TextStyle(fontSize: 13, color: c.text2)),
                   ],
@@ -228,7 +235,8 @@ class _Column extends StatelessWidget {
                       child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: Text(
-                          status == TaskStatus.done ? 'Hali bajarilgan vazifa yo‘q' : 'Bo‘sh',
+                          status == TaskStatus.done ? context.s.tasks.emptyDone : context.s.tasks.emptyColumn,
+                          textAlign: TextAlign.center,
                           style: TextStyle(color: c.text2, fontSize: 13),
                         ),
                       ),
@@ -293,6 +301,7 @@ class _TaskCard extends StatelessWidget {
 
   Future<void> _menu(BuildContext context, Offset pos) async {
     final c = context.fc;
+    final tx = context.s.tasks;
     final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
     final choice = await showMenu<String>(
       context: context,
@@ -306,11 +315,11 @@ class _TaskCard extends StatelessWidget {
         PopupMenuItem(
           value: 'star',
           height: 38,
-          child: Text(task.important ? 'Muhim emas' : 'Muhim', style: TextStyle(color: c.text)),
+          child: Text(task.important ? tx.notImportant : tx.important, style: TextStyle(color: c.text)),
         ),
         if (task.chatId != null)
-          PopupMenuItem(value: 'chat', height: 38, child: Text('Chatni ochish', style: TextStyle(color: c.text))),
-        PopupMenuItem(value: 'delete', height: 38, child: Text('O‘chirish', style: TextStyle(color: c.danger))),
+          PopupMenuItem(value: 'chat', height: 38, child: Text(tx.openChat, style: TextStyle(color: c.text))),
+        PopupMenuItem(value: 'delete', height: 38, child: Text(context.s.common.delete, style: TextStyle(color: c.danger))),
       ],
     );
     if (choice == null || !context.mounted) return;
@@ -348,7 +357,7 @@ class _TaskCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Tooltip(
-                  message: done ? 'Qayta ochish' : 'Bajarildi',
+                  message: done ? context.s.tasks.reopen : context.s.tasks.markDone,
                   child: InkWell(
                     customBorder: const CircleBorder(),
                     onTap: () => state.tasks.move(task.id, done ? TaskStatus.planned : TaskStatus.done),
@@ -414,7 +423,7 @@ class _TaskCard extends StatelessWidget {
                                       const SizedBox(width: 5),
                                       ConstrainedBox(
                                         constraints: const BoxConstraints(maxWidth: 150),
-                                        child: Text(chat?.name ?? task.chatTitle ?? 'Chat',
+                                        child: Text(chat?.name ?? task.chatTitle ?? context.s.tasks.chatFallback,
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                             style: TextStyle(fontSize: 12, color: c.text2)),
@@ -500,7 +509,8 @@ class _QuickAddState extends State<_QuickAdd> {
             WidgetsBinding.instance.addPostFrameCallback((_) => _focus.requestFocus());
           },
           icon: Icon(Icons.add, size: 18, color: c.accentText),
-          label: Text('Vazifa qo‘shish', style: TextStyle(color: c.accentText)),
+          label: Text(context.s.tasks.quickAdd,
+              maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: c.accentText)),
           style: TextButton.styleFrom(alignment: Alignment.centerLeft),
         ),
       );
@@ -515,7 +525,7 @@ class _QuickAddState extends State<_QuickAdd> {
           onSubmitted: (_) => _submit(),
           style: TextStyle(color: c.text, fontSize: 14),
           decoration: InputDecoration(
-            hintText: 'Vazifa nomi, Enter',
+            hintText: context.s.tasks.quickAddHint,
             hintStyle: TextStyle(color: c.text2),
             isDense: true,
             filled: true,

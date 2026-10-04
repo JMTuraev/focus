@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/format.dart';
 import '../../data/models.dart';
+import '../../l10n/l10n.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
 import '../common.dart';
@@ -23,26 +24,26 @@ bool isRiskyFile(String name) => _risky.contains(name.contains('.') ? name.split
 Future<void> openDownloadedFile(BuildContext context, String path, String name) async {
   if (isRiskyFile(name)) {
     final c = context.fc;
+    final t = context.s;
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: c.panel,
-        title: Text('Faylni ochasizmi?', style: TextStyle(color: c.text, fontSize: 18, fontWeight: FontWeight.w700)),
+        title: Text(t.chats.openFileTitle, style: TextStyle(color: c.text, fontSize: 18, fontWeight: FontWeight.w700)),
         content: Text(
-          '“$name” dastur yoki skript bo‘lishi mumkin. Unga ishonchingiz komil bo‘lmasa, ochmang: '
-          'u kompyuteringizga zarar yetkazishi mumkin.',
+          t.chats.riskyFile(name),
           style: TextStyle(color: c.textSoft, fontSize: 14, height: 1.4),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             style: TextButton.styleFrom(foregroundColor: c.text2),
-            child: const Text('Bekor qilish'),
+            child: Text(t.common.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
             style: FilledButton.styleFrom(backgroundColor: c.danger, foregroundColor: Colors.white),
-            child: const Text('Baribir ochish'),
+            child: Text(t.chats.openAnyway),
           ),
         ],
       ),
@@ -51,7 +52,7 @@ Future<void> openDownloadedFile(BuildContext context, String path, String name) 
   }
   final opened = await launchUrl(Uri.file(path)).catchError((Object _) => false);
   if (!opened && context.mounted) {
-    showToast(context, (w) => SnackBar(width: w, content: const Text('Faylni ochib bo‘lmadi')));
+    showToast(context, (w) => SnackBar(width: w, content: Text(context.s.chats.cantOpenFile)));
   }
 }
 
@@ -65,11 +66,11 @@ Future<void> saveFileAs(BuildContext context, String path, String name) async {
   try {
     await File(path).copy(target.path);
     if (context.mounted) {
-      showToast(context, (w) => SnackBar(width: w, content: Text('Saqlandi: ${target.path.split(RegExp(r'[\\/]')).last}')));
+      showToast(context, (w) => SnackBar(width: w, content: Text(context.s.chats.savedAs(target.path.split(RegExp(r'[\\/]')).last))));
     }
   } catch (_) {
     if (context.mounted) {
-      showToast(context, (w) => SnackBar(width: w, content: const Text('Faylni saqlab bo‘lmadi')));
+      showToast(context, (w) => SnackBar(width: w, content: Text(context.s.chats.cantSaveFile)));
     }
   }
 }
@@ -84,7 +85,7 @@ class FileRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.fc;
-    final name = message.fileName ?? 'Fayl';
+    final name = message.fileName ?? context.s.common.file;
     final f = message.file;
     final uploading = f?.uploadProgress != null;
     final downloading = f != null && !f.downloaded && f.downloading;
@@ -119,11 +120,11 @@ class FileRow extends StatelessWidget {
         color: c.panel,
         position: RelativeRect.fromRect(pos & const Size(1, 1), Offset.zero & overlay.size),
         items: [
-          PopupMenuItem(value: 'open', height: 38, child: Text('Ochish', style: TextStyle(color: c.text, fontSize: 14))),
+          PopupMenuItem(value: 'open', height: 38, child: Text(context.s.common.open, style: TextStyle(color: c.text, fontSize: 14))),
           PopupMenuItem(
-              value: 'folder', height: 38, child: Text('Papkada ko‘rsatish', style: TextStyle(color: c.text, fontSize: 14))),
+              value: 'folder', height: 38, child: Text(context.s.chats.showInFolder, style: TextStyle(color: c.text, fontSize: 14))),
           PopupMenuItem(
-              value: 'save', height: 38, child: Text('Boshqa joyga saqlash…', style: TextStyle(color: c.text, fontSize: 14))),
+              value: 'save', height: 38, child: Text(context.s.chats.saveAs, style: TextStyle(color: c.text, fontSize: 14))),
         ],
       );
       if (!context.mounted) return;

@@ -10,6 +10,7 @@ import '../data/format.dart';
 import '../data/meeting_parser.dart';
 import '../data/models.dart';
 import '../data/send_plan.dart';
+import '../l10n/l10n.dart';
 import 'td_client.dart';
 
 /// Chats and messages from TDLib, kept up to date from `update*` objects.
@@ -42,6 +43,9 @@ class TdChatSource extends ChatSource {
   /// Parsed meetings by "chatId:messageId" (message ids are unique per chat).
   final _meetings = <String, Meeting?>{};
   List<Chat>? _sorted;
+
+  /// Language [_sorted] and [_meetings] were built in; both hold UI texts.
+  S? _builtIn;
 
   static const _mainList = 'chatListMain';
 
@@ -236,7 +240,19 @@ class TdChatSource extends ChatSource {
   bool get loading => _loading;
 
   @override
-  List<Chat> get chats => _sorted ??= _buildChats();
+  List<Chat> get chats {
+    _checkLanguage();
+    return _sorted ??= _buildChats();
+  }
+
+  /// Drops cached texts (previews, statuses, meeting labels) after the UI
+  /// language changed.
+  void _checkLanguage() {
+    if (identical(_builtIn, S.current)) return;
+    _builtIn = S.current;
+    _sorted = null;
+    _meetings.clear();
+  }
 
   List<Chat> _buildChats() {
     final entries = _chats.values.where((c) => _mainOrder(c) > 0).toList()
@@ -279,7 +295,7 @@ class TdChatSource extends ChatSource {
     final user = _userOf(c);
     final last = c['last_message'] as TdObject?;
     final date = last == null ? null : DateTime.fromMillisecondsSinceEpoch((last['date'] as int) * 1000);
-    final name = kind == ChatKind.saved ? 'Saqlangan xabarlar' : (c['title'] as String? ?? '');
+    final name = kind == ChatKind.saved ? S.current.chats.savedMessages : (c['title'] as String? ?? '');
     final muteFor = ((c['notification_settings'] as TdObject?)?['mute_for'] as int?) ?? 0;
     final phone = user?['phone_number'] as String? ?? '';
     return Chat(
@@ -355,11 +371,12 @@ class TdChatSource extends ChatSource {
 
   String _status(TdObject chat, ChatKind kind, TdObject? user) {
     final type = chat['type'] as TdObject;
+    final t = S.current.chats;
     switch (kind) {
       case ChatKind.saved:
-        return 'shaxsiy bulut';
+        return t.statusCloud;
       case ChatKind.bot:
-        return 'bot';
+        return t.statusBot;
       case ChatKind.private:
         return _userStatus(user);
       case ChatKind.group || ChatKind.channel:
@@ -367,22 +384,23 @@ class TdChatSource extends ChatSource {
             ? _basicGroups[type['basic_group_id']]
             : _supergroups[type['supergroup_id']];
         final n = (g?['member_count'] as int?) ?? 0;
-        if (n == 0) return kind == ChatKind.channel ? 'kanal' : 'guruh';
-        return '${Fmt.count(n)} ${kind == ChatKind.channel ? 'obunachi' : 'a’zo'}';
+        if (n == 0) return kind == ChatKind.channel ? t.statusChannel : t.statusGroup;
+        return kind == ChatKind.channel ? t.subscribers(n, Fmt.count(n)) : t.members(n, Fmt.count(n));
     }
   }
 
   static String _userStatus(TdObject? user) {
     if (user == null) return '';
-    if ((user['type'] as TdObject?)?['@type'] == 'userTypeDeleted') return 'o‘chirilgan akkaunt';
+    final t = S.current.chats;
+    if ((user['type'] as TdObject?)?['@type'] == 'userTypeDeleted') return t.deletedAccount;
     final s = user['status'] as TdObject?;
     return switch (s?['@type']) {
-      'userStatusOnline' => 'online',
+      'userStatusOnline' => t.online,
       'userStatusOffline' => Fmt.lastSeen(DateTime.fromMillisecondsSinceEpoch((s!['was_online'] as int) * 1000)),
-      'userStatusRecently' => 'yaqinda onlayn edi',
-      'userStatusLastWeek' => 'shu hafta onlayn edi',
-      'userStatusLastMonth' => 'shu oy onlayn edi',
-      _ => 'uzoq vaqt oldin onlayn edi',
+      'userStatusRecently' => t.lastSeenRecently,
+      'userStatusLastWeek' => t.lastSeenWeek,
+      'userStatusLastMonth' => t.lastSeenMonth,
+      _ => t.lastSeenLongAgo,
     };
   }
 
@@ -471,7 +489,7 @@ class TdChatSource extends ChatSource {
       return who.isEmpty ? text : '$who $text';
     }
     if (kind == ChatKind.channel || kind == ChatKind.saved) return text;
-    if (m['is_outgoing'] == true) return 'Siz: $text';
+    if (m['is_outgoing'] == true) return '${S.current.chats.youPrefix}$text';
     if (kind == ChatKind.group) {
       final who = _senderName(m);
       return who.isEmpty ? text : '$who: $text';
@@ -510,8 +528,10 @@ class TdChatSource extends ChatSource {
 
   static String _caption(TdObject content) => _formatted(content['caption']);
 
-  /// Short Uzbek text for any message content (used for previews too).
+  /// Short text in the UI language for any message content (used for
+  /// previews too).
   static String _contentText(TdObject content) {
+    final t = S.current.chats;
     String withCaption(String label) {
       final c = _caption(content);
       return c.isEmpty ? label : c;
@@ -519,37 +539,38 @@ class TdChatSource extends ChatSource {
 
     return switch (content['@type']) {
       'messageText' => _formatted(content['text']),
-      'messagePhoto' => withCaption('Rasm'),
-      'messageVideo' => withCaption('Video'),
+      'messagePhoto' => withCaption(t.photo),
+      'messageVideo' => withCaption(t.video),
       'messageAnimation' => withCaption('GIF'),
-      'messageSticker' => '${((content['sticker'] as TdObject?)?['emoji'] as String?) ?? ''} Stiker'.trim(),
-      'messageVoiceNote' => withCaption('Ovozli xabar'),
-      'messageVideoNote' => 'Video xabar',
+      'messageSticker' => '${((content['sticker'] as TdObject?)?['emoji'] as String?) ?? ''} ${t.sticker}'.trim(),
+      'messageVoiceNote' => withCaption(t.voiceMessage),
+      'messageVideoNote' => t.videoMessage,
       'messageAudio' => withCaption(((content['audio'] as TdObject?)?['title'] as String?)?.isNotEmpty == true
           ? (content['audio'] as TdObject)['title'] as String
-          : 'Audio'),
-      'messageDocument' => withCaption(((content['document'] as TdObject?)?['file_name'] as String?) ?? 'Fayl'),
-      'messageLocation' => 'Joylashuv',
-      'messageVenue' => 'Joy: ${((content['venue'] as TdObject?)?['title'] as String?) ?? ''}',
-      'messageContact' => 'Kontakt',
-      'messagePoll' => 'So‘rovnoma: ${_formatted((content['poll'] as TdObject?)?['question'])}',
-      'messageCall' => 'Qo‘ng‘iroq',
+          : t.audio),
+      'messageDocument' =>
+        withCaption(((content['document'] as TdObject?)?['file_name'] as String?) ?? S.current.common.file),
+      'messageLocation' => t.location,
+      'messageVenue' => t.venue(((content['venue'] as TdObject?)?['title'] as String?) ?? ''),
+      'messageContact' => t.contact,
+      'messagePoll' => t.poll(_formatted((content['poll'] as TdObject?)?['question'])),
+      'messageCall' => t.callMessage,
       'messageDice' => (content['emoji'] as String?) ?? '🎲',
-      'messageStory' => 'Hikoya',
-      'messageChatAddMembers' => 'guruhga qo‘shildi',
-      'messageChatJoinByLink' || 'messageChatJoinByRequest' => 'guruhga qo‘shildi',
-      'messageChatDeleteMember' => 'guruhdan chiqdi',
-      'messageChatChangeTitle' => 'guruh nomini «${content['title'] ?? ''}» ga o‘zgartirdi',
-      'messageChatChangePhoto' => 'guruh rasmini o‘zgartirdi',
-      'messageChatDeletePhoto' => 'guruh rasmini o‘chirdi',
-      'messagePinMessage' => 'xabarni qadadi',
-      'messageBasicGroupChatCreate' || 'messageSupergroupChatCreate' => 'guruh yaratdi',
-      'messageChatUpgradeTo' || 'messageChatUpgradeFrom' => 'guruh superguruhga aylantirildi',
-      'messageContactRegistered' => 'Telegram’ga qo‘shildi',
-      'messageChatSetMessageAutoDeleteTime' => 'xabarlarni avtomatik o‘chirishni sozladi',
-      'messageScreenshotTaken' => 'skrinshot oldi',
+      'messageStory' => t.story,
+      'messageChatAddMembers' => t.joinedGroup,
+      'messageChatJoinByLink' || 'messageChatJoinByRequest' => t.joinedGroup,
+      'messageChatDeleteMember' => t.leftGroup,
+      'messageChatChangeTitle' => t.changedGroupTitle('${content['title'] ?? ''}'),
+      'messageChatChangePhoto' => t.changedGroupPhoto,
+      'messageChatDeletePhoto' => t.deletedGroupPhoto,
+      'messagePinMessage' => t.pinnedMessage,
+      'messageBasicGroupChatCreate' || 'messageSupergroupChatCreate' => t.createdGroup,
+      'messageChatUpgradeTo' || 'messageChatUpgradeFrom' => t.upgradedGroup,
+      'messageContactRegistered' => t.joinedTelegram,
+      'messageChatSetMessageAutoDeleteTime' => t.setAutoDelete,
+      'messageScreenshotTaken' => t.tookScreenshot,
       'messageCustomServiceAction' => (content['text'] as String?) ?? '',
-      _ => 'Xabar',
+      _ => t.message,
     };
   }
 
@@ -589,17 +610,17 @@ class TdChatSource extends ChatSource {
     if (type == 'messageDocument') {
       final doc = content['document'] as TdObject;
       fileObj = doc['document'] as TdObject?;
-      fileName = (doc['file_name'] as String?) ?? 'Fayl';
+      fileName = (doc['file_name'] as String?) ?? S.current.common.file;
       final size = ((doc['document'] as TdObject?)?['size'] as int?) ?? 0;
-      final ext = fileName.contains('.') ? fileName.split('.').last.toUpperCase() : 'Fayl';
+      final ext = fileName.contains('.') ? fileName.split('.').last.toUpperCase() : S.current.common.file;
       fileMeta = '${Fmt.size(size)} · $ext';
     } else if (type == 'messageAudio') {
       final a = content['audio'] as TdObject;
       fileObj = a['audio'] as TdObject?;
       final title = (a['title'] as String?) ?? '';
-      fileName = title.isNotEmpty ? title : ((a['file_name'] as String?) ?? 'Audio');
+      fileName = title.isNotEmpty ? title : ((a['file_name'] as String?) ?? S.current.chats.audio);
       final size = ((a['audio'] as TdObject?)?['size'] as int?) ?? 0;
-      fileMeta = '${Fmt.size(size)} · Audio';
+      fileMeta = '${Fmt.size(size)} · ${S.current.chats.audio}';
     }
 
     final media = _mediaKind(type);
@@ -847,6 +868,7 @@ class TdChatSource extends ChatSource {
     final chat = _chats[id];
     final list = _messages[id];
     if (chat == null || list == null) return const [];
+    _checkLanguage();
     final kind = _kind(chat);
     return [for (final m in list) _toMessage(m, chat, kind)];
   }

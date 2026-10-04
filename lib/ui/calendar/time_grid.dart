@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../../calendar/event_store.dart';
 import '../../data/format.dart';
 import '../../db/database.dart';
+import '../../l10n/l10n.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
 import '../tasks/task_editor.dart';
@@ -204,7 +205,7 @@ class _AllDayRow extends StatelessWidget {
             width: _gutter,
             child: Padding(
               padding: const EdgeInsets.only(right: 8, top: 4),
-              child: Text('Kun bo‘yi', textAlign: TextAlign.right, style: TextStyle(fontSize: 10.5, color: c.text2)),
+              child: Text(context.s.calendar.allDay, textAlign: TextAlign.right, style: TextStyle(fontSize: 10.5, color: c.text2)),
             ),
           ),
           for (final items in perDay)
@@ -214,7 +215,7 @@ class _AllDayRow extends StatelessWidget {
                 children: [
                   for (final item in items.take(_maxShown)) _AllDayChip(state: state, item: item),
                   if (items.length > _maxShown)
-                    Text('yana ${items.length - _maxShown} ta', style: TextStyle(fontSize: 11, color: c.text2)),
+                    Text(context.s.calendar.moreCount(items.length - _maxShown), style: TextStyle(fontSize: 11, color: c.text2)),
                 ],
               ),
             ),
@@ -454,14 +455,15 @@ class _EventTileState extends State<_EventTile> {
     final c = context.fc;
     final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
     final e = widget.event;
+    final s = context.s;
     final choice = await showMenu<String>(
       context: context,
       color: c.panel,
       position: RelativeRect.fromRect(pos & const Size(1, 1), Offset.zero & overlay.size),
       items: [
-        PopupMenuItem(value: 'edit', height: 38, child: Text('Tahrirlash', style: TextStyle(color: c.text))),
-        if (e.chatId != null) PopupMenuItem(value: 'chat', height: 38, child: Text('Chatni ochish', style: TextStyle(color: c.text))),
-        PopupMenuItem(value: 'delete', height: 38, child: Text('O‘chirish', style: TextStyle(color: c.danger))),
+        PopupMenuItem(value: 'edit', height: 38, child: Text(s.common.edit, style: TextStyle(color: c.text))),
+        if (e.chatId != null) PopupMenuItem(value: 'chat', height: 38, child: Text(s.calendar.openChat, style: TextStyle(color: c.text))),
+        PopupMenuItem(value: 'delete', height: 38, child: Text(s.common.delete, style: TextStyle(color: c.danger))),
       ],
     );
     if (!mounted) return;

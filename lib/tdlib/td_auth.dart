@@ -11,6 +11,7 @@ import '../data/chat_source.dart';
 import '../data/local_store.dart';
 import '../db/database.dart';
 import '../config.dart';
+import '../l10n/l10n.dart';
 import 'db_key.dart';
 import 'td_backup.dart';
 import 'td_chats.dart';
@@ -42,8 +43,7 @@ class TdAuth implements AuthService {
   @override
   Future<void> start() async {
     if (!AppConfig.hasTelegramKeys) {
-      _fail('Telegram API kalitlari berilmagan. secrets.json’ni to‘ldiring va ilovani '
-          '--dart-define-from-file=secrets.json bilan ishga tushiring.');
+      _fail(S.current.auth.noApiKeys);
       return;
     }
     _state.value = const AuthState(AuthStep.starting);
@@ -51,7 +51,7 @@ class TdAuth implements AuthService {
     try {
       _td = await TdClient.start(libPath: libPath);
     } catch (e) {
-      _fail('TDLib (tdjson.dll) yuklanmadi. tdlib\\ papkasidagi DLL’lar fokus.exe yonida ekanini tekshiring.');
+      _fail(S.current.auth.tdlibLoadFailed);
       debugPrint('TDLib load failed: $e');
       return;
     }
@@ -78,8 +78,7 @@ class TdAuth implements AuthService {
           await _setParameters();
         } on DbKeyException catch (e) {
           debugPrint('$e');
-          _fail('TDLib bazasining kaliti ochilmadi. Ehtimol, papka boshqa Windows foydalanuvchisidan ko‘chirilgan. '
-              'Ilova ma’lumotlari ichidagi tdlib papkasini o‘chirib, qayta kiring.');
+          _fail(S.current.auth.dbKeyFailed);
         } catch (e) {
           debugPrint('setTdlibParameters: $e');
           _fail(authErrorText(e));
@@ -91,16 +90,14 @@ class TdAuth implements AuthService {
       case 'authorizationStateWaitPassword':
         _state.value = AuthState(AuthStep.waitPassword, passwordHint: (s['password_hint'] as String?) ?? '');
       case 'authorizationStateWaitRegistration':
-        _state.value = const AuthState(
+        _state.value = AuthState(
           AuthStep.unsupported,
-          message: 'Bu raqamda Telegram akkaunti yo‘q. Avval rasmiy Telegram ilovasida ro‘yxatdan o‘ting, '
-              'keyin Focus orqali kiring.',
+          message: S.current.auth.noAccount,
         );
       case 'authorizationStateWaitEmailAddress' || 'authorizationStateWaitEmailCode':
-        _state.value = const AuthState(
+        _state.value = AuthState(
           AuthStep.unsupported,
-          message: 'Telegram bu kirish uchun email tasdiqlashni so‘rayapti. Bu imkoniyat Focus’da hali yo‘q. '
-              'Avval rasmiy Telegram ilovasida emailni tasdiqlang, keyin qayta urinib ko‘ring.',
+          message: S.current.auth.emailRequired,
         );
       case 'authorizationStateReady':
         try {
@@ -117,9 +114,9 @@ class TdAuth implements AuthService {
         _td = null;
         if (!_disposed) await start();
       default:
-        _state.value = const AuthState(
+        _state.value = AuthState(
           AuthStep.unsupported,
-          message: 'Telegram kutilmagan tasdiqlash usulini so‘rayapti. Rasmiy Telegram ilovasi orqali kirib ko‘ring.',
+          message: S.current.auth.unknownMethod,
         );
     }
   }
@@ -211,7 +208,7 @@ class TdAuth implements AuthService {
 
   Future<void> _call(TdObject request) async {
     final td = _td;
-    if (td == null) throw AuthException('Telegram’ga ulanish hali tayyor emas. Bir oz kuting.');
+    if (td == null) throw AuthException(S.current.auth.notConnected);
     try {
       await td.query(request);
     } catch (e) {
@@ -276,33 +273,28 @@ class TdAuth implements AuthService {
   }
 }
 
-/// TDLib errors → Uzbek text for the login screen.
+/// TDLib errors → text in the current language for the login screen.
 String authErrorText(Object e) {
-  if (e is TimeoutException) {
-    return 'Telegram javob bermadi. Internet aloqasini tekshirib, qayta urinib ko‘ring.';
-  }
-  if (e is! TdError) return 'Kutilmagan xatolik: $e';
+  final t = S.current.auth;
+  if (e is TimeoutException) return t.errTimeout;
+  if (e is! TdError) return t.unexpectedError(e);
   final m = e.message;
   final wait = RegExp(r'(?:FLOOD_WAIT_|retry after )(\d+)').firstMatch(m)?.group(1);
   if (e.code == 429 || wait != null) {
-    final s = int.tryParse(wait ?? '') ?? 0;
-    final when = s >= 120 ? '${(s / 60).ceil()} daqiqadan' : (s > 0 ? '$s soniyadan' : 'birozdan');
-    return 'Juda ko‘p urinish bo‘ldi. $when keyin qayta urinib ko‘ring.';
+    return t.errFloodWait(int.tryParse(wait ?? '') ?? 0);
   }
   return switch (m) {
-    'PHONE_NUMBER_INVALID' => 'Telefon raqami noto‘g‘ri. Mamlakat kodi bilan to‘liq kiriting.',
-    'PHONE_NUMBER_BANNED' => 'Bu raqam Telegram tomonidan bloklangan.',
-    'PHONE_NUMBER_FLOOD' => 'Bu raqam uchun juda ko‘p kod so‘raldi. Keyinroq urinib ko‘ring.',
-    'PHONE_CODE_INVALID' || 'PHONE_CODE_EMPTY' => 'Kod noto‘g‘ri. Qaytadan tekshirib kiriting.',
-    'PHONE_CODE_EXPIRED' => 'Kodning muddati o‘tgan. Yangi kod so‘rang.',
-    'PASSWORD_HASH_INVALID' => 'Parol noto‘g‘ri.',
-    'SEND_CODE_UNAVAILABLE' => 'Kodni qayta yuborishning boshqa usuli qolmadi.',
-    'API_ID_INVALID' || 'API_ID_PUBLISHED_FLOOD' =>
-      'Telegram API kalitlari (api_id / api_hash) noto‘g‘ri. secrets.json’ni tekshiring.',
-    'AUTH_RESTART' => 'Kirish jarayoni qayta boshlandi. Raqamni yana kiriting.',
-    'Wrong database encryption key' =>
-      'TDLib bazasini ochib bo‘lmadi (kalit mos emas). Ilova ma’lumotlari ichidagi tdlib papkasini o‘chirib, qayta kiring.',
-    _ => 'Telegram xatosi: $m',
+    'PHONE_NUMBER_INVALID' => t.errPhoneInvalid,
+    'PHONE_NUMBER_BANNED' => t.errPhoneBanned,
+    'PHONE_NUMBER_FLOOD' => t.errPhoneFlood,
+    'PHONE_CODE_INVALID' || 'PHONE_CODE_EMPTY' => t.errCodeInvalid,
+    'PHONE_CODE_EXPIRED' => t.errCodeExpired,
+    'PASSWORD_HASH_INVALID' => t.errPasswordInvalid,
+    'SEND_CODE_UNAVAILABLE' => t.errNoResendMethod,
+    'API_ID_INVALID' || 'API_ID_PUBLISHED_FLOOD' => t.errApiKeysInvalid,
+    'AUTH_RESTART' => t.errAuthRestart,
+    'Wrong database encryption key' => t.errDbKeyMismatch,
+    _ => t.errTelegram(m),
   };
 }
 

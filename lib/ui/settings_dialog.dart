@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../backup/backup_service.dart';
 import '../config.dart';
 import '../data/format.dart';
+import '../l10n/l10n.dart';
 import '../reminders/notifier.dart';
 import '../reminders/reminder_service.dart';
 import '../state/settings.dart';
@@ -66,10 +67,11 @@ class _SettingsDialog extends StatelessWidget {
           side: BorderSide(color: selected ? c.accentStrong : c.chipBorder),
         );
     final count = reminders?.scheduled.length ?? 0;
+    final t = context.s.app;
 
     return AlertDialog(
       backgroundColor: c.panel,
-      title: Text('Sozlamalar', style: TextStyle(color: c.text, fontSize: 18, fontWeight: FontWeight.w700)),
+      title: Text(t.settings, style: TextStyle(color: c.text, fontSize: 18, fontWeight: FontWeight.w700)),
       content: SizedBox(
         width: 420,
         child: SingleChildScrollView(
@@ -77,32 +79,40 @@ class _SettingsDialog extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              label('Mavzu'),
+              label(t.language),
               Wrap(
                 spacing: 6,
+                runSpacing: 6,
                 children: [
-                  chip('Tizimga mos', settings.themeMode == ThemeMode.system, () => settings.setThemeMode(ThemeMode.system)),
-                  chip('Yorug‘', settings.themeMode == ThemeMode.light, () => settings.setThemeMode(ThemeMode.light)),
-                  chip('Tungi', settings.themeMode == ThemeMode.dark, () => settings.setThemeMode(ThemeMode.dark)),
+                  for (final l in AppLanguage.values)
+                    chip(l.nativeName, settings.language == l, () => settings.setLanguage(l)),
                 ],
               ),
-              label('Eslatmalar'),
+              label(t.theme),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  chip(t.themeSystem, settings.themeMode == ThemeMode.system, () => settings.setThemeMode(ThemeMode.system)),
+                  chip(t.themeLight, settings.themeMode == ThemeMode.light, () => settings.setThemeMode(ThemeMode.light)),
+                  chip(t.themeDark, settings.themeMode == ThemeMode.dark, () => settings.setThemeMode(ThemeMode.dark)),
+                ],
+              ),
+              label(t.remindersSection),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 value: available && settings.remindersEnabled,
                 onChanged: available ? settings.setRemindersEnabled : null,
                 activeThumbColor: Colors.white,
                 activeTrackColor: c.accentStrong,
-                title: Text('Uchrashuv va vazifa bildirishnomalari', style: TextStyle(color: c.text, fontSize: 14.5)),
+                title: Text(t.remindersTitle, style: TextStyle(color: c.text, fontSize: 14.5)),
                 subtitle: Text(
-                  available
-                      ? 'Windows bildirishnomasi Focus yopiq bo‘lsa ham o‘z vaqtida chiqadi.'
-                      : 'Windows bildirishnomalari bu kompyuterda ishga tushmadi.',
+                  available ? t.remindersOn : t.remindersUnavailable,
                   style: TextStyle(color: c.text2, fontSize: 12.5),
                 ),
               ),
               if (available && settings.remindersEnabled) ...[
-                label('Vazifa muddati kuni eslatish vaqti'),
+                label(t.taskReminderHour),
                 Wrap(
                   spacing: 6,
                   runSpacing: 6,
@@ -118,33 +128,33 @@ class _SettingsDialog extends StatelessWidget {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        count == 0 ? 'Hozircha rejalashtirilgan eslatma yo‘q' : '$count ta eslatma rejalashtirilgan',
+                        count == 0 ? t.noScheduledReminders : t.scheduledReminders(count),
                         style: TextStyle(color: c.text2, fontSize: 13),
                       ),
                     ),
                     TextButton(
                       onPressed: () async {
-                        await notifier!.show(id: 1, title: 'Focus', body: 'Bildirishnomalar ishlayapti.');
+                        await notifier!.show(id: 1, title: 'Focus', body: t.testNotificationBody);
                         if (context.mounted) {
-                          showToast(context, (w) => SnackBar(width: w < 420 ? w : 420, content: const Text('Sinov bildirishnomasi yuborildi')));
+                          showToast(context, (w) => SnackBar(width: w < 420 ? w : 420, content: Text(t.testNotificationSent)));
                         }
                       },
                       style: TextButton.styleFrom(foregroundColor: c.accentText),
-                      child: const Text('Sinab ko‘rish'),
+                      child: Text(t.testNotification),
                     ),
                   ],
                 ),
               ],
               if (backup != null) ...[
-                label('Zaxira nusxa'),
+                label(t.backupSection),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: Icon(Icons.cloud_done_outlined, color: c.icon),
-                  title: Text('Shifrlangan zaxira (Saved Messages)', style: TextStyle(color: c.text, fontSize: 14.5)),
+                  title: Text(t.backupTile, style: TextStyle(color: c.text, fontSize: 14.5)),
                   subtitle: Text(
                     switch (backup!.lastBackupAt) {
-                      null => backup!.hasPassword ? 'Hali saqlanmagan' : 'Sozlanmagan',
-                      final d => 'Oxirgi: ${Fmt.dueLabel(d)}, ${Fmt.hm(d)}',
+                      null => backup!.hasPassword ? t.backupNotYet : t.backupNotSet,
+                      final d => t.backupLast('${Fmt.dueLabel(d)}, ${Fmt.hm(d)}'),
                     },
                     style: TextStyle(color: c.text2, fontSize: 12.5),
                   ),
@@ -152,12 +162,12 @@ class _SettingsDialog extends StatelessWidget {
                   onTap: () => showBackupDialog(context, backup!, onRestored: onRestored ?? () async {}),
                 ),
               ],
-              label('Focus haqida'),
+              label(t.about),
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(Icons.favorite_border, color: c.icon),
-                title: Text('Focus’ni qo‘llab-quvvatlash', style: TextStyle(color: c.text, fontSize: 14.5)),
-                subtitle: Text('Donat va boshqa yo‘llar bilan yordam', style: TextStyle(color: c.text2, fontSize: 12.5)),
+                title: Text(t.supportFocus, style: TextStyle(color: c.text, fontSize: 14.5)),
+                subtitle: Text(t.supportSubtitle, style: TextStyle(color: c.text2, fontSize: 12.5)),
                 trailing: Icon(Icons.chevron_right, color: c.text2),
                 onTap: () => showDonateDialog(context),
               ),
@@ -171,7 +181,7 @@ class _SettingsDialog extends StatelessWidget {
         FilledButton(
           onPressed: () => Navigator.pop(context),
           style: FilledButton.styleFrom(backgroundColor: c.accentStrong, foregroundColor: Colors.white),
-          child: const Text('Yopish'),
+          child: Text(context.s.common.close),
         ),
       ],
     );

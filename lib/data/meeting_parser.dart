@@ -1,3 +1,5 @@
+import '../l10n/l10n.dart';
+
 /// A meeting time found in a message ("ertaga soat 10:00 da", "завтра в 14:30").
 class Meeting {
   const Meeting(this.at, this.label);
@@ -13,9 +15,6 @@ class Meeting {
 /// and a time ("15:00", "soat 9", "в 14") are required, so prices and
 /// deadlines like "15:00 gacha" alone are not taken for meetings.
 class MeetingParser {
-  static const weekdayNames = ['Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba', 'Yakshanba'];
-  static const _monthShort = ['yan', 'fev', 'mar', 'apr', 'may', 'iyun', 'iyul', 'avg', 'sen', 'okt', 'noy', 'dek'];
-
   // Words must not be glued to other letters (works for Cyrillic too).
   static RegExp _word(String alts) => RegExp('(?<!\\p{L})(?:$alts)(?!\\p{L})', unicode: true, caseSensitive: false);
 
@@ -141,10 +140,11 @@ class MeetingParser {
     return date;
   }
 
-  /// "Payshanba, 8-okt · 15:00".
+  /// "Payshanba, 8-okt · 15:00" in the current UI language (the text of the
+  /// message may be in another language).
   static String label(DateTime at) {
     final hh = at.hour.toString().padLeft(2, '0');
     final mm = at.minute.toString().padLeft(2, '0');
-    return '${weekdayNames[at.weekday - 1]}, ${at.day}-${_monthShort[at.month - 1]} · $hh:$mm';
+    return S.current.calendar.meetingLabel(at.weekday, at.day, at.month, '$hh:$mm');
   }
 }

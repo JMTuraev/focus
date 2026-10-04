@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../calendar/event_store.dart';
 import '../../data/format.dart';
-import '../../data/meeting_parser.dart';
+import '../../l10n/l10n.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
 import '../common.dart';
@@ -29,14 +29,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
   static DateTime _monday(DateTime d) => EventStore.day(d).subtract(Duration(days: d.weekday - 1));
 
   String _range(DateTime start, int days) {
-    if (days == 1) {
-      return '${MeetingParser.weekdayNames[start.weekday - 1]}, ${start.day} ${Fmt.monthName(start.month)} ${start.year}';
-    }
-    final end = start.add(Duration(days: days - 1));
-    if (start.month == end.month) return '${start.day}–${end.day} ${Fmt.monthName(end.month)} ${end.year}';
-    final sameYear = start.year == end.year;
-    return '${start.day} ${Fmt.monthName(start.month)}${sameYear ? '' : ' ${start.year}'} – '
-        '${end.day} ${Fmt.monthName(end.month)} ${end.year}';
+    final t = context.s.calendar;
+    if (days == 1) return t.rangeDay(Fmt.weekday(start.weekday), start.day, start.month, start.year);
+    return t.rangeWeek(start, start.add(Duration(days: days - 1)));
   }
 
   @override
@@ -74,6 +69,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     void shift(int n) => s.setCalendarFocus(s.calendarFocus.add(Duration(days: n * days)));
     final today = EventStore.day(DateTime.now());
     final remaining = s.events.remainingToday();
+    final t = context.s.calendar;
     return Wrap(
       alignment: WrapAlignment.spaceBetween,
       crossAxisAlignment: WrapCrossAlignment.center,
@@ -84,9 +80,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Kalendar', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: c.text)),
+            Text(t.title, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: c.text)),
             Text(
-              remaining > 0 ? '${_range(start, days)} · bugun yana $remaining ta uchrashuv' : _range(start, days),
+              remaining > 0 ? '${_range(start, days)} · ${t.remainingToday(remaining)}' : _range(start, days),
               style: TextStyle(fontSize: 13, color: c.text2),
             ),
           ],
@@ -97,26 +93,26 @@ class _CalendarScreenState extends State<CalendarScreen> {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             IconButton(
-              tooltip: days == 7 ? 'Oldingi hafta' : 'Oldingi kun',
+              tooltip: days == 7 ? t.prevWeek : t.prevDay,
               onPressed: () => shift(-1),
               icon: Icon(Icons.chevron_left, color: c.icon),
             ),
             OutlinedButton(
               onPressed: s.calendarFocus == today ? null : () => s.setCalendarFocus(today),
               style: OutlinedButton.styleFrom(foregroundColor: c.accentText, side: BorderSide(color: c.chipBorder)),
-              child: const Text('Bugun'),
+              child: Text(context.s.common.today),
             ),
             IconButton(
-              tooltip: days == 7 ? 'Keyingi hafta' : 'Keyingi kun',
+              tooltip: days == 7 ? t.nextWeek : t.nextDay,
               onPressed: () => shift(1),
               icon: Icon(Icons.chevron_right, color: c.icon),
             ),
             if (!narrow)
               SegmentedButton<bool>(
                 showSelectedIcon: false,
-                segments: const [
-                  ButtonSegment(value: false, label: Text('Hafta')),
-                  ButtonSegment(value: true, label: Text('Kun')),
+                segments: [
+                  ButtonSegment(value: false, label: Text(t.week)),
+                  ButtonSegment(value: true, label: Text(t.day)),
                 ],
                 selected: {_dayView},
                 onSelectionChanged: (v) => setState(() => _dayView = v.first),
@@ -136,7 +132,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 showEventEditor(context, s, start: startAt);
               },
               icon: const Icon(Icons.add, size: 18),
-              label: Text(narrow ? 'Yangi' : 'Yangi uchrashuv'),
+              label: Text(narrow ? t.newEventShort : t.newEvent),
               style: FilledButton.styleFrom(backgroundColor: c.accentStrong, foregroundColor: Colors.white),
             ),
           ],
@@ -148,17 +144,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Widget _chatFilterChip(FokusColors c) {
     final id = s.eventChatFilter!;
     final chat = s.source.chatById(id);
+    final t = context.s.calendar;
     return Padding(
       padding: const EdgeInsets.only(top: 10),
       child: Align(
         alignment: Alignment.centerLeft,
         child: InputChip(
           avatar: chat == null ? null : ChatAvatar(chat, size: 22, showOnline: false),
-          label: Text('Faqat: ${chat?.name ?? 'chat'}', style: TextStyle(color: c.text, fontWeight: FontWeight.w600)),
+          label: Text(t.onlyChat(chat?.name ?? t.chatFallback), style: TextStyle(color: c.text, fontWeight: FontWeight.w600)),
           backgroundColor: c.accentSoft,
           side: BorderSide.none,
           deleteIcon: Icon(Icons.close, size: 16, color: c.icon),
-          deleteButtonTooltipMessage: 'Filtrni olib tashlash',
+          deleteButtonTooltipMessage: t.removeFilter,
           onDeleted: s.clearEventChatFilter,
         ),
       ),

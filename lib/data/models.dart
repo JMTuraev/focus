@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../l10n/l10n.dart';
+
 /// Icons a collection can use, by a stable key (stored in local_state.json).
 const kCollectionIcons = <String, IconData>{
   'forum': Icons.forum_outlined,
@@ -28,10 +30,13 @@ const kCollectionIcons = <String, IconData>{
 
 /// A user-defined group of chats (Focus-only, never sent to Telegram).
 class Collection {
-  const Collection(this.id, this.label, this.iconKey);
+  const Collection(this.id, this._label, this.iconKey);
   final String id;
-  final String label;
+  final String _label;
   final String iconKey;
+
+  /// The name; the virtual [kAllCollection] is named in the current language.
+  String get label => id == kAllCollection.id ? S.current.notes.allCollection : _label;
 
   IconData get icon => kCollectionIcons[iconKey] ?? Icons.folder_outlined;
 
@@ -41,7 +46,7 @@ class Collection {
       Collection(j['id'] as String, j['label'] as String, (j['icon'] as String?) ?? 'folder');
 }
 
-/// The virtual "all chats" entry at the top of the rail.
+/// The virtual "all chats" entry: the first tab above the chat list.
 const kAllCollection = Collection('all', 'Hammasi', 'forum');
 
 /// Collections a new install starts with.

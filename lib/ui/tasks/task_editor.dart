@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/format.dart';
 import '../../db/database.dart';
+import '../../l10n/l10n.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
 import '../common.dart';
@@ -23,8 +24,8 @@ Future<void> deleteTaskWithUndo(BuildContext context, AppState state, Task task)
     context,
     (w) => SnackBar(
       width: w < 480 ? w : 480,
-      content: Text('Vazifa o‘chirildi: “${task.title}”', maxLines: 1, overflow: TextOverflow.ellipsis),
-      action: SnackBarAction(label: 'Qaytarish', onPressed: () => state.tasks.restore(task)),
+      content: Text(S.current.tasks.deleted(task.title), maxLines: 1, overflow: TextOverflow.ellipsis),
+      action: SnackBarAction(label: S.current.tasks.undo, onPressed: () => state.tasks.restore(task)),
     ),
   );
 }
@@ -73,7 +74,7 @@ class _TaskEditorState extends State<_TaskEditor> {
   Future<void> _save() async {
     final title = _title.text.trim();
     if (title.isEmpty) {
-      setState(() => _error = 'Vazifa nomini kiriting.');
+      setState(() => _error = context.s.tasks.titleRequired);
       return;
     }
     final tasks = widget.state.tasks;
@@ -90,6 +91,8 @@ class _TaskEditorState extends State<_TaskEditor> {
   @override
   Widget build(BuildContext context) {
     final c = context.fc;
+    final tx = context.s.tasks;
+    final common = context.s.common;
     final task = widget.task;
     final today = _today();
     OutlineInputBorder border(Color color, [double w = 1]) =>
@@ -130,11 +133,11 @@ class _TaskEditorState extends State<_TaskEditor> {
       title: Row(
         children: [
           Expanded(
-            child: Text(task == null ? 'Yangi vazifa' : 'Vazifa',
+            child: Text(task == null ? tx.newTask : tx.editTitle,
                 style: TextStyle(color: c.text, fontSize: 18, fontWeight: FontWeight.w700)),
           ),
           IconButton(
-            tooltip: _important ? 'Muhim emas' : 'Muhim deb belgilash',
+            tooltip: _important ? tx.notImportant : tx.markImportant,
             onPressed: () => setState(() => _important = !_important),
             icon: Icon(_important ? Icons.star_rounded : Icons.star_outline_rounded,
                 color: _important ? c.waiting : c.icon),
@@ -157,7 +160,7 @@ class _TaskEditorState extends State<_TaskEditor> {
                 onChanged: (_) {
                   if (_error != null) setState(() => _error = null);
                 },
-                decoration: deco('Nima qilish kerak?').copyWith(errorText: _error),
+                decoration: deco(tx.titleHint).copyWith(errorText: _error),
               ),
               const SizedBox(height: 8),
               TextField(
@@ -165,9 +168,9 @@ class _TaskEditorState extends State<_TaskEditor> {
                 minLines: 2,
                 maxLines: 6,
                 style: TextStyle(color: c.text, fontSize: 14),
-                decoration: deco('Izoh (ixtiyoriy)'),
+                decoration: deco(tx.noteHint),
               ),
-              label('Holat'),
+              label(tx.statusField),
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
@@ -175,22 +178,22 @@ class _TaskEditorState extends State<_TaskEditor> {
                   for (final s in TaskStatus.values) choice(s.label, _status == s, () => setState(() => _status = s)),
                 ],
               ),
-              label('Muddat'),
+              label(tx.dueField),
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
                 children: [
-                  choice('Muddatsiz', _due == null, () => setState(() => _due = null)),
-                  choice('Bugun', _due == today, () => setState(() => _due = today)),
-                  choice('Ertaga', _due == today.add(const Duration(days: 1)),
+                  choice(tx.noDue, _due == null, () => setState(() => _due = null)),
+                  choice(common.today, _due == today, () => setState(() => _due = today)),
+                  choice(common.tomorrow, _due == today.add(const Duration(days: 1)),
                       () => setState(() => _due = today.add(const Duration(days: 1)))),
-                  choice('Bir haftadan keyin', _due == today.add(const Duration(days: 7)),
+                  choice(tx.inAWeek, _due == today.add(const Duration(days: 7)),
                       () => setState(() => _due = today.add(const Duration(days: 7)))),
-                  choice(dueIsPreset ? 'Sana tanlash…' : Fmt.dueLabel(_due!), !dueIsPreset, _pickDate),
+                  choice(dueIsPreset ? tx.pickDate : Fmt.dueLabel(_due!), !dueIsPreset, _pickDate),
                 ],
               ),
               if (task?.chatId != null) ...[
-                label('Chatdan'),
+                label(tx.fromChat),
                 ChatSourceBox(
                   state: widget.state,
                   chatId: task!.chatId!,
@@ -212,17 +215,17 @@ class _TaskEditorState extends State<_TaskEditor> {
               deleteTaskWithUndo(context, widget.state, task);
             },
             style: TextButton.styleFrom(foregroundColor: c.danger),
-            child: const Text('O‘chirish'),
+            child: Text(common.delete),
           ),
         TextButton(
           onPressed: () => Navigator.pop(context),
           style: TextButton.styleFrom(foregroundColor: c.text2),
-          child: const Text('Bekor qilish'),
+          child: Text(common.cancel),
         ),
         FilledButton(
           onPressed: _save,
           style: FilledButton.styleFrom(backgroundColor: c.accentStrong, foregroundColor: Colors.white),
-          child: Text(task == null ? 'Yaratish' : 'Saqlash'),
+          child: Text(task == null ? common.create : common.save),
         ),
       ],
     );

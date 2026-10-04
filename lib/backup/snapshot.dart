@@ -5,6 +5,7 @@ import 'package:drift/native.dart';
 import 'package:sqlite3/sqlite3.dart';
 
 import '../db/database.dart';
+import '../l10n/l10n.dart';
 import 'backup_crypto.dart';
 
 /// Copies of the local database for backups.
@@ -31,7 +32,7 @@ class Snapshot {
     try {
       raw = gzip.decode(compressed);
     } catch (_) {
-      throw BackupException('Zaxira fayli buzilgan.');
+      throw BackupException(S.current.backup.fileDamaged);
     }
     final dir = await Directory.systemTemp.createTemp('fokus_restore');
     try {
@@ -40,7 +41,7 @@ class Snapshot {
 
       final version = await _userVersion(file);
       if (version > db.schemaVersion) {
-        throw BackupException('Bu zaxira nusxasi Focus’ning yangiroq versiyasida yaratilgan. Ilovani yangilang.');
+        throw BackupException(S.current.backup.newerVersion);
       }
       // Bring the copy up to the current schema.
       final copy = AppDatabase(NativeDatabase(file));
@@ -67,7 +68,7 @@ class Snapshot {
     } on BackupException {
       rethrow;
     } catch (e) {
-      throw BackupException('Zaxira nusxasini tiklab bo‘lmadi: $e');
+      throw BackupException(S.current.backup.restoreFailed('$e'));
     } finally {
       await dir.delete(recursive: true);
     }
@@ -84,7 +85,7 @@ class Snapshot {
         raw.close();
       }
     } catch (_) {
-      throw BackupException('Zaxira fayli buzilgan.');
+      throw BackupException(S.current.backup.fileDamaged);
     }
   }
 }

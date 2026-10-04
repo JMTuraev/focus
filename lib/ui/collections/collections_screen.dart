@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../data/models.dart';
+import '../../l10n/l10n.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
 import '../common.dart';
@@ -26,6 +27,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.fc;
+    final t = context.s.notes;
     final unsorted = s.unsorted(type: _type);
     final allUnsorted = s.unsorted();
     return LayoutBuilder(
@@ -65,9 +67,8 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                   sliver: SliverToBoxAdapter(
                     child: Center(
                       child: Text(
-                        allUnsorted.isEmpty
-                            ? 'Barcha chatlar to‘plamlarga ajratilgan.'
-                            : 'Bu turdagi saralanmagan chat yo‘q.',
+                        allUnsorted.isEmpty ? t.allSorted : t.noUnsortedOfType,
+                        textAlign: TextAlign.center,
                         style: TextStyle(color: c.text2, fontSize: 14),
                       ),
                     ),
@@ -92,6 +93,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
   }
 
   Widget _header(FokusColors c) {
+    final t = context.s.notes;
     return Wrap(
       alignment: WrapAlignment.spaceBetween,
       crossAxisAlignment: WrapCrossAlignment.center,
@@ -102,10 +104,10 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('To‘plamlar', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: c.text)),
+            Text(t.collectionsTitle, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: c.text)),
             const SizedBox(height: 4),
             Text(
-              'Chatlarni o‘zingizga qulay guruhlarga ajrating. Bu faqat Focus’da saqlanadi, Telegram’ga ta’sir qilmaydi.',
+              t.collectionsIntro,
               style: TextStyle(fontSize: 13.5, color: c.text2),
             ),
           ],
@@ -113,7 +115,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
         FilledButton.icon(
           onPressed: () => showCollectionEditor(context, s),
           icon: const Icon(Icons.add, size: 18),
-          label: const Text('Yangi to‘plam'),
+          label: Text(t.newCollection),
           style: FilledButton.styleFrom(backgroundColor: c.accentStrong, foregroundColor: Colors.white),
         ),
       ],
@@ -122,6 +124,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
 
   Widget _unsortedHeader(FokusColors c, List<Chat> all, List<Chat> shown) {
     int countOf(ChatType? t) => t == null ? all.length : all.where((x) => ChatType.of(x) == t).length;
+    final str = context.s.notes;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -130,8 +133,8 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
           spacing: 12,
           runSpacing: 8,
           children: [
-            Text('Saralanmagan', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: c.text)),
-            Text('${all.length} ta chat hech qaysi to‘plamda emas', style: TextStyle(fontSize: 13, color: c.text2)),
+            Text(str.unsorted, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: c.text)),
+            Text(str.unsortedCount(all.length), style: TextStyle(fontSize: 13, color: c.text2)),
           ],
         ),
         const SizedBox(height: 10),
@@ -142,7 +145,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
           children: [
             for (final t in <ChatType?>[null, ...ChatType.values])
               _TabChip(
-                label: '${t?.label ?? 'Hammasi'} ${countOf(t)}',
+                label: '${t?.label ?? str.allTypes} ${countOf(t)}',
                 active: _type == t,
                 onTap: () => setState(() => _type = t),
               ),
@@ -192,6 +195,7 @@ class _BulkAssignButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.fc;
+    final t = context.s.notes;
     return MenuAnchor(
       style: MenuStyle(backgroundColor: WidgetStatePropertyAll(c.panel)),
       menuChildren: [
@@ -204,7 +208,7 @@ class _BulkAssignButton extends StatelessWidget {
               showToast(
                   context,
                   (w) => SnackBar(
-                      width: w < 480 ? w : 480, content: Text('$n ta chat «${col.label}» to‘plamiga o‘tkazildi')));
+                      width: w < 480 ? w : 480, content: Text(t.movedToCollection(n, col.label))));
             },
             child: Text(col.label, style: TextStyle(color: c.text, fontSize: 14)),
           ),
@@ -213,7 +217,7 @@ class _BulkAssignButton extends StatelessWidget {
         onPressed: () => controller.isOpen ? controller.close() : controller.open(),
         icon: Icon(Icons.drive_file_move_outline, size: 18, color: c.accentText),
         label: Text(
-          label == null ? 'Barchasini to‘plamga (${chats.length})' : 'Barcha $label (${chats.length}) → to‘plamga',
+          label == null ? t.moveAll(chats.length) : t.moveAllOfType(label!, chats.length),
           style: TextStyle(color: c.accentText, fontWeight: FontWeight.w600),
         ),
       ),
@@ -260,7 +264,9 @@ class _CollectionCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: c.text)),
                       Text(
-                        unread > 0 ? '${chats.length} ta chat · $unread o‘qilmagan' : '${chats.length} ta chat',
+                        unread > 0
+                            ? '${context.s.common.chatsCount(chats.length)} · ${context.s.notes.unreadCount(unread)}'
+                            : context.s.common.chatsCount(chats.length),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(fontSize: 12.5, color: c.text2),
@@ -277,7 +283,7 @@ class _CollectionCard extends StatelessWidget {
               child: chats.isEmpty
                   ? Align(
                       alignment: Alignment.centerLeft,
-                      child: Text('Bo‘sh', style: TextStyle(fontSize: 12.5, color: c.text2)),
+                      child: Text(context.s.notes.emptyCollection, style: TextStyle(fontSize: 12.5, color: c.text2)),
                     )
                   : Stack(
                       children: [
@@ -309,8 +315,9 @@ class _CardMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.fc;
+    final s = context.s;
     return PopupMenuButton<String>(
-      tooltip: 'Amallar',
+      tooltip: s.notes.actions,
       color: c.panel,
       icon: Icon(Icons.more_vert, size: 20, color: c.icon),
       onSelected: (v) {
@@ -318,8 +325,8 @@ class _CardMenu extends StatelessWidget {
         if (v == 'delete') confirmDeleteCollection(context, state, collection);
       },
       itemBuilder: (_) => [
-        PopupMenuItem(value: 'edit', child: Text('Tahrirlash', style: TextStyle(color: c.text))),
-        PopupMenuItem(value: 'delete', child: Text('O‘chirish', style: TextStyle(color: c.danger))),
+        PopupMenuItem(value: 'edit', child: Text(s.common.edit, style: TextStyle(color: c.text))),
+        PopupMenuItem(value: 'delete', child: Text(s.common.delete, style: TextStyle(color: c.danger))),
       ],
     );
   }
@@ -343,7 +350,10 @@ class _NewCard extends StatelessWidget {
           children: [
             Icon(Icons.add_circle_outline, size: 28, color: c.accentText),
             const SizedBox(height: 6),
-            Text('Yangi to‘plam', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: c.accentText)),
+            Text(context.s.notes.newCollection,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: c.accentText)),
           ],
         ),
       ),
@@ -404,7 +414,7 @@ class _UnsortedRow extends StatelessWidget {
                 showAssignMenu(context, state, chat, box.localToGlobal(Offset(0, box.size.height)));
               },
               style: TextButton.styleFrom(foregroundColor: c.accentText),
-              child: Text(quickButtons ? 'Boshqa…' : 'To‘plamga'),
+              child: Text(quickButtons ? context.s.notes.otherCollection : context.s.notes.toCollection),
             ),
           ),
         ],

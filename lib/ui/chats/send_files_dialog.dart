@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../../data/format.dart';
 import '../../data/models.dart';
+import '../../l10n/l10n.dart';
 import '../../theme.dart';
 
 /// What the user chose in the send dialog.
@@ -87,11 +88,12 @@ class _SendFilesDialogState extends State<SendFilesDialog> {
   @override
   Widget build(BuildContext context) {
     final c = context.fc;
+    final t = context.s;
     final images = _files.where((f) => f.isImage).length;
     final total = _files.fold<int>(0, (sum, f) => sum + f.size);
     final title = _files.length == 1
-        ? (images == 1 && _compress ? 'Rasm yuborish' : 'Fayl yuborish')
-        : '${_files.length} ta fayl yuborish';
+        ? (images == 1 && _compress ? t.chats.sendPhoto : t.chats.sendFile)
+        : t.chats.sendFiles(_files.length);
 
     return CallbackShortcuts(
       bindings: {const SingleActivator(LogicalKeyboardKey.enter, control: true): _send},
@@ -123,7 +125,7 @@ class _SendFilesDialogState extends State<SendFilesDialog> {
               if (_files.isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Text('Fayl tanlanmagan', style: TextStyle(color: c.text2)),
+                  child: Text(t.chats.noFileSelected, style: TextStyle(color: c.text2)),
                 ),
               Align(
                 alignment: Alignment.centerLeft,
@@ -131,7 +133,7 @@ class _SendFilesDialogState extends State<SendFilesDialog> {
                   onPressed: _addMore,
                   style: TextButton.styleFrom(foregroundColor: c.accentText),
                   icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Yana qo‘shish'),
+                  label: Text(t.chats.addMore),
                 ),
               ),
               if (images > 0)
@@ -141,9 +143,9 @@ class _SendFilesDialogState extends State<SendFilesDialog> {
                   value: _compress,
                   activeColor: c.accentStrong,
                   onChanged: (v) => setState(() => _compress = v ?? true),
-                  title: Text('Rasmlarni siqib yuborish', style: TextStyle(color: c.text, fontSize: 14)),
+                  title: Text(t.chats.compressImages, style: TextStyle(color: c.text, fontSize: 14)),
                   subtitle: Text(
-                    _compress ? 'Rasm sifatida, albom bo‘lib boradi' : 'Asl sifatda, fayl sifatida boradi',
+                    _compress ? t.chats.compressOn : t.chats.compressOff,
                     style: TextStyle(color: c.text2, fontSize: 12.5),
                   ),
                 ),
@@ -156,7 +158,7 @@ class _SendFilesDialogState extends State<SendFilesDialog> {
                 onSubmitted: (_) => _send(),
                 style: TextStyle(color: c.text, fontSize: 14.5),
                 decoration: InputDecoration(
-                  hintText: 'Izoh qo‘shish…',
+                  hintText: t.chats.captionHint,
                   hintStyle: TextStyle(color: c.text2),
                   isDense: true,
                 ),
@@ -168,12 +170,12 @@ class _SendFilesDialogState extends State<SendFilesDialog> {
           TextButton(
             onPressed: () => Navigator.pop(context),
             style: TextButton.styleFrom(foregroundColor: c.text2),
-            child: const Text('Bekor qilish'),
+            child: Text(t.common.cancel),
           ),
           FilledButton(
             onPressed: _files.isEmpty ? null : _send,
             style: FilledButton.styleFrom(backgroundColor: c.accentStrong, foregroundColor: Colors.white),
-            child: const Text('Yuborish'),
+            child: Text(t.common.send),
           ),
         ],
       ),
@@ -190,7 +192,7 @@ class _FileTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.fc;
-    final ext = file.extension.isEmpty ? 'Fayl' : file.extension.toUpperCase();
+    final ext = file.extension.isEmpty ? context.s.common.file : file.extension.toUpperCase();
     Widget icon = Container(
       width: 44,
       height: 44,
@@ -229,7 +231,7 @@ class _FileTile extends StatelessWidget {
             ),
           ),
           IconButton(
-            tooltip: 'Olib tashlash',
+            tooltip: context.s.chats.removeFile,
             onPressed: onRemove,
             icon: Icon(Icons.close, size: 18, color: c.text2),
           ),

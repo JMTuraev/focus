@@ -10,6 +10,7 @@ import 'package:window_manager/window_manager.dart';
 import 'auth/auth.dart';
 import 'auth/mock_auth.dart';
 import 'config.dart';
+import 'l10n/l10n.dart';
 import 'reminders/notifier.dart';
 import 'state/settings.dart';
 import 'tdlib/td_auth.dart';
@@ -76,17 +77,20 @@ class FokusApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: settings,
-      builder: (context, _) => MaterialApp(
-        title: 'Focus',
-        debugShowCheckedModeBanner: false,
-        theme: buildTheme(Brightness.light),
-        darkTheme: buildTheme(Brightness.dark),
-        themeMode: settings.themeMode,
-        // Built-in texts (date picker, menus, tooltips) in Uzbek.
-        locale: const Locale('uz'),
-        supportedLocales: const [Locale('uz')],
-        localizationsDelegates: GlobalMaterialLocalizations.delegates,
-        home: AuthGate(auth: auth, settings: settings, notifier: notifier),
+      builder: (context, _) => LanguageScope(
+        language: settings.language,
+        child: MaterialApp(
+          title: 'Focus',
+          debugShowCheckedModeBanner: false,
+          theme: buildTheme(Brightness.light),
+          darkTheme: buildTheme(Brightness.dark),
+          themeMode: settings.themeMode,
+          // Built-in texts (date picker, menus, tooltips) follow the UI language.
+          locale: settings.language.locale,
+          supportedLocales: [for (final l in AppLanguage.values) l.locale],
+          localizationsDelegates: GlobalMaterialLocalizations.delegates,
+          home: AuthGate(auth: auth, settings: settings, notifier: notifier),
+        ),
       ),
     );
   }

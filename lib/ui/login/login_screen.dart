@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../auth/auth.dart';
+import '../../l10n/l10n.dart';
 import '../../state/settings.dart';
 import '../../theme.dart';
 import '../title_bar.dart';
@@ -63,10 +64,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Widget _step(AuthState s) {
     final auth = widget.auth;
+    final t = context.s.auth;
     return switch (s.step) {
-      AuthStep.starting => _Busy(auth.isMock ? 'Yuklanmoqda…' : 'Telegram’ga ulanmoqda…'),
-      AuthStep.ready => const _Busy('Kirilmoqda…'),
-      AuthStep.loggingOut => const _Busy('Akkauntdan chiqilmoqda…'),
+      AuthStep.starting => _Busy(auth.isMock ? t.loading : t.connecting),
+      AuthStep.ready => _Busy(t.signingIn),
+      AuthStep.loggingOut => _Busy(t.loggingOut),
       AuthStep.waitPhone => _PhoneStep(
           auth: auth,
           initial: _phone,
@@ -76,16 +78,16 @@ class _LoginScreenState extends State<LoginScreen> {
       AuthStep.waitPassword => _PasswordStep(auth: auth, hint: s.passwordHint),
       AuthStep.unsupported => _Notice(
           icon: Icons.info_outline,
-          title: 'Bu usul hali qo‘llab-quvvatlanmaydi',
+          title: t.unsupportedTitle,
           message: s.message,
-          action: 'Boshqa raqam bilan kirish',
+          action: t.otherNumber,
           onAction: auth.editPhone,
         ),
       AuthStep.failed => _Notice(
           icon: Icons.cloud_off_outlined,
-          title: 'Telegram’ga ulanib bo‘lmadi',
+          title: t.failedTitle,
           message: s.message,
-          action: 'Qayta urinish',
+          action: context.s.common.retry,
           onAction: auth.start,
         ),
     };
@@ -117,7 +119,7 @@ class _PhoneStepState extends State<_PhoneStep> with _Submit {
   Future<void> _go() async {
     final digits = _ctrl.text.replaceAll(RegExp(r'\D'), '');
     if (digits.length < 9) {
-      setState(() => error = 'Telefon raqamini mamlakat kodi bilan to‘liq kiriting.');
+      setState(() => error = context.s.auth.phoneTooShort);
       return;
     }
     await submit(() => widget.auth.sendPhone(_ctrl.text));
@@ -125,10 +127,11 @@ class _PhoneStepState extends State<_PhoneStep> with _Submit {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.s.auth;
     return _Form(
       top: const FokusLogo(size: 76),
-      title: 'Telefon raqamingiz',
-      subtitle: 'Mamlakat kodini tekshiring va Telegram’dagi telefon raqamingizni kiriting.',
+      title: t.phoneTitle,
+      subtitle: t.phoneSubtitle,
       field: _Field(
         controller: _ctrl,
         enabled: !busy,
@@ -143,10 +146,10 @@ class _PhoneStepState extends State<_PhoneStep> with _Submit {
         style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, letterSpacing: 0.5),
       ),
       error: error,
-      button: 'Davom etish',
+      button: t.next,
       busy: busy,
       onButton: _go,
-      mockHint: widget.auth.isMock ? 'Istalgan raqam ishlaydi.' : null,
+      mockHint: widget.auth.isMock ? t.mockPhone : null,
     );
   }
 }
@@ -188,7 +191,7 @@ class _CodeStepState extends State<_CodeStep> with _Submit {
   Future<void> _go() async {
     final code = _ctrl.text.trim();
     if (code.isEmpty) {
-      setState(() => error = 'Kodni kiriting.');
+      setState(() => error = context.s.auth.codeEmpty);
       return;
     }
     await submit(() => widget.auth.sendCode(code));
@@ -197,23 +200,23 @@ class _CodeStepState extends State<_CodeStep> with _Submit {
 
   String get _subtitle {
     final i = widget.info;
+    final t = context.s.auth;
     return switch (i.delivery) {
-      CodeDelivery.telegram => 'Kodni boshqa qurilmangizdagi Telegram ilovasiga yubordik.',
-      CodeDelivery.sms => i.textual ? 'SMS’dagi so‘z yoki iborani kiriting.' : 'Kodni SMS orqali yubordik.',
-      CodeDelivery.call => 'Sizga qo‘ng‘iroq qilinadi va kod aytib beriladi.',
-      CodeDelivery.flashCall || CodeDelivery.missedCall =>
-        'Sizga qo‘ng‘iroq qilinadi. Qo‘ng‘iroq qilgan raqamning oxirgi raqamlarini kiriting.',
-      CodeDelivery.fragment => 'Kodni fragment.com’dagi hisobingizga yubordik.',
-      CodeDelivery.email => 'Kodni emailingizga yubordik.',
-      CodeDelivery.other => 'Tasdiqlash kodini yubordik.',
+      CodeDelivery.telegram => t.codeViaTelegram,
+      CodeDelivery.sms => i.textual ? t.codeSmsWord : t.codeViaSms,
+      CodeDelivery.call => t.codeViaCall,
+      CodeDelivery.flashCall || CodeDelivery.missedCall => t.codeViaFlashCall,
+      CodeDelivery.fragment => t.codeViaFragment,
+      CodeDelivery.email => t.codeViaEmail,
+      CodeDelivery.other => t.codeSent,
     };
   }
 
   String? get _resendLabel => switch (widget.info.next) {
         null => null,
-        CodeDelivery.sms => 'Kodni SMS orqali yuborish',
-        CodeDelivery.call || CodeDelivery.flashCall || CodeDelivery.missedCall => 'Kodni qo‘ng‘iroq orqali olish',
-        _ => 'Kodni qayta yuborish',
+        CodeDelivery.sms => context.s.auth.resendViaSms,
+        CodeDelivery.call || CodeDelivery.flashCall || CodeDelivery.missedCall => context.s.auth.resendViaCall,
+        _ => context.s.auth.resend,
       };
 
   @override
@@ -221,16 +224,17 @@ class _CodeStepState extends State<_CodeStep> with _Submit {
     final c = context.fc;
     final i = widget.info;
     final resend = _resendLabel;
+    final t = context.s.auth;
     return _Form(
       top: const _RoundIcon(Icons.mark_chat_read_outlined),
       title: formatPhone(i.phone),
-      titleAction: _Link('Raqamni o‘zgartirish', onTap: busy ? null : widget.auth.editPhone),
+      titleAction: _Link(t.changeNumber, onTap: busy ? null : widget.auth.editPhone),
       subtitle: _subtitle,
       field: _Field(
         controller: _ctrl,
         enabled: !busy,
         autofocus: true,
-        hint: i.textual ? 'SMS’dagi so‘z' : 'Kod',
+        hint: i.textual ? t.codeWordHint : t.codeHint,
         textAlign: TextAlign.center,
         keyboardType: i.textual ? TextInputType.text : TextInputType.number,
         inputFormatters: [
@@ -245,16 +249,16 @@ class _CodeStepState extends State<_CodeStep> with _Submit {
         style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, letterSpacing: i.textual ? 0.5 : 8),
       ),
       error: error,
-      button: 'Davom etish',
+      button: t.next,
       busy: busy,
       onButton: _go,
       below: resend == null
           ? null
           : _left > 0
               ? Text('$resend (${_left ~/ 60}:${(_left % 60).toString().padLeft(2, '0')})',
-                  style: TextStyle(fontSize: 13.5, color: c.text2))
+                  textAlign: TextAlign.center, style: TextStyle(fontSize: 13.5, color: c.text2))
               : _Link(resend, onTap: busy ? null : () => submit(widget.auth.resendCode)),
-      mockHint: widget.auth.isMock ? 'Istalgan 5 xonali kod ishlaydi, 00000 esa xato beradi.' : null,
+      mockHint: widget.auth.isMock ? t.mockCode : null,
     );
   }
 }
@@ -281,7 +285,7 @@ class _PasswordStepState extends State<_PasswordStep> with _Submit {
 
   Future<void> _go() async {
     if (_ctrl.text.isEmpty) {
-      setState(() => error = 'Parolni kiriting.');
+      setState(() => error = context.s.auth.passwordEmpty);
       return;
     }
     await submit(() => widget.auth.sendPassword(_ctrl.text));
@@ -290,38 +294,39 @@ class _PasswordStepState extends State<_PasswordStep> with _Submit {
   @override
   Widget build(BuildContext context) {
     final c = context.fc;
+    final t = context.s.auth;
     return _Form(
       top: const _RoundIcon(Icons.lock_outline),
-      title: 'Ikki bosqichli tekshiruv',
-      subtitle: 'Akkauntingiz qo‘shimcha parol bilan himoyalangan. Telegram’dagi bulut parolingizni kiriting.',
+      title: t.passwordTitle,
+      subtitle: t.passwordSubtitle,
       field: _Field(
         controller: _ctrl,
         enabled: !busy,
         autofocus: true,
         obscure: !_show,
-        hint: 'Parol',
+        hint: t.passwordHint,
         onChanged: (_) {
           if (error != null) setState(() => error = null);
         },
         onSubmitted: (_) => _go(),
         suffix: IconButton(
-          tooltip: _show ? 'Parolni yashirish' : 'Parolni ko‘rsatish',
+          tooltip: _show ? t.hidePassword : t.showPassword,
           onPressed: () => setState(() => _show = !_show),
           icon: Icon(_show ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 20, color: c.icon),
         ),
       ),
-      fieldNote: widget.hint.isEmpty ? null : 'Maslahat: ${widget.hint}',
+      fieldNote: widget.hint.isEmpty ? null : t.passwordHintNote(widget.hint),
       error: error,
-      button: 'Kirish',
+      button: t.signIn,
       busy: busy,
       onButton: _go,
-      below: _Link('Boshqa raqam bilan kirish', onTap: busy ? null : widget.auth.editPhone),
-      mockHint: widget.auth.isMock ? 'Istalgan parol ishlaydi, «xato» esa xato beradi.' : null,
+      below: _Link(t.otherNumber, onTap: busy ? null : widget.auth.editPhone),
+      mockHint: widget.auth.isMock ? t.mockPassword : null,
     );
   }
 }
 
-/// Busy flag + Uzbek error text for one form.
+/// Busy flag + error text (current language) for one form.
 mixin _Submit<T extends StatefulWidget> on State<T> {
   bool busy = false;
   String? error;
@@ -336,7 +341,7 @@ mixin _Submit<T extends StatefulWidget> on State<T> {
     } on AuthException catch (e) {
       if (mounted) setState(() => error = e.message);
     } catch (e) {
-      if (mounted) setState(() => error = 'Kutilmagan xatolik: $e');
+      if (mounted) setState(() => error = context.s.auth.unexpectedError(e));
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -523,7 +528,7 @@ class _Link extends StatelessWidget {
         foregroundColor: c.accentText,
         textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
       ),
-      child: Text(label),
+      child: Text(label, textAlign: TextAlign.center),
     );
   }
 }
@@ -543,7 +548,7 @@ class _Busy extends StatelessWidget {
         const SizedBox(height: 28),
         SizedBox(width: 26, height: 26, child: CircularProgressIndicator(strokeWidth: 2.6, color: c.accent)),
         const SizedBox(height: 16),
-        Text(label, style: TextStyle(fontSize: 14, color: c.text2)),
+        Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: c.text2)),
       ],
     );
   }
@@ -607,7 +612,7 @@ class _MockNote extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Sinov rejimi: Telegram’ga ulanmaydi. $text',
+              '${context.s.auth.mockMode} $text',
               style: TextStyle(fontSize: 13, height: 1.35, color: c.textSoft),
             ),
           ),
@@ -630,8 +635,7 @@ class _PrivacyNote extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            'Kod va parol faqat Telegram serverlariga yuboriladi. Focus’ning o‘z serveri yo‘q, '
-            'xabarlaringiz o‘qilgan deb belgilanmaydi.',
+            context.s.auth.privacyNote,
             style: TextStyle(fontSize: 12.5, height: 1.4, color: c.text2),
           ),
         ),

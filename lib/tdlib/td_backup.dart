@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import '../backup/backup_crypto.dart' show BackupException;
 import '../backup/backup_transport.dart';
+import '../l10n/l10n.dart';
 import 'td_auth.dart' show authErrorText;
 import 'td_client.dart';
 
@@ -53,8 +54,8 @@ class TdBackupTransport implements BackupTransport {
           case 'updateMessageSendFailed':
             if (u['old_message_id'] == tempId && !done.isCompleted) {
               final err = u['error'] as TdObject?;
-              done.completeError(BackupException(
-                  'Saved Messages’ga yuklab bo‘lmadi: ${authErrorText(TdError((err?['code'] as int?) ?? 0, (err?['message'] as String?) ?? ''))}'));
+              done.completeError(BackupException(S.current.backup.uploadFailed(
+                  authErrorText(TdError((err?['code'] as int?) ?? 0, (err?['message'] as String?) ?? '')))));
             }
         }
       }
@@ -77,13 +78,13 @@ class TdBackupTransport implements BackupTransport {
       fileId = ((msg['content'] as TdObject?)?['document'] as TdObject?)?['document']?['id'] as int?;
       early.forEach(onUpdate);
       await done.future.timeout(const Duration(minutes: 10), onTimeout: () {
-        throw BackupException('Yuklash juda uzoq davom etdi. Internetni tekshirib, qayta urinib ko‘ring.');
+        throw BackupException(S.current.backup.uploadTimeout);
       });
       progress?.call(1);
     } on BackupException {
       rethrow;
     } catch (e) {
-      throw BackupException('Saved Messages’ga yuklab bo‘lmadi: ${authErrorText(e)}');
+      throw BackupException(S.current.backup.uploadFailed(authErrorText(e)));
     } finally {
       await sub?.cancel();
       // TDLib has its own copy once the message is sent.
@@ -124,7 +125,7 @@ class TdBackupTransport implements BackupTransport {
       out.sort((a, b) => b.date.compareTo(a.date));
       return out;
     } catch (e) {
-      throw BackupException('Zaxira nusxalarini olib bo‘lmadi: ${authErrorText(e)}');
+      throw BackupException(S.current.backup.listFailed(authErrorText(e)));
     }
   }
 
@@ -143,12 +144,12 @@ class TdBackupTransport implements BackupTransport {
         'synchronous': true,
       }, timeout: const Duration(minutes: 10));
       final path = (f['local'] as TdObject?)?['path'] as String?;
-      if (path == null || path.isEmpty) throw BackupException('Zaxira faylini yuklab bo‘lmadi.');
+      if (path == null || path.isEmpty) throw BackupException(S.current.backup.downloadFailed(null));
       return File(path).readAsBytes();
     } on BackupException {
       rethrow;
     } catch (e) {
-      throw BackupException('Zaxira faylini yuklab bo‘lmadi: ${authErrorText(e)}');
+      throw BackupException(S.current.backup.downloadFailed(authErrorText(e)));
     }
   }
 }

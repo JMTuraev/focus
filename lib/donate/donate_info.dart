@@ -1,3 +1,5 @@
+import '../l10n/l10n.dart';
+
 /// Where people can send a donation. Values come from build-time defines
 /// (`secrets.json`, see `secrets.example.json`) so personal payment details
 /// never land in the public repository. Empty values are simply not shown.
@@ -58,7 +60,7 @@ class DonateInfo {
           (DonateKind.payme, 'Payme', payme),
           (DonateKind.click, 'Click', click),
           (DonateKind.tirikchilik, 'Tirikchilik', tirikchilik),
-          (DonateKind.other, otherLabel.trim().isEmpty ? 'Xalqaro to‘lov' : otherLabel.trim(), otherUrl),
+          (DonateKind.other, otherLabel.trim().isEmpty ? S.current.app.internationalPayment : otherLabel.trim(), otherUrl),
         ])
           if (safeUrl(url) case final uri?) DonateLink(kind, label, uri),
       ];

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/l10n.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import 'common.dart';
@@ -39,7 +40,7 @@ class ChatSourceBox extends StatelessWidget {
                 Icon(Icons.chat_bubble_outline, size: 20, color: c.icon),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(chat?.name ?? chatTitle ?? 'Chat',
+                child: Text(chat?.name ?? chatTitle ?? context.s.chats.chat,
                     maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: c.text, fontWeight: FontWeight.w600)),
               ),
               if (chat != null)
@@ -49,7 +50,7 @@ class ChatSourceBox extends StatelessWidget {
                     onOpenChat();
                   },
                   style: TextButton.styleFrom(foregroundColor: c.accentText),
-                  child: const Text('Chatni ochish'),
+                  child: Text(context.s.chats.openChat),
                 ),
             ],
           ),

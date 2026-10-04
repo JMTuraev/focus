@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/l10n.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
 import '../collections/collection_dialogs.dart';
@@ -23,6 +24,7 @@ class InfoPanel extends StatelessWidget {
     final current = state.collectionOf(chat);
     // Phone and bio/description are fetched once per chat when the panel shows.
     WidgetsBinding.instance.addPostFrameCallback((_) => state.loadDetails(chat.id));
+    final t = context.s.chats;
     final accentLabel = TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: c.accentText);
     return Container(
       width: width,
@@ -41,9 +43,9 @@ class InfoPanel extends StatelessWidget {
               children: [
                 Expanded(
                     child:
-                        Text('Ma’lumot', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: c.text))),
+                        Text(t.info, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: c.text))),
                 IconButton(
-                    tooltip: 'Panelni yopish', onPressed: onClose, icon: Icon(Icons.close, size: 18, color: c.icon)),
+                    tooltip: t.closePanel, onPressed: onClose, icon: Icon(Icons.close, size: 18, color: c.icon)),
               ],
             ),
           ),
@@ -62,8 +64,8 @@ class InfoPanel extends StatelessWidget {
           ),
           Center(child: Text(chat.status, style: TextStyle(fontSize: 13, color: chat.online ? c.accentText : c.text2))),
           const SizedBox(height: 12),
-          if (chat.phone.isNotEmpty) _Row(icon: Icons.call_outlined, title: chat.phone, subtitle: 'Telefon'),
-          if (chat.about.isNotEmpty) _Row(icon: Icons.info_outline, title: chat.about, subtitle: 'Izoh'),
+          if (chat.phone.isNotEmpty) _Row(icon: Icons.call_outlined, title: chat.phone, subtitle: t.phone),
+          if (chat.about.isNotEmpty) _Row(icon: Icons.info_outline, title: chat.about, subtitle: t.about),
           const SizedBox(height: 8),
           Container(height: 8, color: c.bg),
           Padding(
@@ -71,7 +73,7 @@ class InfoPanel extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('To‘plam', style: accentLabel),
+                Text(t.collection, style: accentLabel),
                 const SizedBox(height: 10),
                 Wrap(
                   spacing: 6,
@@ -90,14 +92,14 @@ class InfoPanel extends StatelessWidget {
                             (w) => SnackBar(
                               width: w < 480 ? w : 480,
                               content: Text(target.isEmpty
-                                  ? '${chat.name} «${col.label}» to‘plamidan chiqarildi'
-                                  : '${chat.name} → ${col.label} to‘plamiga ko‘chirildi'),
+                                  ? t.removedFromCollection(chat.name, col.label)
+                                  : t.movedToCollection(chat.name, col.label)),
                             ),
                           );
                         },
                       ),
                     _TagChip(
-                      label: '+ Yangi',
+                      label: t.newCollection,
                       active: false,
                       onTap: () async {
                         final created = await showCollectionEditor(context, state);
@@ -112,27 +114,27 @@ class InfoPanel extends StatelessWidget {
           Container(height: 8, color: c.bg),
           Padding(
             padding: const EdgeInsets.fromLTRB(18, 14, 18, 6),
-            child: Text('Shu chatdan', style: accentLabel),
+            child: Text(t.fromThisChat, style: accentLabel),
           ),
           _Link(
             icon: Icons.checklist,
-            label: 'Vazifalar',
+            label: t.tasks,
             count: state.tasks.openForChat(chat.id),
             onTap: () => state.showTasksForChat(chat.id),
           ),
           _Link(
             icon: Icons.calendar_today_outlined,
-            label: 'Uchrashuvlar',
+            label: t.meetings,
             count: state.events.upcomingForChat(chat.id).length,
             onTap: () => state.showEventsForChat(chat.id),
           ),
           _Link(
             icon: Icons.sticky_note_2_outlined,
-            label: 'Eslatmalar',
+            label: t.notes,
             count: state.notes.countForChat(chat.id),
             onTap: () => state.showNotesForChat(chat.id),
           ),
-          _Link(icon: Icons.folder_outlined, label: 'Fayllar', onTap: () => state.openModule(Module.files)),
+          _Link(icon: Icons.folder_outlined, label: t.files, onTap: () => state.openModule(Module.files)),
           const SizedBox(height: 12),
         ],
       ),
