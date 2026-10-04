@@ -4,6 +4,7 @@ import '../auth/auth.dart';
 import '../data/chat_source.dart';
 import '../state/app_state.dart';
 import '../state/settings.dart';
+import '../tasks/task_store.dart';
 import '../theme.dart';
 import 'login/login_screen.dart';
 import 'shell.dart';
@@ -51,7 +52,12 @@ class _AuthGateState extends State<AuthGate> {
         }
         setState(() {
           _session = session;
-          _state = AppState(source: session.source, store: session.store, initialChatId: session.initialChatId);
+          _state = AppState(
+            source: session.source,
+            store: session.store,
+            tasks: TaskStore(session.db),
+            initialChatId: session.initialChatId,
+          );
         });
       } finally {
         _opening = false;

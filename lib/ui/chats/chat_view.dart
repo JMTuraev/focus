@@ -118,7 +118,11 @@ class _ChatViewState extends State<ChatView> {
           text: target?.text ?? '',
           onTask: target == null
               ? null
-              : () => _toast('Vazifa yaratildi: “${_short(target.text)}”', action: 'Vazifalarga o‘tish', goTo: Module.tasks),
+              : () async {
+                  await s.taskFromMessage(target);
+                  final what = target.text.isEmpty ? (target.fileName ?? target.mediaLabel ?? 'xabar') : target.text;
+                  _toast('Vazifa yaratildi: “${_short(what)}”', action: 'Vazifalarga o‘tish', goTo: Module.tasks);
+                },
           onCalendar: target == null
               ? null
               : () => _toast(

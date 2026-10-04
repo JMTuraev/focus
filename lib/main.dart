@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:screen_retriever/screen_retriever.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:window_manager/window_manager.dart';
@@ -75,6 +76,10 @@ class FokusApp extends StatelessWidget {
         theme: buildTheme(Brightness.light),
         darkTheme: buildTheme(Brightness.dark),
         themeMode: settings.themeMode,
+        // Built-in texts (date picker, menus, tooltips) in Uzbek.
+        locale: const Locale('uz'),
+        supportedLocales: const [Locale('uz')],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
         home: AuthGate(auth: auth, settings: settings),
       ),
     );

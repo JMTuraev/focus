@@ -34,6 +34,17 @@ class Fmt {
     return d.year == n.year ? base : '$base, ${d.year}';
   }
 
+  /// Due date: "Bugun", "Ertaga", "Kecha", "12-okt", "12-okt 2027".
+  static String dueLabel(DateTime d, {DateTime? now}) {
+    final n = now ?? DateTime.now();
+    final days = _day(d).difference(_day(n)).inDays;
+    if (days == 0) return 'Bugun';
+    if (days == 1) return 'Ertaga';
+    if (days == -1) return 'Kecha';
+    final base = '${d.day}-${_months[d.month - 1].substring(0, 3)}';
+    return d.year == n.year ? base : '$base ${d.year}';
+  }
+
   static bool sameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
 
   /// "3 412" (thin grouping like the mock data).

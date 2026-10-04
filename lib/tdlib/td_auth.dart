@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import '../auth/auth.dart';
 import '../data/chat_source.dart';
 import '../data/local_store.dart';
+import '../db/database.dart';
 import '../config.dart';
 import 'db_key.dart';
 import 'td_chats.dart';
@@ -255,7 +256,7 @@ class TdAuth implements AuthService {
     if (td == null) throw StateError('TDLib client is not running');
     final source = TdChatSource(td);
     unawaited(source.start());
-    return ChatSession(source: source, store: await LocalStore.open());
+    return ChatSession(source: source, store: await LocalStore.open(), db: AppDatabase.open());
   }
 
   Future<void> dispose() async {

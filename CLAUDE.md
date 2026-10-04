@@ -5,6 +5,7 @@ Unofficial, local-first Telegram desktop client for Windows (Flutter + TDLib). D
 ## Language
 - All UI text is Uzbek (Latin script). Use the proper apostrophes `‘` (o‘, g‘) and `’` (tutuq belgisi: ma’lumot, so‘z), not a plain `'`.
 - Code, identifiers, comments and commit messages are in English.
+- Flutter's built-in texts use the Uzbek locale (`flutter_localizations`, `Locale('uz')`).
 
 ## Workflow
 - UI-first: build every screen with mock data first (`lib/data/mock.dart`, `USE_MOCK=true`), then wire the backend.
@@ -58,6 +59,16 @@ Breakpoints are in `lib/ui/layout.dart`, modelled on Telegram Desktop:
 - "To‘plamlar" screen (`lib/ui/collections/`): collection cards and the "Saralanmagan" list with type tabs and bulk moves. Chats move by right click in the chat list, the info panel chips, or the unsorted list.
 - Filters: waiting / unread chips plus the chat type filter (Shaxsiy, Guruhlar, Kanallar, Botlar) and "hide muted"; the chips count within the type filter.
 
+## Local database (phase 2)
+- drift + SQLite: `lib/db/database.dart` (`AppDatabase`, file `fokus.sqlite` in the app support folder; in memory for mock sessions and tests). Generated code: `lib/db/database.g.dart`, committed.
+- After changing tables run `dart run build_runner build --delete-conflicting-outputs --force-jit` (the AOT mode fails because of native build hooks) and bump `schemaVersion` with a migration.
+- Enums are stored by name (`textEnum`), never by index.
+- Stores (e.g. `TaskStore`) keep rows in memory and reload after each write; no drift streams (they leave timers that break widget tests).
+
+## Tasks
+- `lib/tasks/task_store.dart`; board in `lib/ui/tasks/`. Columns: Rejada, Jarayonda, Kutilmoqda, Bajarildi. Order inside a column is `position` (insert-before uses the midpoint).
+- "Vazifa qilish" in a chat creates a task from the selected or latest incoming message and keeps the chat id, chat title and message text.
+
 ## Messages: formatting and media
 - Text entities are mapped in `TdChatSource.entitiesOf` and drawn by `lib/ui/chats/message_text.dart`. Links open only for http, https, mailto, tel and tg; hidden links (`textUrl`) ask for confirmation first.
 - Media (`MediaInfo`): photos and video thumbnails download automatically; videos and voice messages download on click. Playback uses media_kit (libmpv), which adds about 45 MB to the build.
@@ -82,6 +93,7 @@ Breakpoints are in `lib/ui/layout.dart`, modelled on Telegram Desktop:
 flutter pub get
 flutter analyze
 flutter test
+dart run build_runner build --delete-conflicting-outputs --force-jit
 flutter build windows --debug
 flutter run -d windows --dart-define-from-file=secrets.json
 dart run tool\td_check.dart tdlib\tdjson.dll

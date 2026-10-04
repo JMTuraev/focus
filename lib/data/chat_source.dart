@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../db/database.dart';
 import 'local_store.dart';
 import 'models.dart';
 
@@ -42,10 +43,14 @@ abstract class ChatSource extends ChangeNotifier {
 
 /// What the app needs after login: chats plus Fokus-only local data.
 class ChatSession {
-  ChatSession({required this.source, required this.store, this.initialChatId});
+  ChatSession({required this.source, required this.store, AppDatabase? db, this.initialChatId})
+      : db = db ?? AppDatabase.memory();
 
   final ChatSource source;
   final LocalStore store;
+
+  /// Tasks and other Fokus data (in memory for mock sessions).
+  final AppDatabase db;
 
   /// Chat selected at start (mock data opens the first scripted chat).
   final String? initialChatId;
@@ -53,5 +58,6 @@ class ChatSession {
   Future<void> close() async {
     await store.flush();
     source.dispose();
+    await db.close();
   }
 }

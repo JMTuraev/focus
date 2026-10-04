@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import '../data/chat_source.dart';
 import '../data/local_store.dart';
 import '../data/models.dart';
+import '../db/database.dart';
+import '../tasks/task_store.dart';
 
 enum Module { chats, collections, tasks, calendar, notes, files, stats }
 
@@ -29,12 +31,17 @@ enum ChatType {
 /// UI state on top of a [ChatSource] (mock or TDLib) and the [LocalStore]
 /// with Fokus-only data (collections, locally seen messages).
 class AppState extends ChangeNotifier {
-  AppState({required this.source, required this.store, String? initialChatId}) : activeChatId = initialChatId {
+  AppState({required this.source, required this.store, TaskStore? tasks, String? initialChatId})
+      : tasks = tasks ?? TaskStore(AppDatabase.memory()),
+        activeChatId = initialChatId {
     source.addListener(_onSource);
   }
 
   final ChatSource source;
   final LocalStore store;
+
+  /// Tasks (own listenable: the board rebuilds without the chat list).
+  final TaskStore tasks;
 
   Module module = Module.chats;
   String collection = 'all';
@@ -50,6 +57,9 @@ class AppState extends ChangeNotifier {
 
   /// Narrow layout: true while a chat is shown instead of the chat list.
   bool narrowChatOpen = false;
+
+  /// Tasks board shows only the tasks of this chat.
+  String? taskChatFilter;
   String? selectedMessageId;
 
   void _onSource() {
@@ -65,6 +75,7 @@ class AppState extends ChangeNotifier {
     final id = activeChatId;
     if (id != null) source.close(id);
     store.flush();
+    tasks.dispose();
     super.dispose();
   }
 
@@ -293,5 +304,42 @@ class AppState extends ChangeNotifier {
     final id = activeChatId;
     if (id == null || text.trim().isEmpty) return;
     await source.send(id, text);
+  }
+
+  // ---- tasks ----
+  /// Shows the board with only the tasks of [chatId].
+  void showTasksForChat(String chatId) {
+    taskChatFilter = chatId;
+    openModule(Module.tasks);
+  }
+
+  void clearTaskChatFilter() {
+    taskChatFilter = null;
+    notifyListeners();
+  }
+
+  /// Opens the chat a task came from.
+  void openTaskChat(Task t) {
+    final id = t.chatId;
+    if (id == null) return;
+    module = Module.chats;
+    openChat(id);
+  }
+
+  /// Creates a task from [m] in the open chat. The title is the first line
+  /// of the text (or the file / media name), the full text is kept too.
+  Future<int?> taskFromMessage(Message m) async {
+    final chat = activeChat;
+    if (chat == null) return null;
+    var title = m.text.trim().split('\n').first.trim();
+    if (title.isEmpty) title = m.fileName ?? m.mediaLabel ?? 'Xabar';
+    if (title.length > 140) title = '${title.substring(0, 139)}…';
+    return tasks.add(
+      title: title,
+      chatId: chat.id,
+      chatTitle: chat.name,
+      messageId: m.id,
+      messageText: m.text.isEmpty ? null : m.text,
+    );
   }
 }

@@ -114,7 +114,12 @@ class InfoPanel extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(18, 14, 18, 6),
             child: Text('Shu chatdan', style: accentLabel),
           ),
-          _Link(icon: Icons.checklist, label: 'Vazifalar', onTap: () => state.openModule(Module.tasks)),
+          _Link(
+            icon: Icons.checklist,
+            label: 'Vazifalar',
+            count: state.tasks.openForChat(chat.id),
+            onTap: () => state.showTasksForChat(chat.id),
+          ),
           _Link(
               icon: Icons.calendar_today_outlined,
               label: 'Uchrashuvlar',
@@ -187,11 +192,14 @@ class _TagChip extends StatelessWidget {
 }
 
 class _Link extends StatelessWidget {
-  const _Link({required this.icon, required this.label, required this.onTap});
+  const _Link({required this.icon, required this.label, required this.onTap, this.count = 0});
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+
+  /// Shown before the chevron when > 0 (e.g. open tasks of this chat).
+  final int count;
 
   @override
   Widget build(BuildContext context) {
@@ -209,6 +217,7 @@ class _Link extends StatelessWidget {
               Icon(icon, size: 20, color: c.text2),
               const SizedBox(width: 12),
               Expanded(child: Text(label, style: TextStyle(fontSize: 14, color: c.text))),
+              if (count > 0) Text('$count', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: c.accentText)),
               Icon(Icons.chevron_right, size: 18, color: c.text2),
               const SizedBox(width: 8),
             ],

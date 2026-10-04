@@ -7,6 +7,7 @@ import 'chats/chats_screen.dart';
 import 'collections/collections_screen.dart';
 import 'layout.dart';
 import 'rail.dart';
+import 'tasks/tasks_screen.dart';
 import 'title_bar.dart';
 
 class Shell extends StatelessWidget {
@@ -25,7 +26,7 @@ class Shell extends StatelessWidget {
           FokusTitleBar(settings: settings),
           Expanded(
             child: ListenableBuilder(
-              listenable: state,
+              listenable: Listenable.merge([state, state.tasks]),
               builder: (context, _) => Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -44,7 +45,7 @@ class Shell extends StatelessWidget {
     return switch (s.module) {
       Module.chats => ChatsScreen(state: s, mode: mode),
       Module.collections => CollectionsScreen(state: s),
-      Module.tasks => const _Planned('Vazifalar', 'Rejada · Jarayonda · Kutilmoqda · Bajarildi', 2),
+      Module.tasks => TasksScreen(state: s),
       Module.calendar => const _Planned('Kalendar', 'Hafta ko‘rinishi va chatdan uchrashuv qo‘shish', 2),
       Module.notes => const _Planned('Eslatmalar', 'Rangli eslatmalar, ro‘yxatlar, «Chatdan saqlangan»', 2),
       Module.files => const _Planned('Fayllar', 'AI bo‘limlari va «AI’dan so‘rang»', 4),
