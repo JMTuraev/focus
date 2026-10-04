@@ -13,5 +13,8 @@ class AppConfig {
 
   static const String version = '0.1.0';
 
+  /// Public source code; also where people report bugs.
+  static const String repoUrl = 'https://github.com/JMTuraev/focus';
+
   static bool get hasTelegramKeys => apiId != 0 && apiHash.isNotEmpty;
 }

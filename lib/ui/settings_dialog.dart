@@ -9,6 +9,7 @@ import '../state/settings.dart';
 import '../theme.dart';
 import 'backup_dialog.dart';
 import 'common.dart';
+import 'donate_dialog.dart';
 
 /// Settings: theme, reminders (Windows notifications), the hour for task
 /// reminders, and the encrypted backup.
@@ -151,7 +152,16 @@ class _SettingsDialog extends StatelessWidget {
                   onTap: () => showBackupDialog(context, backup!, onRestored: onRestored ?? () async {}),
                 ),
               ],
-              const SizedBox(height: 16),
+              label('Fokus haqida'),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.favorite_border, color: c.icon),
+                title: Text('Fokus’ni qo‘llab-quvvatlash', style: TextStyle(color: c.text, fontSize: 14.5)),
+                subtitle: Text('Donat va boshqa yo‘llar bilan yordam', style: TextStyle(color: c.text2, fontSize: 12.5)),
+                trailing: Icon(Icons.chevron_right, color: c.text2),
+                onTap: () => showDonateDialog(context),
+              ),
+              const SizedBox(height: 8),
               Text('Fokus ${AppConfig.version}', style: TextStyle(color: c.text2, fontSize: 12)),
             ],
           ),

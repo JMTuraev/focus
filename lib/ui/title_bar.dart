@@ -3,8 +3,10 @@ import 'package:window_manager/window_manager.dart';
 
 import '../state/settings.dart';
 import '../theme.dart';
+import 'donate_dialog.dart';
 
-/// Custom Windows title bar: logo, local-mode badge, theme switch, window controls.
+/// Custom Windows title bar: logo, local-mode badge, donation and theme
+/// buttons, window controls.
 class FokusTitleBar extends StatelessWidget {
   const FokusTitleBar({super.key, required this.settings});
 
@@ -38,6 +40,12 @@ class FokusTitleBar extends StatelessWidget {
                 ],
               ),
             ),
+          ),
+          _WinButton(
+            icon: Icons.favorite_border,
+            label: 'Donat',
+            tooltip: 'Fokus’ni qo‘llab-quvvatlash',
+            onTap: () => showDonateDialog(context),
           ),
           _WinButton(
             icon: isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,

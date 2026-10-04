@@ -103,6 +103,12 @@ Breakpoints are in `lib/ui/layout.dart`, modelled on Telegram Desktop:
 - TDLib transport (`lib/tdlib/td_backup.dart`): `inputMessageDocument.document` is an `inputDocument` that wraps the `InputFile` (TDLib 1.8.6x). Check `td_api.tl` for the pinned commit before changing any TDLib call.
 - Daily automatic backup runs while Fokus is open (checked hourly). Settings → "Zaxira nusxa".
 
+## Donations (phase 3)
+- `lib/ui/donate_dialog.dart`, opened by the heart in the title bar (also on the login screen) and from Settings → "Fokus haqida". Kept out of the rail so collections keep their space.
+- Payment details come from build-time defines in `secrets.json` (`DONATE_CARD`, `DONATE_CARD_HOLDER`, `DONATE_CARD_LABEL`, `DONATE_PAYME_URL`, `DONATE_CLICK_URL`, `DONATE_TIRIKCHILIK_URL`, `DONATE_OTHER_URL`, `DONATE_OTHER_LABEL`, `DONATE_TELEGRAM_URL`; see `secrets.example.json`), read by `lib/donate/donate_info.dart`. Never hard-code them. Empty or invalid values are hidden; only https links are opened; card numbers must be 12–19 digits.
+- Donations are voluntary and never unlock a feature (also a Microsoft Store requirement for external payment links in non-game apps).
+- GitHub star and issue links use `AppConfig.repoUrl`.
+
 ## Phases
 0. Skeleton: mock UI, TDLib FFI layer, Windows build, TDLib CI build.
 1. Login (phone → code → 2FA password), chat list and messages from TDLib, collections, filters, TDLib database encrypted with a DPAPI-protected key.
