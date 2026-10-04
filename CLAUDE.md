@@ -69,6 +69,15 @@ Breakpoints are in `lib/ui/layout.dart`, modelled on Telegram Desktop:
 - `lib/tasks/task_store.dart`; board in `lib/ui/tasks/`. Columns: Rejada, Jarayonda, Kutilmoqda, Bajarildi. Order inside a column is `position` (insert-before uses the midpoint).
 - "Vazifa qilish" in a chat creates a task from the selected or latest incoming message and keeps the chat id, chat title and message text.
 
+## Calendar
+- `lib/calendar/event_store.dart` (`Events` table, schema v2 with a migration from v1); grid in `lib/ui/calendar/`: week on wide windows, day on narrow ones, tasks with a due date in the all-day row.
+- Events: click an empty slot to add; drag to move (15 min / day snapping, mouse); drag the bottom edge to resize; right click for a menu.
+- Meetings in messages: `lib/data/meeting_parser.dart` (Uzbek Latin/Cyrillic and Russian). It needs both a day and a time; relative days count from the message date; only meetings that have not passed are offered. Add every new phrase to `test/meeting_parser_test.dart`.
+- "Kalendarga" adds a detected meeting at once (1 hour, reminder 30 min before); without one it opens the editor prefilled from the message. Reminder notifications are not implemented yet.
+
+## Windows runner
+- `windows/runner/main.cpp` allows one instance (named mutex): a second start brings the running window to the front and exits, because two instances would fight over the TDLib database. Close the app before `flutter run`.
+
 ## Messages: formatting and media
 - Text entities are mapped in `TdChatSource.entitiesOf` and drawn by `lib/ui/chats/message_text.dart`. Links open only for http, https, mailto, tel and tg; hidden links (`textUrl`) ask for confirmation first.
 - Media (`MediaInfo`): photos and video thumbnails download automatically; videos and voice messages download on click. Playback uses media_kit (libmpv), which adds about 45 MB to the build.

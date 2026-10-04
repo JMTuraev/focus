@@ -44,7 +44,12 @@ class Rail extends StatelessWidget {
               compact: compact,
               active: state.module == m.$1,
               // Tasks: overdue or due today.
-              badge: m.$1 == Module.tasks ? state.tasks.urgentCount : 0,
+              badge: switch (m.$1) {
+                Module.tasks => state.tasks.urgentCount,
+                // Calendar: meetings still ahead today.
+                Module.calendar => state.events.remainingToday(),
+                _ => 0,
+              },
               onTap: () => state.openModule(m.$1),
             ),
           Padding(

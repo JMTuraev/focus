@@ -238,6 +238,7 @@ class Message {
     this.senderInitials = '',
     this.senderColor = 0,
     this.senderPhoto,
+    this.meetingAt,
   });
 
   final String id;
@@ -252,6 +253,9 @@ class Message {
 
   /// Meeting detected in the text, e.g. "Payshanba, 8-okt · 15:00".
   final String? meeting;
+
+  /// When the detected meeting starts.
+  final DateTime? meetingAt;
 
   /// Send date (null in mock data: everything is "today").
   final DateTime? date;
@@ -281,4 +285,30 @@ class Message {
   /// Index into the theme's sender colors.
   final int senderColor;
   final String? senderPhoto;
+
+  /// Same message with a detected meeting (or none).
+  Message withMeeting(String? label, DateTime? at) => Message(
+        id: id,
+        text: text,
+        time: time,
+        out: out,
+        from: from,
+        fileName: fileName,
+        fileMeta: fileMeta,
+        meeting: label,
+        meetingAt: at,
+        date: date,
+        media: media,
+        mediaLabel: mediaLabel,
+        service: service,
+        pending: pending,
+        failed: failed,
+        read: read,
+        entities: entities,
+        info: info,
+        senderId: senderId,
+        senderInitials: senderInitials,
+        senderColor: senderColor,
+        senderPhoto: senderPhoto,
+      );
 }

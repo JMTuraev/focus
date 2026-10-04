@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../state/app_state.dart';
 import '../state/settings.dart';
 import '../theme.dart';
+import 'calendar/calendar_screen.dart';
 import 'chats/chats_screen.dart';
 import 'collections/collections_screen.dart';
 import 'layout.dart';
@@ -26,7 +27,7 @@ class Shell extends StatelessWidget {
           FokusTitleBar(settings: settings),
           Expanded(
             child: ListenableBuilder(
-              listenable: Listenable.merge([state, state.tasks]),
+              listenable: Listenable.merge([state, state.tasks, state.events]),
               builder: (context, _) => Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -46,7 +47,7 @@ class Shell extends StatelessWidget {
       Module.chats => ChatsScreen(state: s, mode: mode),
       Module.collections => CollectionsScreen(state: s),
       Module.tasks => TasksScreen(state: s),
-      Module.calendar => const _Planned('Kalendar', 'Hafta ko‘rinishi va chatdan uchrashuv qo‘shish', 2),
+      Module.calendar => CalendarScreen(state: s),
       Module.notes => const _Planned('Eslatmalar', 'Rangli eslatmalar, ro‘yxatlar, «Chatdan saqlangan»', 2),
       Module.files => const _Planned('Fayllar', 'AI bo‘limlari va «AI’dan so‘rang»', 4),
       Module.stats => const _Planned('Statistika', 'Kunlik chatlar, javob vaqti, grafiklar', 4),

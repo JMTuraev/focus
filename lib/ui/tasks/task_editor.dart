@@ -5,6 +5,7 @@ import '../../db/database.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
 import '../common.dart';
+import '../source_box.dart';
 
 /// Create a task (in [status]) or edit [task].
 Future<void> showTaskEditor(BuildContext context, AppState state, {Task? task, TaskStatus status = TaskStatus.planned}) {
@@ -190,7 +191,13 @@ class _TaskEditorState extends State<_TaskEditor> {
               ),
               if (task?.chatId != null) ...[
                 label('Chatdan'),
-                _SourceBox(state: widget.state, task: task!),
+                ChatSourceBox(
+                  state: widget.state,
+                  chatId: task!.chatId!,
+                  chatTitle: task.chatTitle,
+                  messageText: task.messageText,
+                  onOpenChat: () => widget.state.openTaskChat(task),
+                ),
               ],
             ],
           ),
@@ -222,50 +229,3 @@ class _TaskEditorState extends State<_TaskEditor> {
   }
 }
 
-/// The chat and message a task was made from, with a way back to the chat.
-class _SourceBox extends StatelessWidget {
-  const _SourceBox({required this.state, required this.task});
-
-  final AppState state;
-  final Task task;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.fc;
-    final chat = state.source.chatById(task.chatId!);
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(color: c.bg, borderRadius: BorderRadius.circular(10)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              if (chat != null) ChatAvatar(chat, size: 26, showOnline: false) else Icon(Icons.chat_bubble_outline, size: 20, color: c.icon),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(chat?.name ?? task.chatTitle ?? 'Chat',
-                    maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: c.text, fontWeight: FontWeight.w600)),
-              ),
-              if (chat != null)
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    state.openTaskChat(task);
-                  },
-                  style: TextButton.styleFrom(foregroundColor: c.accentText),
-                  child: const Text('Chatni ochish'),
-                ),
-            ],
-          ),
-          if ((task.messageText ?? '').isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Text(task.messageText!,
-                  maxLines: 4, overflow: TextOverflow.ellipsis, style: TextStyle(color: c.textSoft, fontSize: 13.5, height: 1.35)),
-            ),
-        ],
-      ),
-    );
-  }
-}

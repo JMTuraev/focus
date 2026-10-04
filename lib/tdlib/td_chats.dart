@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import '../auth/auth.dart' show formatPhone;
 import '../data/chat_source.dart';
 import '../data/format.dart';
+import '../data/meeting_parser.dart';
 import '../data/models.dart';
 import 'td_client.dart';
 
@@ -37,6 +38,8 @@ class TdChatSource extends ChatSource {
   final _files = <int, _FileState>{};
   final _downloads = <int>{};
   final _userRequests = <int>{};
+  /// Parsed meetings by "chatId:messageId" (message ids are unique per chat).
+  final _meetings = <String, Meeting?>{};
   List<Chat>? _sorted;
 
   static const _mainList = 'chatListMain';
@@ -140,6 +143,7 @@ class TdChatSource extends ChatSource {
         final m = u['message'] as TdObject;
         _replace(m['chat_id'] as int, u['old_message_id'] as int, m);
       case 'updateMessageContent':
+        _meetings.remove('$chatId:${u['message_id']}');
         final m = _find(chatId!, u['message_id'] as int);
         if (m == null) return;
         m['content'] = u['new_content'];
@@ -587,6 +591,10 @@ class TdChatSource extends ChatSource {
     };
     final inGroup = kind == ChatKind.group && !out;
     final sender = inGroup ? _sender(m) : null;
+    // Relative days ("ertaga") count from the message date; only meetings
+    // that have not passed are offered.
+    final meet = text.isEmpty ? null : _meetings.putIfAbsent('${m['chat_id']}:$id', () => MeetingParser.parse(text, date));
+    final showMeet = meet != null && meet.at.isAfter(DateTime.now().subtract(const Duration(hours: 2)));
 
     return Message(
       id: '$id',
@@ -608,6 +616,8 @@ class TdChatSource extends ChatSource {
       senderInitials: sender?.initials ?? '',
       senderColor: sender?.color ?? 0,
       senderPhoto: sender?.photo,
+      meeting: showMeet ? meet.label : null,
+      meetingAt: showMeet ? meet.at : null,
     );
   }
 

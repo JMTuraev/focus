@@ -1,5 +1,6 @@
 import 'models.dart';
 import 'chat_source.dart';
+import 'meeting_parser.dart';
 import 'mock.dart';
 
 /// Phase 0 mock data behind the [ChatSource] interface.
@@ -28,7 +29,18 @@ class MockChatSource extends ChatSource {
     final chat = chatById(chatId);
     if (chat == null) return const [];
     final base = kMessages[chatId] ?? fallbackMessages(kChats.firstWhere((c) => c.id == chatId));
-    return [...base, ...?_sent[chatId]];
+    // Meetings are found by the same parser as for Telegram messages;
+    // mock messages are "today", so relative days count from now.
+    final now = DateTime.now();
+    return [
+      for (final m in [...base, ...?_sent[chatId]])
+        if (m.out) m else _withMeeting(m, now),
+    ];
+  }
+
+  static Message _withMeeting(Message m, DateTime now) {
+    final meet = MeetingParser.parse(m.text, now);
+    return m.withMeeting(meet?.label, meet?.at);
   }
 
   @override

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../calendar/event_store.dart';
 import '../data/chat_source.dart';
 import '../data/local_store.dart';
 import '../data/models.dart';
@@ -31,8 +32,9 @@ enum ChatType {
 /// UI state on top of a [ChatSource] (mock or TDLib) and the [LocalStore]
 /// with Fokus-only data (collections, locally seen messages).
 class AppState extends ChangeNotifier {
-  AppState({required this.source, required this.store, TaskStore? tasks, String? initialChatId})
+  AppState({required this.source, required this.store, TaskStore? tasks, EventStore? events, String? initialChatId})
       : tasks = tasks ?? TaskStore(AppDatabase.memory()),
+        events = events ?? EventStore(AppDatabase.memory()),
         activeChatId = initialChatId {
     source.addListener(_onSource);
   }
@@ -42,6 +44,9 @@ class AppState extends ChangeNotifier {
 
   /// Tasks (own listenable: the board rebuilds without the chat list).
   final TaskStore tasks;
+
+  /// Calendar events (own listenable, like [tasks]).
+  final EventStore events;
 
   Module module = Module.chats;
   String collection = 'all';
@@ -60,6 +65,12 @@ class AppState extends ChangeNotifier {
 
   /// Tasks board shows only the tasks of this chat.
   String? taskChatFilter;
+
+  /// Calendar shows only the events of this chat.
+  String? eventChatFilter;
+
+  /// A day inside the week (or the day) the calendar shows.
+  DateTime calendarFocus = EventStore.day(DateTime.now());
   String? selectedMessageId;
 
   void _onSource() {
@@ -76,6 +87,7 @@ class AppState extends ChangeNotifier {
     if (id != null) source.close(id);
     store.flush();
     tasks.dispose();
+    events.dispose();
     super.dispose();
   }
 
@@ -336,6 +348,55 @@ class AppState extends ChangeNotifier {
     if (title.length > 140) title = '${title.substring(0, 139)}…';
     return tasks.add(
       title: title,
+      chatId: chat.id,
+      chatTitle: chat.name,
+      messageId: m.id,
+      messageText: m.text.isEmpty ? null : m.text,
+    );
+  }
+
+  // ---- calendar ----
+  void setCalendarFocus(DateTime d) {
+    calendarFocus = EventStore.day(d);
+    notifyListeners();
+  }
+
+  /// Opens the calendar on the week of [d].
+  void showCalendarAt(DateTime d) {
+    calendarFocus = EventStore.day(d);
+    openModule(Module.calendar);
+  }
+
+  /// Calendar with only the events of [chatId], at its next event.
+  void showEventsForChat(String chatId) {
+    eventChatFilter = chatId;
+    final next = events.upcomingForChat(chatId);
+    showCalendarAt(next.isEmpty ? DateTime.now() : next.first.start);
+  }
+
+  void clearEventChatFilter() {
+    eventChatFilter = null;
+    notifyListeners();
+  }
+
+  void openEventChat(Event e) {
+    final id = e.chatId;
+    if (id == null) return;
+    module = Module.chats;
+    openChat(id);
+  }
+
+  /// Adds the meeting found in [m] (one hour, reminder 30 minutes before).
+  Future<int?> eventFromMeeting(Message m) async {
+    final chat = activeChat;
+    final at = m.meetingAt;
+    if (chat == null || at == null) return null;
+    return events.add(
+      title: 'Uchrashuv: ${chat.name}',
+      start: at,
+      end: at.add(const Duration(hours: 1)),
+      note: m.text,
+      remindBefore: 30,
       chatId: chat.id,
       chatTitle: chat.name,
       messageId: m.id,

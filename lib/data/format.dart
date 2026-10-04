@@ -8,6 +8,12 @@ class Fmt {
     'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr',
   ];
 
+  /// "oktabr".
+  static String monthName(int month) => _months[month - 1];
+
+  /// "Dush".
+  static String weekdayShort(int weekday) => _weekdays[weekday - 1];
+
   static String two(int n) => n.toString().padLeft(2, '0');
 
   static String hm(DateTime d) => '${two(d.hour)}:${two(d.minute)}';

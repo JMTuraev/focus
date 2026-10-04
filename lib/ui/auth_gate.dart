@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../auth/auth.dart';
+import '../calendar/event_store.dart';
 import '../data/chat_source.dart';
 import '../state/app_state.dart';
 import '../state/settings.dart';
@@ -56,6 +57,7 @@ class _AuthGateState extends State<AuthGate> {
             source: session.source,
             store: session.store,
             tasks: TaskStore(session.db),
+            events: EventStore(session.db),
             initialChatId: session.initialChatId,
           );
         });

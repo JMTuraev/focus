@@ -6,6 +6,7 @@ import '../../data/format.dart';
 import '../../data/models.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
+import '../calendar/event_editor.dart';
 import '../common.dart';
 import 'media.dart';
 import 'message_text.dart';
@@ -53,15 +54,39 @@ class _ChatViewState extends State<ChatView> {
     }
   }
 
-  void _toast(String text, {String? action, Module? goTo}) {
+  void _toast(String text, {String? action, Module? goTo, VoidCallback? onAction}) {
     showToast(
       context,
       (width) => SnackBar(
         width: width,
         duration: const Duration(seconds: 4),
         content: Text(text, maxLines: 2, overflow: TextOverflow.ellipsis),
-        action: action == null ? null : SnackBarAction(label: action, onPressed: () => s.openModule(goTo!)),
+        action: action == null ? null : SnackBarAction(label: action, onPressed: onAction ?? () => s.openModule(goTo!)),
       ),
+    );
+  }
+
+  /// "Kalendarga": a detected meeting is added at once; otherwise the event
+  /// editor opens prefilled from the message.
+  Future<void> _toCalendar(Message m) async {
+    final at = m.meetingAt;
+    if (at != null) {
+      await s.eventFromMeeting(m);
+      _toast('Kalendarga qo‘shildi: ${m.meeting}', action: 'Kalendarni ochish', onAction: () => s.showCalendarAt(at));
+      return;
+    }
+    final chat = s.activeChat;
+    if (chat == null || !mounted) return;
+    var title = m.text.trim().split('\n').first.trim();
+    if (title.length > 100) title = '${title.substring(0, 99)}…';
+    await showEventEditor(
+      context,
+      s,
+      title: title,
+      chatId: chat.id,
+      chatTitle: chat.name,
+      messageId: m.id,
+      messageText: m.text.isEmpty ? null : m.text,
     );
   }
 
@@ -123,13 +148,7 @@ class _ChatViewState extends State<ChatView> {
                   final what = target.text.isEmpty ? (target.fileName ?? target.mediaLabel ?? 'xabar') : target.text;
                   _toast('Vazifa yaratildi: “${_short(what)}”', action: 'Vazifalarga o‘tish', goTo: Module.tasks);
                 },
-          onCalendar: target == null
-              ? null
-              : () => _toast(
-                    target.meeting != null ? 'Kalendarga qo‘shildi: ${target.meeting}' : 'Kalendarga qoralama: “${_short(target.text)}”',
-                    action: 'Kalendarni ochish',
-                    goTo: Module.calendar,
-                  ),
+          onCalendar: target == null ? null : () => _toCalendar(target),
           onNote: target == null
               ? null
               : () => _toast('Eslatmaga saqlandi: “${_short(target.text)}”', action: 'Eslatmalarni ochish', goTo: Module.notes),
@@ -184,7 +203,7 @@ class _ChatViewState extends State<ChatView> {
                       last: e.last,
                       selected: s.selectedMessageId == m.id,
                       onTap: () => s.selectMessage(m.id),
-                      onAddMeeting: () => _toast('Kalendarga qo‘shildi: ${m.meeting}', action: 'Kalendarni ochish', goTo: Module.calendar),
+                      onAddMeeting: () => _toCalendar(m),
                     );
                   },
                   ),
