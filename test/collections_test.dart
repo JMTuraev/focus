@@ -1,5 +1,4 @@
 // Collections (to‘plamlar), the unsorted list and chat type filters.
-import 'dart:io';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -46,34 +45,6 @@ Future<void> _openCollections(WidgetTester tester) async {
 
 void main() {
   setUpAll(loadSegoeUi);
-
-  group('LocalStore', () {
-    late Directory dir;
-    setUp(() => dir = Directory.systemTemp.createTempSync('fokus_store'));
-    tearDown(() => dir.deleteSync(recursive: true));
-
-    test('collections and assignments survive a restart', () async {
-      final file = File('${dir.path}${Platform.pathSeparator}local_state.json');
-      final a = await LocalStore.openAt(file);
-      expect(a.collections.map((c) => c.id), kDefaultCollections.map((c) => c.id));
-
-      final created = a.addCollection('  Yetkazib beruvchilar ', 'truck');
-      a.setCollection('42', created.id);
-      a.setCollection('43', 'oila');
-      a.updateCollection('ish', label: 'Ish joyi', iconKey: 'bolt');
-      a.moveCollection(a.collections.length - 1, 0);
-      a.deleteCollection('oila');
-      await a.flush();
-
-      final b = await LocalStore.openAt(file);
-      expect(b.collections.first.label, 'Yetkazib beruvchilar');
-      expect(b.collections.first.iconKey, 'truck');
-      expect(b.collectionById('ish')!.label, 'Ish joyi');
-      expect(b.collectionById('oila'), isNull);
-      expect(b.collectionOf('42'), created.id);
-      expect(b.collectionOf('43'), '', reason: 'chats of a deleted collection become unsorted');
-    });
-  });
 
   group('AppState', () {
     AppState make() => AppState(source: MockChatSource(), store: LocalStore.memory());

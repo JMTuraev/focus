@@ -134,10 +134,52 @@ class Events extends Table {
   DateTimeColumn get updatedAt => dateTime()();
 }
 
+/// The user's collections (to‘plamlar), in rail order.
+@DataClassName('CollectionRow')
+class Collections extends Table {
+  TextColumn get id => text()();
+  TextColumn get label => text()();
+  TextColumn get icon => text().withDefault(const Constant('folder'))();
+  IntColumn get position => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Which collection a chat is in ('' = unsorted on purpose).
+@DataClassName('ChatCollectionRow')
+class ChatCollections extends Table {
+  TextColumn get chatId => text()();
+  TextColumn get collectionId => text()();
+
+  @override
+  Set<Column> get primaryKey => {chatId};
+}
+
+/// Unread messages already seen in Fokus, per chat (Telegram is not told).
+@DataClassName('SeenCountRow')
+class SeenCounts extends Table {
+  TextColumn get chatId => text()();
+  IntColumn get count => integer()();
+
+  @override
+  Set<Column> get primaryKey => {chatId};
+}
+
+/// Small flags, e.g. that local_state.json was imported.
+@DataClassName('KeyValueRow')
+class KeyValues extends Table {
+  TextColumn get key => text()();
+  TextColumn get value => text()();
+
+  @override
+  Set<Column> get primaryKey => {key};
+}
+
 /// Fokus' own local database (`fokus.sqlite` in the app support folder).
-/// Telegram data stays in TDLib; this holds tasks, calendar events, notes
-/// and, later, the data now kept in local_state.json.
-@DriftDatabase(tables: [Tasks, Events, Notes])
+/// Telegram data stays in TDLib; this holds tasks, calendar events, notes,
+/// collections and the Fokus-only "seen" counters.
+@DriftDatabase(tables: [Tasks, Events, Notes, Collections, ChatCollections, SeenCounts, KeyValues])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
@@ -152,7 +194,7 @@ class AppDatabase extends _$AppDatabase {
   factory AppDatabase.memory() => AppDatabase(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -162,6 +204,13 @@ class AppDatabase extends _$AppDatabase {
           if (from < 2) await m.createTable(events);
           // v3: notes.
           if (from < 3) await m.createTable(notes);
+          // v4: collections, chat assignments, seen counts (from local_state.json).
+          if (from < 4) {
+            await m.createTable(collections);
+            await m.createTable(chatCollections);
+            await m.createTable(seenCounts);
+            await m.createTable(keyValues);
+          }
         },
       );
 }

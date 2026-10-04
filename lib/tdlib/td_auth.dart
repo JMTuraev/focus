@@ -256,7 +256,8 @@ class TdAuth implements AuthService {
     if (td == null) throw StateError('TDLib client is not running');
     final source = TdChatSource(td);
     unawaited(source.start());
-    return ChatSession(source: source, store: await LocalStore.open(), db: AppDatabase.open());
+    final db = AppDatabase.open();
+    return ChatSession(source: source, store: await LocalStore.open(db), db: db);
   }
 
   Future<void> dispose() async {

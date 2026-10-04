@@ -50,7 +50,7 @@ Breakpoints are in `lib/ui/layout.dart`, modelled on Telegram Desktop:
 - `lib/data/chat_source.dart`: `ChatSource` (chats, messages, send, history) and `ChatSession`. UI and `AppState` only use this.
 - `lib/data/mock_source.dart` wraps the mock data; `lib/tdlib/td_chats.dart` (`TdChatSource`) builds chats from TDLib `update*` objects.
 - `TdChatSource` talks to TDLib through `TdApi`, so `test/td_chats_test.dart` can drive it with a fake.
-- Fokus-only data (collections, unread already seen in Fokus) lives in `lib/data/local_store.dart` (`local_state.json`) until phase 2 moves it to drift.
+- Fokus-only data (collections, chat assignments, unread already seen in Fokus) lives in `lib/data/local_store.dart`: held in memory, written in order to the drift tables `collections`, `chat_collections`, `seen_counts` (schema v4). The old `local_state.json` is imported once (flag `localStateImported` in `key_values`) and kept as `local_state.json.bak`.
 - `openChat`/`closeChat`/`getChatHistory` are allowed; anything that marks messages as read is not.
 
 ## Collections and filters

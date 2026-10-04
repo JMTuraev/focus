@@ -1871,17 +1871,871 @@ class NotesCompanion extends UpdateCompanion<Note> {
   }
 }
 
+class $CollectionsTable extends Collections
+    with TableInfo<$CollectionsTable, CollectionRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CollectionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _labelMeta = const VerificationMeta('label');
+  @override
+  late final GeneratedColumn<String> label = GeneratedColumn<String>(
+      'label', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _iconMeta = const VerificationMeta('icon');
+  @override
+  late final GeneratedColumn<String> icon = GeneratedColumn<String>(
+      'icon', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('folder'));
+  static const VerificationMeta _positionMeta =
+      const VerificationMeta('position');
+  @override
+  late final GeneratedColumn<int> position = GeneratedColumn<int>(
+      'position', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  @override
+  List<GeneratedColumn> get $columns => [id, label, icon, position];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'collections';
+  @override
+  VerificationContext validateIntegrity(Insertable<CollectionRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('label')) {
+      context.handle(
+          _labelMeta, label.isAcceptableOrUnknown(data['label']!, _labelMeta));
+    } else if (isInserting) {
+      context.missing(_labelMeta);
+    }
+    if (data.containsKey('icon')) {
+      context.handle(
+          _iconMeta, icon.isAcceptableOrUnknown(data['icon']!, _iconMeta));
+    }
+    if (data.containsKey('position')) {
+      context.handle(_positionMeta,
+          position.isAcceptableOrUnknown(data['position']!, _positionMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CollectionRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CollectionRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      label: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}label'])!,
+      icon: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}icon'])!,
+      position: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}position'])!,
+    );
+  }
+
+  @override
+  $CollectionsTable createAlias(String alias) {
+    return $CollectionsTable(attachedDatabase, alias);
+  }
+}
+
+class CollectionRow extends DataClass implements Insertable<CollectionRow> {
+  final String id;
+  final String label;
+  final String icon;
+  final int position;
+  const CollectionRow(
+      {required this.id,
+      required this.label,
+      required this.icon,
+      required this.position});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['label'] = Variable<String>(label);
+    map['icon'] = Variable<String>(icon);
+    map['position'] = Variable<int>(position);
+    return map;
+  }
+
+  CollectionsCompanion toCompanion(bool nullToAbsent) {
+    return CollectionsCompanion(
+      id: Value(id),
+      label: Value(label),
+      icon: Value(icon),
+      position: Value(position),
+    );
+  }
+
+  factory CollectionRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CollectionRow(
+      id: serializer.fromJson<String>(json['id']),
+      label: serializer.fromJson<String>(json['label']),
+      icon: serializer.fromJson<String>(json['icon']),
+      position: serializer.fromJson<int>(json['position']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'label': serializer.toJson<String>(label),
+      'icon': serializer.toJson<String>(icon),
+      'position': serializer.toJson<int>(position),
+    };
+  }
+
+  CollectionRow copyWith(
+          {String? id, String? label, String? icon, int? position}) =>
+      CollectionRow(
+        id: id ?? this.id,
+        label: label ?? this.label,
+        icon: icon ?? this.icon,
+        position: position ?? this.position,
+      );
+  CollectionRow copyWithCompanion(CollectionsCompanion data) {
+    return CollectionRow(
+      id: data.id.present ? data.id.value : this.id,
+      label: data.label.present ? data.label.value : this.label,
+      icon: data.icon.present ? data.icon.value : this.icon,
+      position: data.position.present ? data.position.value : this.position,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CollectionRow(')
+          ..write('id: $id, ')
+          ..write('label: $label, ')
+          ..write('icon: $icon, ')
+          ..write('position: $position')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, label, icon, position);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CollectionRow &&
+          other.id == this.id &&
+          other.label == this.label &&
+          other.icon == this.icon &&
+          other.position == this.position);
+}
+
+class CollectionsCompanion extends UpdateCompanion<CollectionRow> {
+  final Value<String> id;
+  final Value<String> label;
+  final Value<String> icon;
+  final Value<int> position;
+  final Value<int> rowid;
+  const CollectionsCompanion({
+    this.id = const Value.absent(),
+    this.label = const Value.absent(),
+    this.icon = const Value.absent(),
+    this.position = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CollectionsCompanion.insert({
+    required String id,
+    required String label,
+    this.icon = const Value.absent(),
+    this.position = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        label = Value(label);
+  static Insertable<CollectionRow> custom({
+    Expression<String>? id,
+    Expression<String>? label,
+    Expression<String>? icon,
+    Expression<int>? position,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (label != null) 'label': label,
+      if (icon != null) 'icon': icon,
+      if (position != null) 'position': position,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CollectionsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? label,
+      Value<String>? icon,
+      Value<int>? position,
+      Value<int>? rowid}) {
+    return CollectionsCompanion(
+      id: id ?? this.id,
+      label: label ?? this.label,
+      icon: icon ?? this.icon,
+      position: position ?? this.position,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (label.present) {
+      map['label'] = Variable<String>(label.value);
+    }
+    if (icon.present) {
+      map['icon'] = Variable<String>(icon.value);
+    }
+    if (position.present) {
+      map['position'] = Variable<int>(position.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CollectionsCompanion(')
+          ..write('id: $id, ')
+          ..write('label: $label, ')
+          ..write('icon: $icon, ')
+          ..write('position: $position, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ChatCollectionsTable extends ChatCollections
+    with TableInfo<$ChatCollectionsTable, ChatCollectionRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ChatCollectionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _chatIdMeta = const VerificationMeta('chatId');
+  @override
+  late final GeneratedColumn<String> chatId = GeneratedColumn<String>(
+      'chat_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _collectionIdMeta =
+      const VerificationMeta('collectionId');
+  @override
+  late final GeneratedColumn<String> collectionId = GeneratedColumn<String>(
+      'collection_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [chatId, collectionId];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'chat_collections';
+  @override
+  VerificationContext validateIntegrity(Insertable<ChatCollectionRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('chat_id')) {
+      context.handle(_chatIdMeta,
+          chatId.isAcceptableOrUnknown(data['chat_id']!, _chatIdMeta));
+    } else if (isInserting) {
+      context.missing(_chatIdMeta);
+    }
+    if (data.containsKey('collection_id')) {
+      context.handle(
+          _collectionIdMeta,
+          collectionId.isAcceptableOrUnknown(
+              data['collection_id']!, _collectionIdMeta));
+    } else if (isInserting) {
+      context.missing(_collectionIdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {chatId};
+  @override
+  ChatCollectionRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ChatCollectionRow(
+      chatId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}chat_id'])!,
+      collectionId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}collection_id'])!,
+    );
+  }
+
+  @override
+  $ChatCollectionsTable createAlias(String alias) {
+    return $ChatCollectionsTable(attachedDatabase, alias);
+  }
+}
+
+class ChatCollectionRow extends DataClass
+    implements Insertable<ChatCollectionRow> {
+  final String chatId;
+  final String collectionId;
+  const ChatCollectionRow({required this.chatId, required this.collectionId});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['chat_id'] = Variable<String>(chatId);
+    map['collection_id'] = Variable<String>(collectionId);
+    return map;
+  }
+
+  ChatCollectionsCompanion toCompanion(bool nullToAbsent) {
+    return ChatCollectionsCompanion(
+      chatId: Value(chatId),
+      collectionId: Value(collectionId),
+    );
+  }
+
+  factory ChatCollectionRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ChatCollectionRow(
+      chatId: serializer.fromJson<String>(json['chatId']),
+      collectionId: serializer.fromJson<String>(json['collectionId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'chatId': serializer.toJson<String>(chatId),
+      'collectionId': serializer.toJson<String>(collectionId),
+    };
+  }
+
+  ChatCollectionRow copyWith({String? chatId, String? collectionId}) =>
+      ChatCollectionRow(
+        chatId: chatId ?? this.chatId,
+        collectionId: collectionId ?? this.collectionId,
+      );
+  ChatCollectionRow copyWithCompanion(ChatCollectionsCompanion data) {
+    return ChatCollectionRow(
+      chatId: data.chatId.present ? data.chatId.value : this.chatId,
+      collectionId: data.collectionId.present
+          ? data.collectionId.value
+          : this.collectionId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ChatCollectionRow(')
+          ..write('chatId: $chatId, ')
+          ..write('collectionId: $collectionId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(chatId, collectionId);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ChatCollectionRow &&
+          other.chatId == this.chatId &&
+          other.collectionId == this.collectionId);
+}
+
+class ChatCollectionsCompanion extends UpdateCompanion<ChatCollectionRow> {
+  final Value<String> chatId;
+  final Value<String> collectionId;
+  final Value<int> rowid;
+  const ChatCollectionsCompanion({
+    this.chatId = const Value.absent(),
+    this.collectionId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ChatCollectionsCompanion.insert({
+    required String chatId,
+    required String collectionId,
+    this.rowid = const Value.absent(),
+  })  : chatId = Value(chatId),
+        collectionId = Value(collectionId);
+  static Insertable<ChatCollectionRow> custom({
+    Expression<String>? chatId,
+    Expression<String>? collectionId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (chatId != null) 'chat_id': chatId,
+      if (collectionId != null) 'collection_id': collectionId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ChatCollectionsCompanion copyWith(
+      {Value<String>? chatId, Value<String>? collectionId, Value<int>? rowid}) {
+    return ChatCollectionsCompanion(
+      chatId: chatId ?? this.chatId,
+      collectionId: collectionId ?? this.collectionId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (chatId.present) {
+      map['chat_id'] = Variable<String>(chatId.value);
+    }
+    if (collectionId.present) {
+      map['collection_id'] = Variable<String>(collectionId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ChatCollectionsCompanion(')
+          ..write('chatId: $chatId, ')
+          ..write('collectionId: $collectionId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SeenCountsTable extends SeenCounts
+    with TableInfo<$SeenCountsTable, SeenCountRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SeenCountsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _chatIdMeta = const VerificationMeta('chatId');
+  @override
+  late final GeneratedColumn<String> chatId = GeneratedColumn<String>(
+      'chat_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _countMeta = const VerificationMeta('count');
+  @override
+  late final GeneratedColumn<int> count = GeneratedColumn<int>(
+      'count', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [chatId, count];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'seen_counts';
+  @override
+  VerificationContext validateIntegrity(Insertable<SeenCountRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('chat_id')) {
+      context.handle(_chatIdMeta,
+          chatId.isAcceptableOrUnknown(data['chat_id']!, _chatIdMeta));
+    } else if (isInserting) {
+      context.missing(_chatIdMeta);
+    }
+    if (data.containsKey('count')) {
+      context.handle(
+          _countMeta, count.isAcceptableOrUnknown(data['count']!, _countMeta));
+    } else if (isInserting) {
+      context.missing(_countMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {chatId};
+  @override
+  SeenCountRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SeenCountRow(
+      chatId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}chat_id'])!,
+      count: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}count'])!,
+    );
+  }
+
+  @override
+  $SeenCountsTable createAlias(String alias) {
+    return $SeenCountsTable(attachedDatabase, alias);
+  }
+}
+
+class SeenCountRow extends DataClass implements Insertable<SeenCountRow> {
+  final String chatId;
+  final int count;
+  const SeenCountRow({required this.chatId, required this.count});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['chat_id'] = Variable<String>(chatId);
+    map['count'] = Variable<int>(count);
+    return map;
+  }
+
+  SeenCountsCompanion toCompanion(bool nullToAbsent) {
+    return SeenCountsCompanion(
+      chatId: Value(chatId),
+      count: Value(count),
+    );
+  }
+
+  factory SeenCountRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SeenCountRow(
+      chatId: serializer.fromJson<String>(json['chatId']),
+      count: serializer.fromJson<int>(json['count']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'chatId': serializer.toJson<String>(chatId),
+      'count': serializer.toJson<int>(count),
+    };
+  }
+
+  SeenCountRow copyWith({String? chatId, int? count}) => SeenCountRow(
+        chatId: chatId ?? this.chatId,
+        count: count ?? this.count,
+      );
+  SeenCountRow copyWithCompanion(SeenCountsCompanion data) {
+    return SeenCountRow(
+      chatId: data.chatId.present ? data.chatId.value : this.chatId,
+      count: data.count.present ? data.count.value : this.count,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SeenCountRow(')
+          ..write('chatId: $chatId, ')
+          ..write('count: $count')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(chatId, count);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SeenCountRow &&
+          other.chatId == this.chatId &&
+          other.count == this.count);
+}
+
+class SeenCountsCompanion extends UpdateCompanion<SeenCountRow> {
+  final Value<String> chatId;
+  final Value<int> count;
+  final Value<int> rowid;
+  const SeenCountsCompanion({
+    this.chatId = const Value.absent(),
+    this.count = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SeenCountsCompanion.insert({
+    required String chatId,
+    required int count,
+    this.rowid = const Value.absent(),
+  })  : chatId = Value(chatId),
+        count = Value(count);
+  static Insertable<SeenCountRow> custom({
+    Expression<String>? chatId,
+    Expression<int>? count,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (chatId != null) 'chat_id': chatId,
+      if (count != null) 'count': count,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SeenCountsCompanion copyWith(
+      {Value<String>? chatId, Value<int>? count, Value<int>? rowid}) {
+    return SeenCountsCompanion(
+      chatId: chatId ?? this.chatId,
+      count: count ?? this.count,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (chatId.present) {
+      map['chat_id'] = Variable<String>(chatId.value);
+    }
+    if (count.present) {
+      map['count'] = Variable<int>(count.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SeenCountsCompanion(')
+          ..write('chatId: $chatId, ')
+          ..write('count: $count, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $KeyValuesTable extends KeyValues
+    with TableInfo<$KeyValuesTable, KeyValueRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $KeyValuesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _keyMeta = const VerificationMeta('key');
+  @override
+  late final GeneratedColumn<String> key = GeneratedColumn<String>(
+      'key', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _valueMeta = const VerificationMeta('value');
+  @override
+  late final GeneratedColumn<String> value = GeneratedColumn<String>(
+      'value', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [key, value];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'key_values';
+  @override
+  VerificationContext validateIntegrity(Insertable<KeyValueRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('key')) {
+      context.handle(
+          _keyMeta, key.isAcceptableOrUnknown(data['key']!, _keyMeta));
+    } else if (isInserting) {
+      context.missing(_keyMeta);
+    }
+    if (data.containsKey('value')) {
+      context.handle(
+          _valueMeta, value.isAcceptableOrUnknown(data['value']!, _valueMeta));
+    } else if (isInserting) {
+      context.missing(_valueMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {key};
+  @override
+  KeyValueRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return KeyValueRow(
+      key: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}key'])!,
+      value: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}value'])!,
+    );
+  }
+
+  @override
+  $KeyValuesTable createAlias(String alias) {
+    return $KeyValuesTable(attachedDatabase, alias);
+  }
+}
+
+class KeyValueRow extends DataClass implements Insertable<KeyValueRow> {
+  final String key;
+  final String value;
+  const KeyValueRow({required this.key, required this.value});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['key'] = Variable<String>(key);
+    map['value'] = Variable<String>(value);
+    return map;
+  }
+
+  KeyValuesCompanion toCompanion(bool nullToAbsent) {
+    return KeyValuesCompanion(
+      key: Value(key),
+      value: Value(value),
+    );
+  }
+
+  factory KeyValueRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return KeyValueRow(
+      key: serializer.fromJson<String>(json['key']),
+      value: serializer.fromJson<String>(json['value']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'key': serializer.toJson<String>(key),
+      'value': serializer.toJson<String>(value),
+    };
+  }
+
+  KeyValueRow copyWith({String? key, String? value}) => KeyValueRow(
+        key: key ?? this.key,
+        value: value ?? this.value,
+      );
+  KeyValueRow copyWithCompanion(KeyValuesCompanion data) {
+    return KeyValueRow(
+      key: data.key.present ? data.key.value : this.key,
+      value: data.value.present ? data.value.value : this.value,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('KeyValueRow(')
+          ..write('key: $key, ')
+          ..write('value: $value')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(key, value);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is KeyValueRow &&
+          other.key == this.key &&
+          other.value == this.value);
+}
+
+class KeyValuesCompanion extends UpdateCompanion<KeyValueRow> {
+  final Value<String> key;
+  final Value<String> value;
+  final Value<int> rowid;
+  const KeyValuesCompanion({
+    this.key = const Value.absent(),
+    this.value = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  KeyValuesCompanion.insert({
+    required String key,
+    required String value,
+    this.rowid = const Value.absent(),
+  })  : key = Value(key),
+        value = Value(value);
+  static Insertable<KeyValueRow> custom({
+    Expression<String>? key,
+    Expression<String>? value,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (key != null) 'key': key,
+      if (value != null) 'value': value,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  KeyValuesCompanion copyWith(
+      {Value<String>? key, Value<String>? value, Value<int>? rowid}) {
+    return KeyValuesCompanion(
+      key: key ?? this.key,
+      value: value ?? this.value,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (key.present) {
+      map['key'] = Variable<String>(key.value);
+    }
+    if (value.present) {
+      map['value'] = Variable<String>(value.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('KeyValuesCompanion(')
+          ..write('key: $key, ')
+          ..write('value: $value, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $TasksTable tasks = $TasksTable(this);
   late final $EventsTable events = $EventsTable(this);
   late final $NotesTable notes = $NotesTable(this);
+  late final $CollectionsTable collections = $CollectionsTable(this);
+  late final $ChatCollectionsTable chatCollections =
+      $ChatCollectionsTable(this);
+  late final $SeenCountsTable seenCounts = $SeenCountsTable(this);
+  late final $KeyValuesTable keyValues = $KeyValuesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities => [tasks, events, notes];
+  List<DatabaseSchemaEntity> get allSchemaEntities => [
+        tasks,
+        events,
+        notes,
+        collections,
+        chatCollections,
+        seenCounts,
+        keyValues
+      ];
 }
 
 typedef $$TasksTableCreateCompanionBuilder = TasksCompanion Function({
@@ -2726,6 +3580,540 @@ typedef $$NotesTableProcessedTableManager = ProcessedTableManager<
     (Note, BaseReferences<_$AppDatabase, $NotesTable, Note>),
     Note,
     PrefetchHooks Function()>;
+typedef $$CollectionsTableCreateCompanionBuilder = CollectionsCompanion
+    Function({
+  required String id,
+  required String label,
+  Value<String> icon,
+  Value<int> position,
+  Value<int> rowid,
+});
+typedef $$CollectionsTableUpdateCompanionBuilder = CollectionsCompanion
+    Function({
+  Value<String> id,
+  Value<String> label,
+  Value<String> icon,
+  Value<int> position,
+  Value<int> rowid,
+});
+
+class $$CollectionsTableFilterComposer
+    extends Composer<_$AppDatabase, $CollectionsTable> {
+  $$CollectionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get label => $composableBuilder(
+      column: $table.label, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get icon => $composableBuilder(
+      column: $table.icon, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get position => $composableBuilder(
+      column: $table.position, builder: (column) => ColumnFilters(column));
+}
+
+class $$CollectionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $CollectionsTable> {
+  $$CollectionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get label => $composableBuilder(
+      column: $table.label, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get icon => $composableBuilder(
+      column: $table.icon, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get position => $composableBuilder(
+      column: $table.position, builder: (column) => ColumnOrderings(column));
+}
+
+class $$CollectionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CollectionsTable> {
+  $$CollectionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get label =>
+      $composableBuilder(column: $table.label, builder: (column) => column);
+
+  GeneratedColumn<String> get icon =>
+      $composableBuilder(column: $table.icon, builder: (column) => column);
+
+  GeneratedColumn<int> get position =>
+      $composableBuilder(column: $table.position, builder: (column) => column);
+}
+
+class $$CollectionsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $CollectionsTable,
+    CollectionRow,
+    $$CollectionsTableFilterComposer,
+    $$CollectionsTableOrderingComposer,
+    $$CollectionsTableAnnotationComposer,
+    $$CollectionsTableCreateCompanionBuilder,
+    $$CollectionsTableUpdateCompanionBuilder,
+    (
+      CollectionRow,
+      BaseReferences<_$AppDatabase, $CollectionsTable, CollectionRow>
+    ),
+    CollectionRow,
+    PrefetchHooks Function()> {
+  $$CollectionsTableTableManager(_$AppDatabase db, $CollectionsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CollectionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CollectionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CollectionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> label = const Value.absent(),
+            Value<String> icon = const Value.absent(),
+            Value<int> position = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              CollectionsCompanion(
+            id: id,
+            label: label,
+            icon: icon,
+            position: position,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String label,
+            Value<String> icon = const Value.absent(),
+            Value<int> position = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              CollectionsCompanion.insert(
+            id: id,
+            label: label,
+            icon: icon,
+            position: position,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$CollectionsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $CollectionsTable,
+    CollectionRow,
+    $$CollectionsTableFilterComposer,
+    $$CollectionsTableOrderingComposer,
+    $$CollectionsTableAnnotationComposer,
+    $$CollectionsTableCreateCompanionBuilder,
+    $$CollectionsTableUpdateCompanionBuilder,
+    (
+      CollectionRow,
+      BaseReferences<_$AppDatabase, $CollectionsTable, CollectionRow>
+    ),
+    CollectionRow,
+    PrefetchHooks Function()>;
+typedef $$ChatCollectionsTableCreateCompanionBuilder = ChatCollectionsCompanion
+    Function({
+  required String chatId,
+  required String collectionId,
+  Value<int> rowid,
+});
+typedef $$ChatCollectionsTableUpdateCompanionBuilder = ChatCollectionsCompanion
+    Function({
+  Value<String> chatId,
+  Value<String> collectionId,
+  Value<int> rowid,
+});
+
+class $$ChatCollectionsTableFilterComposer
+    extends Composer<_$AppDatabase, $ChatCollectionsTable> {
+  $$ChatCollectionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get chatId => $composableBuilder(
+      column: $table.chatId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get collectionId => $composableBuilder(
+      column: $table.collectionId, builder: (column) => ColumnFilters(column));
+}
+
+class $$ChatCollectionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ChatCollectionsTable> {
+  $$ChatCollectionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get chatId => $composableBuilder(
+      column: $table.chatId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get collectionId => $composableBuilder(
+      column: $table.collectionId,
+      builder: (column) => ColumnOrderings(column));
+}
+
+class $$ChatCollectionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ChatCollectionsTable> {
+  $$ChatCollectionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get chatId =>
+      $composableBuilder(column: $table.chatId, builder: (column) => column);
+
+  GeneratedColumn<String> get collectionId => $composableBuilder(
+      column: $table.collectionId, builder: (column) => column);
+}
+
+class $$ChatCollectionsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ChatCollectionsTable,
+    ChatCollectionRow,
+    $$ChatCollectionsTableFilterComposer,
+    $$ChatCollectionsTableOrderingComposer,
+    $$ChatCollectionsTableAnnotationComposer,
+    $$ChatCollectionsTableCreateCompanionBuilder,
+    $$ChatCollectionsTableUpdateCompanionBuilder,
+    (
+      ChatCollectionRow,
+      BaseReferences<_$AppDatabase, $ChatCollectionsTable, ChatCollectionRow>
+    ),
+    ChatCollectionRow,
+    PrefetchHooks Function()> {
+  $$ChatCollectionsTableTableManager(
+      _$AppDatabase db, $ChatCollectionsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ChatCollectionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ChatCollectionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ChatCollectionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> chatId = const Value.absent(),
+            Value<String> collectionId = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ChatCollectionsCompanion(
+            chatId: chatId,
+            collectionId: collectionId,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String chatId,
+            required String collectionId,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ChatCollectionsCompanion.insert(
+            chatId: chatId,
+            collectionId: collectionId,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$ChatCollectionsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $ChatCollectionsTable,
+    ChatCollectionRow,
+    $$ChatCollectionsTableFilterComposer,
+    $$ChatCollectionsTableOrderingComposer,
+    $$ChatCollectionsTableAnnotationComposer,
+    $$ChatCollectionsTableCreateCompanionBuilder,
+    $$ChatCollectionsTableUpdateCompanionBuilder,
+    (
+      ChatCollectionRow,
+      BaseReferences<_$AppDatabase, $ChatCollectionsTable, ChatCollectionRow>
+    ),
+    ChatCollectionRow,
+    PrefetchHooks Function()>;
+typedef $$SeenCountsTableCreateCompanionBuilder = SeenCountsCompanion Function({
+  required String chatId,
+  required int count,
+  Value<int> rowid,
+});
+typedef $$SeenCountsTableUpdateCompanionBuilder = SeenCountsCompanion Function({
+  Value<String> chatId,
+  Value<int> count,
+  Value<int> rowid,
+});
+
+class $$SeenCountsTableFilterComposer
+    extends Composer<_$AppDatabase, $SeenCountsTable> {
+  $$SeenCountsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get chatId => $composableBuilder(
+      column: $table.chatId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get count => $composableBuilder(
+      column: $table.count, builder: (column) => ColumnFilters(column));
+}
+
+class $$SeenCountsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SeenCountsTable> {
+  $$SeenCountsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get chatId => $composableBuilder(
+      column: $table.chatId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get count => $composableBuilder(
+      column: $table.count, builder: (column) => ColumnOrderings(column));
+}
+
+class $$SeenCountsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SeenCountsTable> {
+  $$SeenCountsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get chatId =>
+      $composableBuilder(column: $table.chatId, builder: (column) => column);
+
+  GeneratedColumn<int> get count =>
+      $composableBuilder(column: $table.count, builder: (column) => column);
+}
+
+class $$SeenCountsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $SeenCountsTable,
+    SeenCountRow,
+    $$SeenCountsTableFilterComposer,
+    $$SeenCountsTableOrderingComposer,
+    $$SeenCountsTableAnnotationComposer,
+    $$SeenCountsTableCreateCompanionBuilder,
+    $$SeenCountsTableUpdateCompanionBuilder,
+    (
+      SeenCountRow,
+      BaseReferences<_$AppDatabase, $SeenCountsTable, SeenCountRow>
+    ),
+    SeenCountRow,
+    PrefetchHooks Function()> {
+  $$SeenCountsTableTableManager(_$AppDatabase db, $SeenCountsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SeenCountsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SeenCountsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SeenCountsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> chatId = const Value.absent(),
+            Value<int> count = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SeenCountsCompanion(
+            chatId: chatId,
+            count: count,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String chatId,
+            required int count,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SeenCountsCompanion.insert(
+            chatId: chatId,
+            count: count,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$SeenCountsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $SeenCountsTable,
+    SeenCountRow,
+    $$SeenCountsTableFilterComposer,
+    $$SeenCountsTableOrderingComposer,
+    $$SeenCountsTableAnnotationComposer,
+    $$SeenCountsTableCreateCompanionBuilder,
+    $$SeenCountsTableUpdateCompanionBuilder,
+    (
+      SeenCountRow,
+      BaseReferences<_$AppDatabase, $SeenCountsTable, SeenCountRow>
+    ),
+    SeenCountRow,
+    PrefetchHooks Function()>;
+typedef $$KeyValuesTableCreateCompanionBuilder = KeyValuesCompanion Function({
+  required String key,
+  required String value,
+  Value<int> rowid,
+});
+typedef $$KeyValuesTableUpdateCompanionBuilder = KeyValuesCompanion Function({
+  Value<String> key,
+  Value<String> value,
+  Value<int> rowid,
+});
+
+class $$KeyValuesTableFilterComposer
+    extends Composer<_$AppDatabase, $KeyValuesTable> {
+  $$KeyValuesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get key => $composableBuilder(
+      column: $table.key, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get value => $composableBuilder(
+      column: $table.value, builder: (column) => ColumnFilters(column));
+}
+
+class $$KeyValuesTableOrderingComposer
+    extends Composer<_$AppDatabase, $KeyValuesTable> {
+  $$KeyValuesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get key => $composableBuilder(
+      column: $table.key, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get value => $composableBuilder(
+      column: $table.value, builder: (column) => ColumnOrderings(column));
+}
+
+class $$KeyValuesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $KeyValuesTable> {
+  $$KeyValuesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get key =>
+      $composableBuilder(column: $table.key, builder: (column) => column);
+
+  GeneratedColumn<String> get value =>
+      $composableBuilder(column: $table.value, builder: (column) => column);
+}
+
+class $$KeyValuesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $KeyValuesTable,
+    KeyValueRow,
+    $$KeyValuesTableFilterComposer,
+    $$KeyValuesTableOrderingComposer,
+    $$KeyValuesTableAnnotationComposer,
+    $$KeyValuesTableCreateCompanionBuilder,
+    $$KeyValuesTableUpdateCompanionBuilder,
+    (KeyValueRow, BaseReferences<_$AppDatabase, $KeyValuesTable, KeyValueRow>),
+    KeyValueRow,
+    PrefetchHooks Function()> {
+  $$KeyValuesTableTableManager(_$AppDatabase db, $KeyValuesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$KeyValuesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$KeyValuesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$KeyValuesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> key = const Value.absent(),
+            Value<String> value = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              KeyValuesCompanion(
+            key: key,
+            value: value,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String key,
+            required String value,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              KeyValuesCompanion.insert(
+            key: key,
+            value: value,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$KeyValuesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $KeyValuesTable,
+    KeyValueRow,
+    $$KeyValuesTableFilterComposer,
+    $$KeyValuesTableOrderingComposer,
+    $$KeyValuesTableAnnotationComposer,
+    $$KeyValuesTableCreateCompanionBuilder,
+    $$KeyValuesTableUpdateCompanionBuilder,
+    (KeyValueRow, BaseReferences<_$AppDatabase, $KeyValuesTable, KeyValueRow>),
+    KeyValueRow,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -2736,4 +4124,12 @@ class $AppDatabaseManager {
       $$EventsTableTableManager(_db, _db.events);
   $$NotesTableTableManager get notes =>
       $$NotesTableTableManager(_db, _db.notes);
+  $$CollectionsTableTableManager get collections =>
+      $$CollectionsTableTableManager(_db, _db.collections);
+  $$ChatCollectionsTableTableManager get chatCollections =>
+      $$ChatCollectionsTableTableManager(_db, _db.chatCollections);
+  $$SeenCountsTableTableManager get seenCounts =>
+      $$SeenCountsTableTableManager(_db, _db.seenCounts);
+  $$KeyValuesTableTableManager get keyValues =>
+      $$KeyValuesTableTableManager(_db, _db.keyValues);
 }
