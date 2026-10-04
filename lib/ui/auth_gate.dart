@@ -1,23 +1,32 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:window_manager/window_manager.dart';
 
 import '../auth/auth.dart';
 import '../calendar/event_store.dart';
 import '../data/chat_source.dart';
 import '../notes/note_store.dart';
+import '../reminders/notifier.dart';
+import '../reminders/reminder_service.dart';
 import '../state/app_state.dart';
 import '../state/settings.dart';
 import '../tasks/task_store.dart';
 import '../theme.dart';
 import 'login/login_screen.dart';
+import 'settings_dialog.dart';
 import 'shell.dart';
 
 /// Login screen until TDLib reports `authorizationStateReady`, then the app
 /// with a chat session for that account. Logging out closes the session.
 class AuthGate extends StatefulWidget {
-  const AuthGate({super.key, required this.auth, required this.settings});
+  const AuthGate({super.key, required this.auth, required this.settings, this.notifier});
 
   final AuthService auth;
   final Settings settings;
+
+  /// System notifications; null in tests or when Windows refused them.
+  final Notifier? notifier;
 
   @override
   State<AuthGate> createState() => _AuthGateState();
@@ -26,18 +35,23 @@ class AuthGate extends StatefulWidget {
 class _AuthGateState extends State<AuthGate> {
   ChatSession? _session;
   AppState? _state;
+  ReminderService? _reminders;
+  StreamSubscription<String>? _taps;
   bool _opening = false;
+  bool _launchHandled = false;
 
   @override
   void initState() {
     super.initState();
     widget.auth.state.addListener(_onAuth);
+    _taps = widget.notifier?.taps.listen(_openFromNotification);
     _onAuth();
   }
 
   @override
   void dispose() {
     widget.auth.state.removeListener(_onAuth);
+    _taps?.cancel();
     _closeSession();
     super.dispose();
   }
@@ -62,7 +76,13 @@ class _AuthGateState extends State<AuthGate> {
             notes: NoteStore(session.db),
             initialChatId: session.initialChatId,
           );
+          final n = widget.notifier;
+          if (n != null) {
+            _reminders = ReminderService(notifier: n, events: _state!.events, tasks: _state!.tasks, settings: widget.settings)
+              ..start();
+          }
         });
+        _handleLaunch();
       } finally {
         _opening = false;
       }
@@ -72,10 +92,43 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   void _closeSession() {
+    _reminders?.dispose();
+    _reminders = null;
     _state?.dispose();
     _session?.close();
     _state = null;
     _session = null;
+  }
+
+  /// Fokus was started by a click on a notification: open its target once.
+  Future<void> _handleLaunch() async {
+    if (_launchHandled) return;
+    _launchHandled = true;
+    final p = await widget.notifier?.launchPayload();
+    if (p != null) await _openFromNotification(p);
+  }
+
+  /// "event:ID" opens the calendar on that meeting's week, "task:ID" the
+  /// tasks board; the window comes to the front.
+  Future<void> _openFromNotification(String payload) async {
+    // Not awaited: navigation must not wait for the window (and the window
+    // plugin is not there in tests).
+    unawaited(windowManager.show().then((_) => windowManager.focus()).catchError((Object _) {}));
+    final state = _state;
+    if (state == null) return;
+    final parts = payload.split(':');
+    final id = parts.length == 2 ? int.tryParse(parts[1]) : null;
+    if (id == null) return;
+    switch (parts[0]) {
+      case 'event':
+        for (var i = 0; i < 20 && !state.events.loaded; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+        }
+        final e = state.events.byId(id);
+        state.showCalendarAt(e?.start ?? DateTime.now());
+      case 'task':
+        state.openModule(Module.tasks);
+    }
   }
 
   @override
@@ -85,7 +138,12 @@ class _AuthGateState extends State<AuthGate> {
       builder: (context, s, _) {
         final state = _state;
         if (s.step == AuthStep.ready && state != null) {
-          return Shell(state: state, settings: widget.settings, onLogout: () => _confirmLogout(context));
+          return Shell(
+            state: state,
+            settings: widget.settings,
+            onLogout: () => _confirmLogout(context),
+            onSettings: () => showSettingsDialog(context, widget.settings, notifier: widget.notifier, reminders: _reminders),
+          );
         }
         return LoginScreen(auth: widget.auth, settings: widget.settings);
       },

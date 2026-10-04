@@ -13,11 +13,12 @@ import 'tasks/tasks_screen.dart';
 import 'title_bar.dart';
 
 class Shell extends StatelessWidget {
-  const Shell({super.key, required this.state, required this.settings, required this.onLogout});
+  const Shell({super.key, required this.state, required this.settings, required this.onLogout, required this.onSettings});
 
   final AppState state;
   final Settings settings;
   final VoidCallback onLogout;
+  final VoidCallback onSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +33,7 @@ class Shell extends StatelessWidget {
               builder: (context, _) => Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Rail(state: state, compact: mode == LayoutMode.narrow, onLogout: onLogout),
+                  Rail(state: state, compact: mode == LayoutMode.narrow, onLogout: onLogout, onSettings: onSettings),
                   Expanded(child: _screenFor(state, mode)),
                 ],
               ),

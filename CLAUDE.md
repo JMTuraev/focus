@@ -75,6 +75,12 @@ Breakpoints are in `lib/ui/layout.dart`, modelled on Telegram Desktop:
 - Meetings in messages: `lib/data/meeting_parser.dart` (Uzbek Latin/Cyrillic and Russian). It needs both a day and a time; relative days count from the message date; only meetings that have not passed are offered. Add every new phrase to `test/meeting_parser_test.dart`.
 - "Kalendarga" adds a detected meeting at once (1 hour, reminder 30 min before); without one it opens the editor prefilled from the message. Reminder notifications are not implemented yet.
 
+## Reminders (notifications)
+- `lib/reminders/`: `ReminderService` keeps Windows scheduled toasts in line with meetings (`remindBefore`) and open tasks with a due date (at `Settings.taskReminderHour`). Ids: 100000000 + event id, 200000000 + task id. Payloads `event:ID` / `task:ID` open the calendar or the tasks board.
+- Windows keeps scheduled toasts, so they fire when Fokus is closed. App identity (`appUserModelId`, `guid` in `notifier.dart`) must never change.
+- Building needs the Visual Studio component "C++ ATL" (`Microsoft.VisualStudio.Component.VC.ATL`) for flutter_local_notifications_windows.
+- Settings dialog (rail ⚙): theme (system / light / dark), reminders on/off, task reminder hour, test notification.
+
 ## Windows runner
 - `windows/runner/main.cpp` allows one instance (named mutex): a second start brings the running window to the front and exits, because two instances would fight over the TDLib database. Close the app before `flutter run`.
 

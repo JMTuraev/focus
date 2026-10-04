@@ -10,6 +10,7 @@ import 'package:window_manager/window_manager.dart';
 import 'auth/auth.dart';
 import 'auth/mock_auth.dart';
 import 'config.dart';
+import 'reminders/notifier.dart';
 import 'state/settings.dart';
 import 'tdlib/td_auth.dart';
 import 'theme.dart';
@@ -20,6 +21,8 @@ Future<void> main() async {
   MediaKit.ensureInitialized();
   await windowManager.ensureInitialized();
   final settings = await Settings.load();
+  final notifier = WindowsNotifier();
+  await notifier.init();
 
   const options = WindowOptions(
     title: 'Fokus',
@@ -39,7 +42,7 @@ Future<void> main() async {
   final AuthService auth = AppConfig.useMock ? MockAuth() : TdAuth();
   unawaited(auth.start());
 
-  runApp(FokusApp(settings: settings, auth: auth));
+  runApp(FokusApp(settings: settings, auth: auth, notifier: notifier.ready ? notifier : null));
 }
 
 /// Keeps the window (and so the custom title bar) inside the screen's
@@ -61,10 +64,13 @@ Future<void> _fitToScreen() async {
 }
 
 class FokusApp extends StatelessWidget {
-  const FokusApp({super.key, required this.settings, required this.auth});
+  const FokusApp({super.key, required this.settings, required this.auth, this.notifier});
 
   final Settings settings;
   final AuthService auth;
+
+  /// System notifications (null in tests or if Windows refused them).
+  final Notifier? notifier;
 
   @override
   Widget build(BuildContext context) {
@@ -80,7 +86,7 @@ class FokusApp extends StatelessWidget {
         locale: const Locale('uz'),
         supportedLocales: const [Locale('uz')],
         localizationsDelegates: GlobalMaterialLocalizations.delegates,
-        home: AuthGate(auth: auth, settings: settings),
+        home: AuthGate(auth: auth, settings: settings, notifier: notifier),
       ),
     );
   }

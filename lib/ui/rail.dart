@@ -17,10 +17,11 @@ const _modules = <(Module, String, IconData)>[
 
 /// Narrow vertical panel: modules on top, collections below (like folders).
 class Rail extends StatelessWidget {
-  const Rail({super.key, required this.state, required this.onLogout, this.compact = false});
+  const Rail({super.key, required this.state, required this.onLogout, required this.onSettings, this.compact = false});
 
   final AppState state;
   final VoidCallback onLogout;
+  final VoidCallback onSettings;
 
   /// Narrow layout: thinner rail, labels move into tooltips.
   final bool compact;
@@ -83,6 +84,15 @@ class Rail extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+          _RailItem(
+            label: 'Sozlamalar',
+            icon: Icons.settings_outlined,
+            compact: compact,
+            height: 44,
+            iconSize: 20,
+            tooltip: 'Sozlamalar',
+            onTap: onSettings,
           ),
           _RailItem(
             label: 'Chiqish',
