@@ -78,6 +78,12 @@ Breakpoints are in `lib/ui/layout.dart`, modelled on Telegram Desktop:
 ## Windows runner
 - `windows/runner/main.cpp` allows one instance (named mutex): a second start brings the running window to the front and exits, because two instances would fight over the TDLib database. Close the app before `flutter run`.
 
+## Notes
+- `lib/notes/note_store.dart` (`Notes` table, schema v3); screen and editor in `lib/ui/notes/`. Text notes or checklists (items as JSON via `NoteItemsConverter`), 7 colors (`FokusColors.noteColors`, `NoteColor` order), pinning.
+- The editor saves when it closes, however it is closed (button, Escape, click outside); an empty new note is not saved.
+- "Eslatmaga" in a chat saves the message as a note linked to the chat.
+- Dates are stored with 1 second precision; do not rely on finer ordering.
+
 ## Messages: formatting and media
 - Text entities are mapped in `TdChatSource.entitiesOf` and drawn by `lib/ui/chats/message_text.dart`. Links open only for http, https, mailto, tel and tg; hidden links (`textUrl`) ask for confirmation first.
 - Media (`MediaInfo`): photos and video thumbnails download automatically; videos and voice messages download on click. Playback uses media_kit (libmpv), which adds about 45 MB to the build.

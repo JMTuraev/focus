@@ -5,6 +5,7 @@ import '../data/chat_source.dart';
 import '../data/local_store.dart';
 import '../data/models.dart';
 import '../db/database.dart';
+import '../notes/note_store.dart';
 import '../tasks/task_store.dart';
 
 enum Module { chats, collections, tasks, calendar, notes, files, stats }
@@ -32,9 +33,16 @@ enum ChatType {
 /// UI state on top of a [ChatSource] (mock or TDLib) and the [LocalStore]
 /// with Fokus-only data (collections, locally seen messages).
 class AppState extends ChangeNotifier {
-  AppState({required this.source, required this.store, TaskStore? tasks, EventStore? events, String? initialChatId})
-      : tasks = tasks ?? TaskStore(AppDatabase.memory()),
+  AppState({
+    required this.source,
+    required this.store,
+    TaskStore? tasks,
+    EventStore? events,
+    NoteStore? notes,
+    String? initialChatId,
+  })  : tasks = tasks ?? TaskStore(AppDatabase.memory()),
         events = events ?? EventStore(AppDatabase.memory()),
+        notes = notes ?? NoteStore(AppDatabase.memory()),
         activeChatId = initialChatId {
     source.addListener(_onSource);
   }
@@ -47,6 +55,9 @@ class AppState extends ChangeNotifier {
 
   /// Calendar events (own listenable, like [tasks]).
   final EventStore events;
+
+  /// Notes (own listenable, like [tasks]).
+  final NoteStore notes;
 
   Module module = Module.chats;
   String collection = 'all';
@@ -69,6 +80,9 @@ class AppState extends ChangeNotifier {
   /// Calendar shows only the events of this chat.
   String? eventChatFilter;
 
+  /// Notes screen shows only the notes of this chat.
+  String? noteChatFilter;
+
   /// A day inside the week (or the day) the calendar shows.
   DateTime calendarFocus = EventStore.day(DateTime.now());
   String? selectedMessageId;
@@ -88,6 +102,7 @@ class AppState extends ChangeNotifier {
     store.flush();
     tasks.dispose();
     events.dispose();
+    notes.dispose();
     super.dispose();
   }
 
@@ -402,5 +417,31 @@ class AppState extends ChangeNotifier {
       messageId: m.id,
       messageText: m.text.isEmpty ? null : m.text,
     );
+  }
+
+  // ---- notes ----
+  void showNotesForChat(String chatId) {
+    noteChatFilter = chatId;
+    openModule(Module.notes);
+  }
+
+  void clearNoteChatFilter() {
+    noteChatFilter = null;
+    notifyListeners();
+  }
+
+  void openNoteChat(Note n) {
+    final id = n.chatId;
+    if (id == null) return;
+    module = Module.chats;
+    openChat(id);
+  }
+
+  /// Saves [m] from the open chat as a note (text, or the file / media name).
+  Future<int?> noteFromMessage(Message m) async {
+    final chat = activeChat;
+    if (chat == null) return null;
+    final body = m.text.trim().isNotEmpty ? m.text : (m.fileName ?? m.mediaLabel ?? '');
+    return notes.add(body: body, chatId: chat.id, chatTitle: chat.name, messageId: m.id);
   }
 }

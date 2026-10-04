@@ -49,6 +49,7 @@ class FokusColors extends ThemeExtension<FokusColors> {
     required this.toast,
     required this.danger,
     required this.senderNames,
+    required this.noteColors,
   });
 
   /// Brand color, the same in both modes (logo).
@@ -100,6 +101,9 @@ class FokusColors extends ThemeExtension<FokusColors> {
 
   Color senderName(int index) => senderNames[index.abs() % senderNames.length];
 
+  /// Note backgrounds in [NoteColor] order (first = no color).
+  final List<Color> noteColors;
+
   static const light = FokusColors(
     accent: Color(0xFF3390EC),
     accentStrong: Color(0xFF2874C8),
@@ -147,6 +151,15 @@ class FokusColors extends ThemeExtension<FokusColors> {
       Color(0xFF309EBA), // cyan
       Color(0xFF368AD1), // blue
       Color(0xFFC7508B), // pink
+    ],
+    noteColors: [
+      Colors.white,
+      Color(0xFFFFF4C2), // yellow
+      Color(0xFFDCF3D2), // green
+      Color(0xFFDCEBFB), // blue
+      Color(0xFFECE2F8), // purple
+      Color(0xFFFBE0EA), // pink
+      Color(0xFFFDE6D2), // orange
     ],
   );
 
@@ -198,6 +211,15 @@ class FokusColors extends ThemeExtension<FokusColors> {
       Color(0xFF72B6FF),
       Color(0xFFFF85C0),
     ],
+    noteColors: [
+      Color(0xFF17212B),
+      Color(0xFF3A3420),
+      Color(0xFF213826),
+      Color(0xFF1D3148),
+      Color(0xFF33294A),
+      Color(0xFF41252F),
+      Color(0xFF412F20),
+    ],
   );
 
   @override
@@ -248,6 +270,7 @@ class FokusColors extends ThemeExtension<FokusColors> {
       toast: l(toast, o.toast),
       danger: l(danger, o.danger),
       senderNames: [for (var i = 0; i < senderNames.length; i++) l(senderNames[i], o.senderNames[i])],
+      noteColors: [for (var i = 0; i < noteColors.length; i++) l(noteColors[i], o.noteColors[i])],
     );
   }
 }

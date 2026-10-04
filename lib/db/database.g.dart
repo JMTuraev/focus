@@ -1302,16 +1302,586 @@ class EventsCompanion extends UpdateCompanion<Event> {
   }
 }
 
+class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $NotesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+      'title', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  @override
+  late final GeneratedColumn<String> body = GeneratedColumn<String>(
+      'body', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  @override
+  late final GeneratedColumnWithTypeConverter<List<NoteItem>, String> items =
+      GeneratedColumn<String>('items', aliasedName, false,
+              type: DriftSqlType.string,
+              requiredDuringInsert: false,
+              defaultValue: const Constant('[]'))
+          .withConverter<List<NoteItem>>($NotesTable.$converteritems);
+  static const VerificationMeta _checklistMeta =
+      const VerificationMeta('checklist');
+  @override
+  late final GeneratedColumn<bool> checklist = GeneratedColumn<bool>(
+      'checklist', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("checklist" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  @override
+  late final GeneratedColumnWithTypeConverter<NoteColor, String> color =
+      GeneratedColumn<String>('color', aliasedName, false,
+              type: DriftSqlType.string,
+              requiredDuringInsert: false,
+              defaultValue: Constant(NoteColor.none.name))
+          .withConverter<NoteColor>($NotesTable.$convertercolor);
+  static const VerificationMeta _pinnedMeta = const VerificationMeta('pinned');
+  @override
+  late final GeneratedColumn<bool> pinned = GeneratedColumn<bool>(
+      'pinned', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("pinned" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _chatIdMeta = const VerificationMeta('chatId');
+  @override
+  late final GeneratedColumn<String> chatId = GeneratedColumn<String>(
+      'chat_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _chatTitleMeta =
+      const VerificationMeta('chatTitle');
+  @override
+  late final GeneratedColumn<String> chatTitle = GeneratedColumn<String>(
+      'chat_title', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _messageIdMeta =
+      const VerificationMeta('messageId');
+  @override
+  late final GeneratedColumn<String> messageId = GeneratedColumn<String>(
+      'message_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        title,
+        body,
+        items,
+        checklist,
+        color,
+        pinned,
+        chatId,
+        chatTitle,
+        messageId,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'notes';
+  @override
+  VerificationContext validateIntegrity(Insertable<Note> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+          _titleMeta, title.isAcceptableOrUnknown(data['title']!, _titleMeta));
+    }
+    if (data.containsKey('body')) {
+      context.handle(
+          _bodyMeta, body.isAcceptableOrUnknown(data['body']!, _bodyMeta));
+    }
+    if (data.containsKey('checklist')) {
+      context.handle(_checklistMeta,
+          checklist.isAcceptableOrUnknown(data['checklist']!, _checklistMeta));
+    }
+    if (data.containsKey('pinned')) {
+      context.handle(_pinnedMeta,
+          pinned.isAcceptableOrUnknown(data['pinned']!, _pinnedMeta));
+    }
+    if (data.containsKey('chat_id')) {
+      context.handle(_chatIdMeta,
+          chatId.isAcceptableOrUnknown(data['chat_id']!, _chatIdMeta));
+    }
+    if (data.containsKey('chat_title')) {
+      context.handle(_chatTitleMeta,
+          chatTitle.isAcceptableOrUnknown(data['chat_title']!, _chatTitleMeta));
+    }
+    if (data.containsKey('message_id')) {
+      context.handle(_messageIdMeta,
+          messageId.isAcceptableOrUnknown(data['message_id']!, _messageIdMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Note map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Note(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      title: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}title'])!,
+      body: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}body'])!,
+      items: $NotesTable.$converteritems.fromSql(attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}items'])!),
+      checklist: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}checklist'])!,
+      color: $NotesTable.$convertercolor.fromSql(attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}color'])!),
+      pinned: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}pinned'])!,
+      chatId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}chat_id']),
+      chatTitle: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}chat_title']),
+      messageId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}message_id']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $NotesTable createAlias(String alias) {
+    return $NotesTable(attachedDatabase, alias);
+  }
+
+  static TypeConverter<List<NoteItem>, String> $converteritems =
+      const NoteItemsConverter();
+  static JsonTypeConverter2<NoteColor, String, String> $convertercolor =
+      const EnumNameConverter<NoteColor>(NoteColor.values);
+}
+
+class Note extends DataClass implements Insertable<Note> {
+  final int id;
+  final String title;
+  final String body;
+  final List<NoteItem> items;
+  final bool checklist;
+  final NoteColor color;
+  final bool pinned;
+  final String? chatId;
+  final String? chatTitle;
+  final String? messageId;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const Note(
+      {required this.id,
+      required this.title,
+      required this.body,
+      required this.items,
+      required this.checklist,
+      required this.color,
+      required this.pinned,
+      this.chatId,
+      this.chatTitle,
+      this.messageId,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['title'] = Variable<String>(title);
+    map['body'] = Variable<String>(body);
+    {
+      map['items'] = Variable<String>($NotesTable.$converteritems.toSql(items));
+    }
+    map['checklist'] = Variable<bool>(checklist);
+    {
+      map['color'] = Variable<String>($NotesTable.$convertercolor.toSql(color));
+    }
+    map['pinned'] = Variable<bool>(pinned);
+    if (!nullToAbsent || chatId != null) {
+      map['chat_id'] = Variable<String>(chatId);
+    }
+    if (!nullToAbsent || chatTitle != null) {
+      map['chat_title'] = Variable<String>(chatTitle);
+    }
+    if (!nullToAbsent || messageId != null) {
+      map['message_id'] = Variable<String>(messageId);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  NotesCompanion toCompanion(bool nullToAbsent) {
+    return NotesCompanion(
+      id: Value(id),
+      title: Value(title),
+      body: Value(body),
+      items: Value(items),
+      checklist: Value(checklist),
+      color: Value(color),
+      pinned: Value(pinned),
+      chatId:
+          chatId == null && nullToAbsent ? const Value.absent() : Value(chatId),
+      chatTitle: chatTitle == null && nullToAbsent
+          ? const Value.absent()
+          : Value(chatTitle),
+      messageId: messageId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(messageId),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory Note.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Note(
+      id: serializer.fromJson<int>(json['id']),
+      title: serializer.fromJson<String>(json['title']),
+      body: serializer.fromJson<String>(json['body']),
+      items: serializer.fromJson<List<NoteItem>>(json['items']),
+      checklist: serializer.fromJson<bool>(json['checklist']),
+      color: $NotesTable.$convertercolor
+          .fromJson(serializer.fromJson<String>(json['color'])),
+      pinned: serializer.fromJson<bool>(json['pinned']),
+      chatId: serializer.fromJson<String?>(json['chatId']),
+      chatTitle: serializer.fromJson<String?>(json['chatTitle']),
+      messageId: serializer.fromJson<String?>(json['messageId']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'title': serializer.toJson<String>(title),
+      'body': serializer.toJson<String>(body),
+      'items': serializer.toJson<List<NoteItem>>(items),
+      'checklist': serializer.toJson<bool>(checklist),
+      'color':
+          serializer.toJson<String>($NotesTable.$convertercolor.toJson(color)),
+      'pinned': serializer.toJson<bool>(pinned),
+      'chatId': serializer.toJson<String?>(chatId),
+      'chatTitle': serializer.toJson<String?>(chatTitle),
+      'messageId': serializer.toJson<String?>(messageId),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  Note copyWith(
+          {int? id,
+          String? title,
+          String? body,
+          List<NoteItem>? items,
+          bool? checklist,
+          NoteColor? color,
+          bool? pinned,
+          Value<String?> chatId = const Value.absent(),
+          Value<String?> chatTitle = const Value.absent(),
+          Value<String?> messageId = const Value.absent(),
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      Note(
+        id: id ?? this.id,
+        title: title ?? this.title,
+        body: body ?? this.body,
+        items: items ?? this.items,
+        checklist: checklist ?? this.checklist,
+        color: color ?? this.color,
+        pinned: pinned ?? this.pinned,
+        chatId: chatId.present ? chatId.value : this.chatId,
+        chatTitle: chatTitle.present ? chatTitle.value : this.chatTitle,
+        messageId: messageId.present ? messageId.value : this.messageId,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  Note copyWithCompanion(NotesCompanion data) {
+    return Note(
+      id: data.id.present ? data.id.value : this.id,
+      title: data.title.present ? data.title.value : this.title,
+      body: data.body.present ? data.body.value : this.body,
+      items: data.items.present ? data.items.value : this.items,
+      checklist: data.checklist.present ? data.checklist.value : this.checklist,
+      color: data.color.present ? data.color.value : this.color,
+      pinned: data.pinned.present ? data.pinned.value : this.pinned,
+      chatId: data.chatId.present ? data.chatId.value : this.chatId,
+      chatTitle: data.chatTitle.present ? data.chatTitle.value : this.chatTitle,
+      messageId: data.messageId.present ? data.messageId.value : this.messageId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Note(')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('body: $body, ')
+          ..write('items: $items, ')
+          ..write('checklist: $checklist, ')
+          ..write('color: $color, ')
+          ..write('pinned: $pinned, ')
+          ..write('chatId: $chatId, ')
+          ..write('chatTitle: $chatTitle, ')
+          ..write('messageId: $messageId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, title, body, items, checklist, color,
+      pinned, chatId, chatTitle, messageId, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Note &&
+          other.id == this.id &&
+          other.title == this.title &&
+          other.body == this.body &&
+          other.items == this.items &&
+          other.checklist == this.checklist &&
+          other.color == this.color &&
+          other.pinned == this.pinned &&
+          other.chatId == this.chatId &&
+          other.chatTitle == this.chatTitle &&
+          other.messageId == this.messageId &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class NotesCompanion extends UpdateCompanion<Note> {
+  final Value<int> id;
+  final Value<String> title;
+  final Value<String> body;
+  final Value<List<NoteItem>> items;
+  final Value<bool> checklist;
+  final Value<NoteColor> color;
+  final Value<bool> pinned;
+  final Value<String?> chatId;
+  final Value<String?> chatTitle;
+  final Value<String?> messageId;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const NotesCompanion({
+    this.id = const Value.absent(),
+    this.title = const Value.absent(),
+    this.body = const Value.absent(),
+    this.items = const Value.absent(),
+    this.checklist = const Value.absent(),
+    this.color = const Value.absent(),
+    this.pinned = const Value.absent(),
+    this.chatId = const Value.absent(),
+    this.chatTitle = const Value.absent(),
+    this.messageId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  NotesCompanion.insert({
+    this.id = const Value.absent(),
+    this.title = const Value.absent(),
+    this.body = const Value.absent(),
+    this.items = const Value.absent(),
+    this.checklist = const Value.absent(),
+    this.color = const Value.absent(),
+    this.pinned = const Value.absent(),
+    this.chatId = const Value.absent(),
+    this.chatTitle = const Value.absent(),
+    this.messageId = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+  })  : createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<Note> custom({
+    Expression<int>? id,
+    Expression<String>? title,
+    Expression<String>? body,
+    Expression<String>? items,
+    Expression<bool>? checklist,
+    Expression<String>? color,
+    Expression<bool>? pinned,
+    Expression<String>? chatId,
+    Expression<String>? chatTitle,
+    Expression<String>? messageId,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (title != null) 'title': title,
+      if (body != null) 'body': body,
+      if (items != null) 'items': items,
+      if (checklist != null) 'checklist': checklist,
+      if (color != null) 'color': color,
+      if (pinned != null) 'pinned': pinned,
+      if (chatId != null) 'chat_id': chatId,
+      if (chatTitle != null) 'chat_title': chatTitle,
+      if (messageId != null) 'message_id': messageId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  NotesCompanion copyWith(
+      {Value<int>? id,
+      Value<String>? title,
+      Value<String>? body,
+      Value<List<NoteItem>>? items,
+      Value<bool>? checklist,
+      Value<NoteColor>? color,
+      Value<bool>? pinned,
+      Value<String?>? chatId,
+      Value<String?>? chatTitle,
+      Value<String?>? messageId,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt}) {
+    return NotesCompanion(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      body: body ?? this.body,
+      items: items ?? this.items,
+      checklist: checklist ?? this.checklist,
+      color: color ?? this.color,
+      pinned: pinned ?? this.pinned,
+      chatId: chatId ?? this.chatId,
+      chatTitle: chatTitle ?? this.chatTitle,
+      messageId: messageId ?? this.messageId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (body.present) {
+      map['body'] = Variable<String>(body.value);
+    }
+    if (items.present) {
+      map['items'] =
+          Variable<String>($NotesTable.$converteritems.toSql(items.value));
+    }
+    if (checklist.present) {
+      map['checklist'] = Variable<bool>(checklist.value);
+    }
+    if (color.present) {
+      map['color'] =
+          Variable<String>($NotesTable.$convertercolor.toSql(color.value));
+    }
+    if (pinned.present) {
+      map['pinned'] = Variable<bool>(pinned.value);
+    }
+    if (chatId.present) {
+      map['chat_id'] = Variable<String>(chatId.value);
+    }
+    if (chatTitle.present) {
+      map['chat_title'] = Variable<String>(chatTitle.value);
+    }
+    if (messageId.present) {
+      map['message_id'] = Variable<String>(messageId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NotesCompanion(')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('body: $body, ')
+          ..write('items: $items, ')
+          ..write('checklist: $checklist, ')
+          ..write('color: $color, ')
+          ..write('pinned: $pinned, ')
+          ..write('chatId: $chatId, ')
+          ..write('chatTitle: $chatTitle, ')
+          ..write('messageId: $messageId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $TasksTable tasks = $TasksTable(this);
   late final $EventsTable events = $EventsTable(this);
+  late final $NotesTable notes = $NotesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities => [tasks, events];
+  List<DatabaseSchemaEntity> get allSchemaEntities => [tasks, events, notes];
 }
 
 typedef $$TasksTableCreateCompanionBuilder = TasksCompanion Function({
@@ -1889,6 +2459,273 @@ typedef $$EventsTableProcessedTableManager = ProcessedTableManager<
     (Event, BaseReferences<_$AppDatabase, $EventsTable, Event>),
     Event,
     PrefetchHooks Function()>;
+typedef $$NotesTableCreateCompanionBuilder = NotesCompanion Function({
+  Value<int> id,
+  Value<String> title,
+  Value<String> body,
+  Value<List<NoteItem>> items,
+  Value<bool> checklist,
+  Value<NoteColor> color,
+  Value<bool> pinned,
+  Value<String?> chatId,
+  Value<String?> chatTitle,
+  Value<String?> messageId,
+  required DateTime createdAt,
+  required DateTime updatedAt,
+});
+typedef $$NotesTableUpdateCompanionBuilder = NotesCompanion Function({
+  Value<int> id,
+  Value<String> title,
+  Value<String> body,
+  Value<List<NoteItem>> items,
+  Value<bool> checklist,
+  Value<NoteColor> color,
+  Value<bool> pinned,
+  Value<String?> chatId,
+  Value<String?> chatTitle,
+  Value<String?> messageId,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+});
+
+class $$NotesTableFilterComposer extends Composer<_$AppDatabase, $NotesTable> {
+  $$NotesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get title => $composableBuilder(
+      column: $table.title, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get body => $composableBuilder(
+      column: $table.body, builder: (column) => ColumnFilters(column));
+
+  ColumnWithTypeConverterFilters<List<NoteItem>, List<NoteItem>, String>
+      get items => $composableBuilder(
+          column: $table.items,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
+
+  ColumnFilters<bool> get checklist => $composableBuilder(
+      column: $table.checklist, builder: (column) => ColumnFilters(column));
+
+  ColumnWithTypeConverterFilters<NoteColor, NoteColor, String> get color =>
+      $composableBuilder(
+          column: $table.color,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
+
+  ColumnFilters<bool> get pinned => $composableBuilder(
+      column: $table.pinned, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get chatId => $composableBuilder(
+      column: $table.chatId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get chatTitle => $composableBuilder(
+      column: $table.chatTitle, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get messageId => $composableBuilder(
+      column: $table.messageId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$NotesTableOrderingComposer
+    extends Composer<_$AppDatabase, $NotesTable> {
+  $$NotesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get title => $composableBuilder(
+      column: $table.title, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get body => $composableBuilder(
+      column: $table.body, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get items => $composableBuilder(
+      column: $table.items, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get checklist => $composableBuilder(
+      column: $table.checklist, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get color => $composableBuilder(
+      column: $table.color, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get pinned => $composableBuilder(
+      column: $table.pinned, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get chatId => $composableBuilder(
+      column: $table.chatId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get chatTitle => $composableBuilder(
+      column: $table.chatTitle, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get messageId => $composableBuilder(
+      column: $table.messageId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$NotesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $NotesTable> {
+  $$NotesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get body =>
+      $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<List<NoteItem>, String> get items =>
+      $composableBuilder(column: $table.items, builder: (column) => column);
+
+  GeneratedColumn<bool> get checklist =>
+      $composableBuilder(column: $table.checklist, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<NoteColor, String> get color =>
+      $composableBuilder(column: $table.color, builder: (column) => column);
+
+  GeneratedColumn<bool> get pinned =>
+      $composableBuilder(column: $table.pinned, builder: (column) => column);
+
+  GeneratedColumn<String> get chatId =>
+      $composableBuilder(column: $table.chatId, builder: (column) => column);
+
+  GeneratedColumn<String> get chatTitle =>
+      $composableBuilder(column: $table.chatTitle, builder: (column) => column);
+
+  GeneratedColumn<String> get messageId =>
+      $composableBuilder(column: $table.messageId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$NotesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $NotesTable,
+    Note,
+    $$NotesTableFilterComposer,
+    $$NotesTableOrderingComposer,
+    $$NotesTableAnnotationComposer,
+    $$NotesTableCreateCompanionBuilder,
+    $$NotesTableUpdateCompanionBuilder,
+    (Note, BaseReferences<_$AppDatabase, $NotesTable, Note>),
+    Note,
+    PrefetchHooks Function()> {
+  $$NotesTableTableManager(_$AppDatabase db, $NotesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$NotesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$NotesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$NotesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> title = const Value.absent(),
+            Value<String> body = const Value.absent(),
+            Value<List<NoteItem>> items = const Value.absent(),
+            Value<bool> checklist = const Value.absent(),
+            Value<NoteColor> color = const Value.absent(),
+            Value<bool> pinned = const Value.absent(),
+            Value<String?> chatId = const Value.absent(),
+            Value<String?> chatTitle = const Value.absent(),
+            Value<String?> messageId = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+          }) =>
+              NotesCompanion(
+            id: id,
+            title: title,
+            body: body,
+            items: items,
+            checklist: checklist,
+            color: color,
+            pinned: pinned,
+            chatId: chatId,
+            chatTitle: chatTitle,
+            messageId: messageId,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> title = const Value.absent(),
+            Value<String> body = const Value.absent(),
+            Value<List<NoteItem>> items = const Value.absent(),
+            Value<bool> checklist = const Value.absent(),
+            Value<NoteColor> color = const Value.absent(),
+            Value<bool> pinned = const Value.absent(),
+            Value<String?> chatId = const Value.absent(),
+            Value<String?> chatTitle = const Value.absent(),
+            Value<String?> messageId = const Value.absent(),
+            required DateTime createdAt,
+            required DateTime updatedAt,
+          }) =>
+              NotesCompanion.insert(
+            id: id,
+            title: title,
+            body: body,
+            items: items,
+            checklist: checklist,
+            color: color,
+            pinned: pinned,
+            chatId: chatId,
+            chatTitle: chatTitle,
+            messageId: messageId,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$NotesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $NotesTable,
+    Note,
+    $$NotesTableFilterComposer,
+    $$NotesTableOrderingComposer,
+    $$NotesTableAnnotationComposer,
+    $$NotesTableCreateCompanionBuilder,
+    $$NotesTableUpdateCompanionBuilder,
+    (Note, BaseReferences<_$AppDatabase, $NotesTable, Note>),
+    Note,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -1897,4 +2734,6 @@ class $AppDatabaseManager {
       $$TasksTableTableManager(_db, _db.tasks);
   $$EventsTableTableManager get events =>
       $$EventsTableTableManager(_db, _db.events);
+  $$NotesTableTableManager get notes =>
+      $$NotesTableTableManager(_db, _db.notes);
 }

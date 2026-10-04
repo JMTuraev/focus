@@ -151,7 +151,11 @@ class _ChatViewState extends State<ChatView> {
           onCalendar: target == null ? null : () => _toCalendar(target),
           onNote: target == null
               ? null
-              : () => _toast('Eslatmaga saqlandi: “${_short(target.text)}”', action: 'Eslatmalarni ochish', goTo: Module.notes),
+              : () async {
+                  await s.noteFromMessage(target);
+                  final what = target.text.isEmpty ? (target.fileName ?? target.mediaLabel ?? 'xabar') : target.text;
+                  _toast('Eslatmaga saqlandi: “${_short(what)}”', action: 'Eslatmalarni ochish', goTo: Module.notes);
+                },
         ),
         Expanded(
           child: CustomPaint(

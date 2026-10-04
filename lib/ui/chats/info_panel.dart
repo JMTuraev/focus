@@ -126,7 +126,12 @@ class InfoPanel extends StatelessWidget {
             count: state.events.upcomingForChat(chat.id).length,
             onTap: () => state.showEventsForChat(chat.id),
           ),
-          _Link(icon: Icons.sticky_note_2_outlined, label: 'Eslatmalar', onTap: () => state.openModule(Module.notes)),
+          _Link(
+            icon: Icons.sticky_note_2_outlined,
+            label: 'Eslatmalar',
+            count: state.notes.countForChat(chat.id),
+            onTap: () => state.showNotesForChat(chat.id),
+          ),
           _Link(icon: Icons.folder_outlined, label: 'Fayllar', onTap: () => state.openModule(Module.files)),
           const SizedBox(height: 12),
         ],
