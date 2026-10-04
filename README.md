@@ -75,6 +75,6 @@ flutter run -d windows --dart-define-from-file=secrets.json --dart-define=USE_MO
 
 TDLib bazasi Windows DPAPI bilan himoyalangan tasodifiy kalit orqali shifrlanadi.
 
-## Keyingi qadam (1-bosqich davomi)
+## Keyingi qadam
 
-Chatlar ro‘yxati va xabarlarni TDLib’dan olish, to‘plamlar va filtrlarni haqiqiy chatlarga ulash.
+1-bosqich yakunlandi: login, chatlar, xabarlar, to‘plamlar va filtrlar. Keyingisi 2-bosqich: vazifalar, kalendar, eslatmalar va SQLite (drift) bazasi.
