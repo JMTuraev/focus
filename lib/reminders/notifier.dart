@@ -24,7 +24,7 @@ abstract class Notifier {
 }
 
 /// Windows toasts via flutter_local_notifications. Scheduled toasts are kept
-/// by Windows, so they appear even when Fokus is closed.
+/// by Windows, so they appear even when Focus is closed.
 class WindowsNotifier implements Notifier {
   final _plugin = FlutterLocalNotificationsPlugin();
   final _taps = StreamController<String>.broadcast();
@@ -33,7 +33,7 @@ class WindowsNotifier implements Notifier {
   /// Identity of the app for Windows' notification system. Never change these:
   /// Windows ties scheduled toasts and click activation to them.
   static const _settings = WindowsInitializationSettings(
-    appName: 'Fokus',
+    appName: 'Focus',
     appUserModelId: 'Fokus.Desktop.App',
     guid: '6c3f2a8e-4b1d-4f7a-9e2c-5d8b1a0f3e71',
   );

@@ -303,7 +303,7 @@ class _BackupDialogState extends State<_BackupDialog> {
           activeThumbColor: Colors.white,
           activeTrackColor: c.accentStrong,
           title: Text('Har kuni avtomatik saqlash', style: TextStyle(color: c.text, fontSize: 14)),
-          subtitle: Text('Fokus ochiq bo‘lganda, kuniga bir marta', style: TextStyle(color: c.text2, fontSize: 12.5)),
+          subtitle: Text('Focus ochiq bo‘lganda, kuniga bir marta', style: TextStyle(color: c.text2, fontSize: 12.5)),
         ),
         Align(
           alignment: Alignment.centerLeft,

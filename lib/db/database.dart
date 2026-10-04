@@ -156,7 +156,7 @@ class ChatCollections extends Table {
   Set<Column> get primaryKey => {chatId};
 }
 
-/// Unread messages already seen in Fokus, per chat (Telegram is not told).
+/// Unread messages already seen in Focus, per chat (Telegram is not told).
 @DataClassName('SeenCountRow')
 class SeenCounts extends Table {
   TextColumn get chatId => text()();
@@ -176,9 +176,9 @@ class KeyValues extends Table {
   Set<Column> get primaryKey => {key};
 }
 
-/// Fokus' own local database (`fokus.sqlite` in the app support folder).
+/// Focus' own local database (`fokus.sqlite` in the app support folder).
 /// Telegram data stays in TDLib; this holds tasks, calendar events, notes,
-/// collections and the Fokus-only "seen" counters.
+/// collections and the Focus-only "seen" counters.
 @DriftDatabase(tables: [Tasks, Events, Notes, Collections, ChatCollections, SeenCounts, KeyValues])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);

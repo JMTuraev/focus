@@ -175,7 +175,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Sinab ko‘rish'));
     await tester.pumpAndSettle();
-    expect(notifier.shown, ['Fokus: Bildirishnomalar ishlayapti.']);
+    expect(notifier.shown, ['Focus: Bildirishnomalar ishlayapti.']);
 
     await tester.tap(find.byType(Switch));
     await tester.pumpAndSettle();

@@ -40,7 +40,7 @@ class Snapshot {
 
       final version = await _userVersion(file);
       if (version > db.schemaVersion) {
-        throw BackupException('Bu zaxira nusxasi Fokus’ning yangiroq versiyasida yaratilgan. Ilovani yangilang.');
+        throw BackupException('Bu zaxira nusxasi Focus’ning yangiroq versiyasida yaratilgan. Ilovani yangilang.');
       }
       // Bring the copy up to the current schema.
       final copy = AppDatabase(NativeDatabase(file));

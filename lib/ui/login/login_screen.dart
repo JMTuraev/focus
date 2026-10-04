@@ -630,7 +630,7 @@ class _PrivacyNote extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            'Kod va parol faqat Telegram serverlariga yuboriladi. Fokus’ning o‘z serveri yo‘q, '
+            'Kod va parol faqat Telegram serverlariga yuboriladi. Focus’ning o‘z serveri yo‘q, '
             'xabarlaringiz o‘qilgan deb belgilanmaydi.',
             style: TextStyle(fontSize: 12.5, height: 1.4, color: c.text2),
           ),

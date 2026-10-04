@@ -9,13 +9,13 @@ import 'package:path_provider/path_provider.dart';
 import '../db/database.dart';
 import 'models.dart';
 
-/// Fokus-only data about chats, kept in the local database (`fokus.sqlite`):
+/// Focus-only data about chats, kept in the local database (`fokus.sqlite`):
 /// - the user's collections (name, icon, order);
 /// - which collection a chat belongs to;
-/// - how many unread messages the user has already seen in Fokus.
+/// - how many unread messages the user has already seen in Focus.
 ///
-/// Fokus never calls viewMessages, so Telegram's unread counters stay as they
-/// are; the "seen" numbers here only hide the badge inside Fokus.
+/// Focus never calls viewMessages, so Telegram's unread counters stay as they
+/// are; the "seen" numbers here only hide the badge inside Focus.
 ///
 /// Everything is held in memory for synchronous reads; every change is
 /// written to the database in order (see [flush]). Until phase 2 this lived
@@ -209,7 +209,7 @@ class LocalStore {
         .insert(ChatCollectionsCompanion.insert(chatId: chatId, collectionId: collectionId), mode: InsertMode.insertOrReplace));
   }
 
-  /// Unread messages already seen in Fokus for [chatId].
+  /// Unread messages already seen in Focus for [chatId].
   int seenOf(String chatId) => _seen[chatId] ?? 0;
 
   void setSeen(String chatId, int count) {

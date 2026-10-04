@@ -106,7 +106,7 @@ class _AuthGateState extends State<AuthGate> {
     _session = null;
   }
 
-  /// Fokus was started by a click on a notification: open its target once.
+  /// Focus was started by a click on a notification: open its target once.
   Future<void> _handleLaunch() async {
     if (_launchHandled) return;
     _launchHandled = true;
@@ -171,7 +171,7 @@ class _AuthGateState extends State<AuthGate> {
         backgroundColor: c.panel,
         title: Text('Akkauntdan chiqasizmi?', style: TextStyle(color: c.text, fontSize: 18, fontWeight: FontWeight.w700)),
         content: Text(
-          'Fokus’dagi Telegram sessiyasi yopiladi. Telefoningizdagi Telegram ishlashda davom etadi.',
+          'Focus’dagi Telegram sessiyasi yopiladi. Telefoningizdagi Telegram ishlashda davom etadi.',
           style: TextStyle(color: c.text2, fontSize: 14, height: 1.4),
         ),
         actions: [

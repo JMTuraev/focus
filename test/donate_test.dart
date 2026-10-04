@@ -143,7 +143,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
       expect(find.byType(DonateDialog), findsOneWidget);
-      expect(find.text('Fokus’ni qo‘llab-quvvatlash'), findsOneWidget);
+      expect(find.text('Focus’ni qo‘llab-quvvatlash'), findsOneWidget);
     });
   }
 }

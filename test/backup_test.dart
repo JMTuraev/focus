@@ -53,12 +53,12 @@ void main() {
   group('BackupCrypto', () {
     test('round trip; wrong password, tampering and other files are refused', () async {
       final key = await BackupCrypto.deriveKey('to‘g‘ri-parol', params: light);
-      final plain = Uint8List.fromList(utf8.encode('Fokus ma’lumotlari 🔐'));
+      final plain = Uint8List.fromList(utf8.encode('Focus ma’lumotlari 🔐'));
       final data = await BackupCrypto.encrypt(plain, key);
 
       expect(ascii.decode(data.sublist(0, 8)), 'FOKUSBAK');
-      expect(utf8.decode(await BackupCrypto.decrypt(data, key)), 'Fokus ma’lumotlari 🔐');
-      expect(utf8.decode(await BackupCrypto.decryptWithPassword(data, 'to‘g‘ri-parol')), 'Fokus ma’lumotlari 🔐');
+      expect(utf8.decode(await BackupCrypto.decrypt(data, key)), 'Focus ma’lumotlari 🔐');
+      expect(utf8.decode(await BackupCrypto.decryptWithPassword(data, 'to‘g‘ri-parol')), 'Focus ma’lumotlari 🔐');
 
       expect(() => BackupCrypto.decryptWithPassword(data, 'notogri-parol'),
           throwsA(isA<BackupException>().having((e) => e.message, 'message', contains('Parol noto‘g‘ri'))));
@@ -250,7 +250,7 @@ void main() {
                 'date': 1790000000,
                 'content': {
                   '@type': 'messageDocument',
-                  'caption': {'text': '#fokus_backup Fokus zaxira nusxasi'},
+                  'caption': {'text': '#fokus_backup Focus zaxira nusxasi'},
                   'document': {'file_name': 'fokus-backup-x.fokusbak', 'document': {'id': 55, 'size': 3}},
                 },
               },

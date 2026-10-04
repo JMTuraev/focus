@@ -96,7 +96,7 @@ class _SettingsDialog extends StatelessWidget {
                 title: Text('Uchrashuv va vazifa bildirishnomalari', style: TextStyle(color: c.text, fontSize: 14.5)),
                 subtitle: Text(
                   available
-                      ? 'Windows bildirishnomasi Fokus yopiq bo‘lsa ham o‘z vaqtida chiqadi.'
+                      ? 'Windows bildirishnomasi Focus yopiq bo‘lsa ham o‘z vaqtida chiqadi.'
                       : 'Windows bildirishnomalari bu kompyuterda ishga tushmadi.',
                   style: TextStyle(color: c.text2, fontSize: 12.5),
                 ),
@@ -124,7 +124,7 @@ class _SettingsDialog extends StatelessWidget {
                     ),
                     TextButton(
                       onPressed: () async {
-                        await notifier!.show(id: 1, title: 'Fokus', body: 'Bildirishnomalar ishlayapti.');
+                        await notifier!.show(id: 1, title: 'Focus', body: 'Bildirishnomalar ishlayapti.');
                         if (context.mounted) {
                           showToast(context, (w) => SnackBar(width: w < 420 ? w : 420, content: const Text('Sinov bildirishnomasi yuborildi')));
                         }
@@ -152,17 +152,17 @@ class _SettingsDialog extends StatelessWidget {
                   onTap: () => showBackupDialog(context, backup!, onRestored: onRestored ?? () async {}),
                 ),
               ],
-              label('Fokus haqida'),
+              label('Focus haqida'),
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(Icons.favorite_border, color: c.icon),
-                title: Text('Fokus’ni qo‘llab-quvvatlash', style: TextStyle(color: c.text, fontSize: 14.5)),
+                title: Text('Focus’ni qo‘llab-quvvatlash', style: TextStyle(color: c.text, fontSize: 14.5)),
                 subtitle: Text('Donat va boshqa yo‘llar bilan yordam', style: TextStyle(color: c.text2, fontSize: 12.5)),
                 trailing: Icon(Icons.chevron_right, color: c.text2),
                 onTap: () => showDonateDialog(context),
               ),
               const SizedBox(height: 8),
-              Text('Fokus ${AppConfig.version}', style: TextStyle(color: c.text2, fontSize: 12)),
+              Text('Focus ${AppConfig.version}', style: TextStyle(color: c.text2, fontSize: 12)),
             ],
           ),
         ),

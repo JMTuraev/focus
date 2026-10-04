@@ -111,7 +111,7 @@ class BackupService extends ChangeNotifier {
       await transport.upload(
         data,
         fileName: fileName(now),
-        caption: '$tag Fokus zaxira nusxasi · ${MeetingParser.label(now)}\n'
+        caption: '$tag Focus zaxira nusxasi · ${MeetingParser.label(now)}\n'
             'Shifrlangan: faqat backup parolingiz bilan ochiladi.',
         progress: (p) {
           progress = p;
@@ -168,7 +168,7 @@ class BackupService extends ChangeNotifier {
     }
   }
 
-  /// Daily automatic backup while Fokus runs (checked hourly).
+  /// Daily automatic backup while Focus runs (checked hourly).
   void startAuto() {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(hours: 1), (_) => maybeAutoBackup());

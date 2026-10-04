@@ -31,7 +31,7 @@ enum ChatType {
 }
 
 /// UI state on top of a [ChatSource] (mock or TDLib) and the [LocalStore]
-/// with Fokus-only data (collections, locally seen messages).
+/// with Focus-only data (collections, locally seen messages).
 class AppState extends ChangeNotifier {
   AppState({
     required this.source,
@@ -224,7 +224,7 @@ class AppState extends ChangeNotifier {
 
   bool _passesType(Chat c) => (types.isEmpty || types.contains(ChatType.of(c))) && !(hideMuted && c.muted);
 
-  /// Unread messages not yet seen in Fokus. Telegram's own counter is left
+  /// Unread messages not yet seen in Focus. Telegram's own counter is left
   /// untouched (no viewMessages); if it drops because the chat was read on
   /// another device, the local mark follows it down.
   int unreadOf(Chat c) {
@@ -276,7 +276,7 @@ class AppState extends ChangeNotifier {
     activeChatId = id;
     selectedMessageId = null;
     narrowChatOpen = true;
-    // Local mode: only the badge inside Fokus is cleared.
+    // Local mode: only the badge inside Focus is cleared.
     // Nothing is reported to Telegram (no viewMessages call).
     final c = source.chatById(id);
     if (c != null) store.setSeen(id, c.unread);

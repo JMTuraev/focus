@@ -25,7 +25,7 @@ Future<void> main() async {
   await notifier.init();
 
   const options = WindowOptions(
-    title: 'Fokus',
+    title: 'Focus',
     size: Size(1440, 900),
     minimumSize: Size(420, 560),
     center: true,
@@ -77,7 +77,7 @@ class FokusApp extends StatelessWidget {
     return ListenableBuilder(
       listenable: settings,
       builder: (context, _) => MaterialApp(
-        title: 'Fokus',
+        title: 'Focus',
         debugShowCheckedModeBanner: false,
         theme: buildTheme(Brightness.light),
         darkTheme: buildTheme(Brightness.dark),

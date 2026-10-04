@@ -43,7 +43,7 @@ abstract class ChatSource extends ChangeNotifier {
   Future<void> send(String chatId, String text);
 }
 
-/// What the app needs after login: chats plus Fokus-only local data.
+/// What the app needs after login: chats plus Focus-only local data.
 class ChatSession {
   ChatSession({
     required this.source,
@@ -59,7 +59,7 @@ class ChatSession {
   final ChatSource source;
   final LocalStore store;
 
-  /// Tasks and other Fokus data (in memory for mock sessions).
+  /// Tasks and other Focus data (in memory for mock sessions).
   final AppDatabase db;
 
   /// Where encrypted backups go (Saved Messages; memory for mock sessions).

@@ -98,10 +98,10 @@ class BackupCrypto {
   /// The salt and settings in a backup header (to derive the key).
   static (Uint8List salt, KdfParams params) readHeader(Uint8List data) {
     if (data.length < _headerLength + 16 || !_startsWithMagic(data)) {
-      throw BackupException('Bu Fokus zaxira nusxasi emas yoki fayl buzilgan.');
+      throw BackupException('Bu Focus zaxira nusxasi emas yoki fayl buzilgan.');
     }
     if (data[8] != version || data[9] != _kdfArgon2id) {
-      throw BackupException('Bu zaxira nusxasi Fokus’ning yangiroq versiyasida yaratilgan. Ilovani yangilang.');
+      throw BackupException('Bu zaxira nusxasi Focus’ning yangiroq versiyasida yaratilgan. Ilovani yangilang.');
     }
     final b = ByteData.sublistView(data);
     final params = KdfParams(memoryKiB: b.getUint32(10), iterations: b.getUint32(14), parallelism: data[18]);

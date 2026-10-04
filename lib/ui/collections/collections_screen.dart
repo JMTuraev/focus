@@ -105,7 +105,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
             Text('To‘plamlar', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: c.text)),
             const SizedBox(height: 4),
             Text(
-              'Chatlarni o‘zingizga qulay guruhlarga ajrating. Bu faqat Fokus’da saqlanadi, Telegram’ga ta’sir qilmaydi.',
+              'Chatlarni o‘zingizga qulay guruhlarga ajrating. Bu faqat Focus’da saqlanadi, Telegram’ga ta’sir qilmaydi.',
               style: TextStyle(fontSize: 13.5, color: c.text2),
             ),
           ],

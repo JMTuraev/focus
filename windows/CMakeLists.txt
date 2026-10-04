@@ -1,10 +1,10 @@
 # Project-level configuration.
 cmake_minimum_required(VERSION 3.14)
-project(fokus LANGUAGES CXX)
+project(focus LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
-set(BINARY_NAME "fokus")
+set(BINARY_NAME "focus")
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.
@@ -107,6 +107,6 @@ install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   CONFIGURATIONS Profile;Release
   COMPONENT Runtime)
 
-# Fokus: bundle TDLib DLLs next to fokus.exe
+# Fokus: bundle TDLib DLLs next to focus.exe
 file(GLOB FOKUS_TDLIB_DLLS "${CMAKE_CURRENT_SOURCE_DIR}/../tdlib/*.dll")
 install(FILES ${FOKUS_TDLIB_DLLS} DESTINATION "${INSTALL_BUNDLE_LIB_DIR}" COMPONENT Runtime)

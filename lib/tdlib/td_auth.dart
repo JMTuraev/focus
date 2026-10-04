@@ -94,12 +94,12 @@ class TdAuth implements AuthService {
         _state.value = const AuthState(
           AuthStep.unsupported,
           message: 'Bu raqamda Telegram akkaunti yo‘q. Avval rasmiy Telegram ilovasida ro‘yxatdan o‘ting, '
-              'keyin Fokus orqali kiring.',
+              'keyin Focus orqali kiring.',
         );
       case 'authorizationStateWaitEmailAddress' || 'authorizationStateWaitEmailCode':
         _state.value = const AuthState(
           AuthStep.unsupported,
-          message: 'Telegram bu kirish uchun email tasdiqlashni so‘rayapti. Bu imkoniyat Fokus’da hali yo‘q. '
+          message: 'Telegram bu kirish uchun email tasdiqlashni so‘rayapti. Bu imkoniyat Focus’da hali yo‘q. '
               'Avval rasmiy Telegram ilovasida emailni tasdiqlang, keyin qayta urinib ko‘ring.',
         );
       case 'authorizationStateReady':
@@ -310,7 +310,7 @@ String authErrorText(Object e) {
 ///
 /// - Never report the user as online.
 /// - Never call `viewMessages` (that is what marks messages as read on
-///   every device). Opening a chat in Fokus only clears the local badge.
+///   every device). Opening a chat in Focus only clears the local badge.
 /// - No typing actions (`sendChatAction`).
 /// [TdClient] refuses to send [forbiddenRequests].
 /// Known limit: sending a reply makes Telegram treat the chat as read.

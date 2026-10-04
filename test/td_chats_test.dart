@@ -366,7 +366,7 @@ void main() {
     expect(source.chatById('3')!.waiting, isTrue);
   });
 
-  test('Fokus-only seen counter hides badges without telling Telegram', () async {
+  test('Focus-only seen counter hides badges without telling Telegram', () async {
     final (td, source) = await started(setup: (td) {
       td.handlers['getChatHistory'] = (_) => {'messages': []};
     });

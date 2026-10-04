@@ -1,4 +1,4 @@
-# Fokus — 0-bosqich skeleti
+# Focus — 0-bosqich skeleti
 
 Windows uchun lokal ishlaydigan desktop klient. Hozircha soxta ma'lumot bilan ishlaydi (UI-first), TDLib qatlami tayyor, lekin UI'ga hali ulanmagan.
 
@@ -53,7 +53,7 @@ lib/
     td_chats.dart        chatlar va xabarlar TDLib update’laridan (TdChatSource)
 tool/
   td_check.dart          DLL tekshiruvi
-  setup_windows.ps1      DLL'larni fokus.exe yoniga nusxalash qoidasi
+  setup_windows.ps1      DLL'larni focus.exe yoniga nusxalash qoidasi
 .github/workflows/tdlib-windows.yml
 ```
 
@@ -74,6 +74,16 @@ flutter run -d windows --dart-define-from-file=secrets.json --dart-define=USE_MO
 ```
 
 TDLib bazasi Windows DPAPI bilan himoyalangan tasodifiy kalit orqali shifrlanadi.
+
+## Kompyuterga o‘rnatish
+
+Release build qilib, `%LOCALAPPDATA%\Programs\Focus` ga o‘rnatadi va ish stoliga "Focus" yorlig‘ini qo‘yadi. Login va lokal ma’lumotlar saqlanib qoladi. Avval Focus’ni yoping.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tool\install_local.ps1
+```
+
+Ikonka `tool\make_icon.py` bilan logotipdan yasaladi.
 
 ## Keyingi qadam
 

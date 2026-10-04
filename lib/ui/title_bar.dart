@@ -33,7 +33,7 @@ class FokusTitleBar extends StatelessWidget {
                   const SizedBox(width: 14),
                   const FokusLogo(size: 20),
                   const SizedBox(width: 8),
-                  Text('Fokus', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: c.text)),
+                  Text('Focus', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: c.text)),
                   const Spacer(),
                   LocalModeBadge(compact: width < 760, iconOnly: width < 560),
                   const Spacer(),
@@ -44,7 +44,7 @@ class FokusTitleBar extends StatelessWidget {
           _WinButton(
             icon: Icons.favorite_border,
             label: 'Donat',
-            tooltip: 'Fokus’ni qo‘llab-quvvatlash',
+            tooltip: 'Focus’ni qo‘llab-quvvatlash',
             onTap: () => showDonateDialog(context),
           ),
           _WinButton(
@@ -114,7 +114,7 @@ class LocalModeBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.fc;
     return Tooltip(
-      message: 'Fokus xabarlarni o‘qilgan deb belgilamaydi va onlayn holatingizni ko‘rsatmaydi',
+      message: 'Focus xabarlarni o‘qilgan deb belgilamaydi va onlayn holatingizni ko‘rsatmaydi',
       child: Container(
         height: 22,
         padding: const EdgeInsets.symmetric(horizontal: 10),

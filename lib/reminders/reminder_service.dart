@@ -9,7 +9,7 @@ import '../state/settings.dart';
 import '../tasks/task_store.dart';
 import 'notifier.dart';
 
-/// One notification Fokus wants Windows to show.
+/// One notification Focus wants Windows to show.
 @immutable
 class PlannedReminder {
   const PlannedReminder({required this.at, required this.title, required this.body, required this.payload});
@@ -31,7 +31,7 @@ class PlannedReminder {
 /// - a meeting with a reminder: [Event.remindBefore] minutes before it starts
 ///   (all-day meetings: at [Settings.taskReminderHour] that day);
 /// - an open task with a due date: at [Settings.taskReminderHour] that day.
-/// Edits, moves and deletes reschedule or cancel; nothing is lost if Fokus
+/// Edits, moves and deletes reschedule or cancel; nothing is lost if Focus
 /// is closed, because Windows keeps scheduled toasts.
 class ReminderService {
   ReminderService({

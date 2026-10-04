@@ -26,7 +26,7 @@ const kCollectionIcons = <String, IconData>{
   'bolt': Icons.bolt_outlined,
 };
 
-/// A user-defined group of chats (Fokus-only, never sent to Telegram).
+/// A user-defined group of chats (Focus-only, never sent to Telegram).
 class Collection {
   const Collection(this.id, this.label, this.iconKey);
   final String id;
@@ -93,7 +93,7 @@ class Chat {
   final String time;
   final String status;
 
-  /// Unread count as Telegram knows it (Fokus never marks chats as read).
+  /// Unread count as Telegram knows it (Focus never marks chats as read).
   final int unread;
 
   /// The other side is waiting for our reply.

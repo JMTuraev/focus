@@ -12,7 +12,7 @@ enum AuthStep {
   ready,
   loggingOut,
 
-  /// Telegram asks for something Fokus does not support yet
+  /// Telegram asks for something Focus does not support yet
   /// (sign-up, e-mail confirmation). [AuthState.message] explains it.
   unsupported,
 

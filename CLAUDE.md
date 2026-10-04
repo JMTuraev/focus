@@ -1,6 +1,6 @@
-# Fokus — project rules
+# Focus — project rules
 
-Unofficial, local-first Telegram desktop client for Windows (Flutter + TDLib). Dart package name: `fokus`.
+Unofficial, local-first Telegram desktop client for Windows (Flutter + TDLib). The app is called **Focus** (window title, `focus.exe`, all UI text). Internal names stay `fokus`: the Dart package, `Fokus*` classes, `fokus.sqlite`, the `#fokus_backup` tag and the `FOKUSBAK` format.
 
 ## Language
 - All UI text is Uzbek (Latin script). Use the proper apostrophes `‘` (o‘, g‘) and `’` (tutuq belgisi: ma’lumot, so‘z), not a plain `'`.
@@ -15,12 +15,12 @@ Unofficial, local-first Telegram desktop client for Windows (Flutter + TDLib). D
 ## Architecture
 - No server. Telegram data comes only from TDLib (`lib/tdlib/`). Everything else (collections, tasks, notes, calendar) is stored locally (SQLite via drift, from phase 2).
 - Backups are encrypted locally and uploaded to the user's own Saved Messages.
-- TDLib binaries live in `tdlib/` (git-ignored), built by `.github/workflows/tdlib-windows.yml` and copied next to `fokus.exe` by the CMake rule added by `tool/setup_windows.ps1`.
+- TDLib binaries live in `tdlib/` (git-ignored), built by `.github/workflows/tdlib-windows.yml` and copied next to `focus.exe` by the CMake rule added by `tool/setup_windows.ps1`.
 
 ## Local mode (must never be broken)
 Defined in `lib/tdlib/td_auth.dart` → `LocalMode`.
 - Set option `online = false` right after authorization.
-- Never call `viewMessages`, `sendChatAction`, `readAllChatMentions` (or `readAllChatReactions`). Opening a chat in Fokus only clears the local badge.
+- Never call `viewMessages`, `sendChatAction`, `readAllChatMentions` (or `readAllChatReactions`). Opening a chat in Focus only clears the local badge.
 - Known limit: sending a reply makes Telegram treat the chat as read.
 
 ## Palette and themes
@@ -50,11 +50,11 @@ Breakpoints are in `lib/ui/layout.dart`, modelled on Telegram Desktop:
 - `lib/data/chat_source.dart`: `ChatSource` (chats, messages, send, history) and `ChatSession`. UI and `AppState` only use this.
 - `lib/data/mock_source.dart` wraps the mock data; `lib/tdlib/td_chats.dart` (`TdChatSource`) builds chats from TDLib `update*` objects.
 - `TdChatSource` talks to TDLib through `TdApi`, so `test/td_chats_test.dart` can drive it with a fake.
-- Fokus-only data (collections, chat assignments, unread already seen in Fokus) lives in `lib/data/local_store.dart`: held in memory, written in order to the drift tables `collections`, `chat_collections`, `seen_counts` (schema v4). The old `local_state.json` is imported once (flag `localStateImported` in `key_values`) and kept as `local_state.json.bak`.
+- Focus-only data (collections, chat assignments, unread already seen in Focus) lives in `lib/data/local_store.dart`: held in memory, written in order to the drift tables `collections`, `chat_collections`, `seen_counts` (schema v4). The old `local_state.json` is imported once (flag `localStateImported` in `key_values`) and kept as `local_state.json.bak`.
 - `openChat`/`closeChat`/`getChatHistory` are allowed; anything that marks messages as read is not.
 
 ## Collections and filters
-- Collections are Fokus-only (`LocalStore`): create, rename, change icon, delete, reorder. Deleting a collection makes its chats unsorted; nothing is ever changed in Telegram.
+- Collections are Focus-only (`LocalStore`): create, rename, change icon, delete, reorder. Deleting a collection makes its chats unsorted; nothing is ever changed in Telegram.
 - `AppState.collectionOf` returns '' for unsorted chats or chats of a deleted collection.
 - "To‘plamlar" screen (`lib/ui/collections/`): collection cards and the "Saralanmagan" list with type tabs and bulk moves. Chats move by right click in the chat list, the info panel chips, or the unsorted list.
 - Filters: waiting / unread chips plus the chat type filter (Shaxsiy, Guruhlar, Kanallar, Botlar) and "hide muted"; the chips count within the type filter.
@@ -77,12 +77,14 @@ Breakpoints are in `lib/ui/layout.dart`, modelled on Telegram Desktop:
 
 ## Reminders (notifications)
 - `lib/reminders/`: `ReminderService` keeps Windows scheduled toasts in line with meetings (`remindBefore`) and open tasks with a due date (at `Settings.taskReminderHour`). Ids: 100000000 + event id, 200000000 + task id. Payloads `event:ID` / `task:ID` open the calendar or the tasks board.
-- Windows keeps scheduled toasts, so they fire when Fokus is closed. App identity (`appUserModelId`, `guid` in `notifier.dart`) must never change.
+- Windows keeps scheduled toasts, so they fire when Focus is closed. App identity (`appUserModelId`, `guid` in `notifier.dart`) must never change.
 - Building needs the Visual Studio component "C++ ATL" (`Microsoft.VisualStudio.Component.VC.ATL`) for flutter_local_notifications_windows.
 - Settings dialog (rail ⚙): theme (system / light / dark), reminders on/off, task reminder hour, test notification, backup.
 
 ## Windows runner
 - `windows/runner/main.cpp` allows one instance (named mutex): a second start brings the running window to the front and exits, because two instances would fight over the TDLib database. Close the app before `flutter run`.
+- `Runner.rc` `CompanyName` (`com.example`) and `ProductName` (`fokus`) decide the data folder `%APPDATA%\com.example\fokus` (TDLib session, `fokus.sqlite`, keys). Never change them without moving that folder first, or users lose their login and local data.
+- Local install: `tool/install_local.ps1` builds a release, copies it to `%LOCALAPPDATA%\Programs\Focus` and puts a "Focus" shortcut on the desktop.
 
 ## Notes
 - `lib/notes/note_store.dart` (`Notes` table, schema v3); screen and editor in `lib/ui/notes/`. Text notes or checklists (items as JSON via `NoteItemsConverter`), 7 colors (`FokusColors.noteColors`, `NoteColor` order), pinning.
@@ -101,10 +103,10 @@ Breakpoints are in `lib/ui/layout.dart`, modelled on Telegram Desktop:
 - The derived key is kept on this PC in `backup.key` (DPAPI), outside the database, so backups need no password here. Restoring a backup with another salt asks for its password. The password itself is never stored.
 - Restore (`snapshot.dart`): refuse newer schemas, run migrations on the backup copy, then `ATTACH` it and copy every table with explicit columns in one transaction. Then `AppState.reloadLocalData()`. The local `backupLastAt` and `backupAuto` values win over the backup.
 - TDLib transport (`lib/tdlib/td_backup.dart`): `inputMessageDocument.document` is an `inputDocument` that wraps the `InputFile` (TDLib 1.8.6x). Check `td_api.tl` for the pinned commit before changing any TDLib call.
-- Daily automatic backup runs while Fokus is open (checked hourly). Settings → "Zaxira nusxa".
+- Daily automatic backup runs while Focus is open (checked hourly). Settings → "Zaxira nusxa".
 
 ## Donations (phase 3)
-- `lib/ui/donate_dialog.dart`, opened by the heart in the title bar (also on the login screen) and from Settings → "Fokus haqida". Kept out of the rail so collections keep their space.
+- `lib/ui/donate_dialog.dart`, opened by the heart in the title bar (also on the login screen) and from Settings → "Focus haqida". Kept out of the rail so collections keep their space.
 - Payment details come from build-time defines in `secrets.json` (`DONATE_CARD`, `DONATE_CARD_HOLDER`, `DONATE_CARD_LABEL`, `DONATE_PAYME_URL`, `DONATE_CLICK_URL`, `DONATE_TIRIKCHILIK_URL`, `DONATE_OTHER_URL`, `DONATE_OTHER_LABEL`, `DONATE_TELEGRAM_URL`; see `secrets.example.json`), read by `lib/donate/donate_info.dart`. Never hard-code them. Empty or invalid values are hidden; only https links are opened; card numbers must be 12–19 digits.
 - Donations are voluntary and never unlock a feature (also a Microsoft Store requirement for external payment links in non-game apps).
 - GitHub star and issue links use `AppConfig.repoUrl`.

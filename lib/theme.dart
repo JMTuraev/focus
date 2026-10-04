@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Fokus palette, light and dark (Telegram "Night"-like) variants.
+/// Focus palette, light and dark (Telegram "Night"-like) variants.
 ///
 /// Read colors in widgets with `final c = context.fc;`.
 /// - [accent] `#3390EC`: icons, strokes, non-text accents.

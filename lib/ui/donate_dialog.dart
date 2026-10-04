@@ -13,7 +13,7 @@ typedef LinkOpener = Future<bool> Function(Uri url);
 
 Future<bool> _launch(Uri url) => launchUrl(url, mode: LaunchMode.externalApplication);
 
-/// "Fokus’ni qo‘llab-quvvatlash": voluntary donations and other ways to help.
+/// "Focus’ni qo‘llab-quvvatlash": voluntary donations and other ways to help.
 Future<void> showDonateDialog(BuildContext context, {DonateInfo? info, LinkOpener? open}) {
   return showDialog<void>(
     context: context,
@@ -108,7 +108,7 @@ class _DonateDialogState extends State<DonateDialog> {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Text('Fokus’ni qo‘llab-quvvatlash',
+            child: Text('Focus’ni qo‘llab-quvvatlash',
                 style: TextStyle(color: c.text, fontSize: 18, fontWeight: FontWeight.w700)),
           ),
         ],
@@ -122,7 +122,7 @@ class _DonateDialogState extends State<DonateDialog> {
             children: [
               const SizedBox(height: 4),
               Text(
-                'Fokus bepul, reklamasiz va serversiz ishlaydi: ma’lumotlaringiz faqat kompyuteringizda va '
+                'Focus bepul, reklamasiz va serversiz ishlaydi: ma’lumotlaringiz faqat kompyuteringizda va '
                 'Telegram’ingizda turadi. Donatlar yangi imkoniyatlar ustida ishlashga vaqt ajratishga yordam beradi.',
                 style: TextStyle(color: c.textSoft, fontSize: 14, height: 1.45),
               ),
