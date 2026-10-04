@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../data/models.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
-import 'collections/collection_dialogs.dart';
 
 const _modules = <(Module, String, IconData)>[
   (Module.chats, 'Chatlar', Icons.chat_bubble_outline),
@@ -15,7 +13,8 @@ const _modules = <(Module, String, IconData)>[
   (Module.stats, 'Statistika', Icons.bar_chart),
 ];
 
-/// Narrow vertical panel: modules on top, collections below (like folders).
+/// Narrow vertical panel with the modules. Collections live as tabs above
+/// the chat list.
 class Rail extends StatelessWidget {
   const Rail({super.key, required this.state, required this.onLogout, required this.onSettings, this.compact = false});
 
@@ -53,38 +52,7 @@ class Rail extends StatelessWidget {
               },
               onTap: () => state.openModule(m.$1),
             ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            child: Divider(height: 1, color: c.border),
-          ),
-          Expanded(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                for (final col in [kAllCollection, ...state.collections])
-                  _RailItem(
-                    onMenu: col.id == kAllCollection.id ? null : (pos) => _collectionMenu(context, col, pos),
-                    label: col.label,
-                    icon: col.icon,
-                    compact: compact,
-                    height: 44,
-                    iconSize: 20,
-                    badge: state.badgeFor(col.id),
-                    active: state.module == Module.chats && state.collection == col.id,
-                    onTap: () => state.pickCollection(col.id),
-                  ),
-                _RailItem(
-                  label: '',
-                  icon: Icons.add,
-                  compact: compact,
-                  height: 38,
-                  iconSize: 20,
-                  tooltip: 'To‘plam qo‘shish',
-                  onTap: () => showCollectionEditor(context, state),
-                ),
-              ],
-            ),
-          ),
+          const Spacer(),
           _RailItem(
             label: 'Sozlamalar',
             icon: Icons.settings_outlined,
@@ -108,28 +76,6 @@ class Rail extends StatelessWidget {
     );
   }
 
-  Future<void> _collectionMenu(BuildContext context, Collection col, Offset pos) async {
-    final c = context.fc;
-    final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
-    final choice = await showMenu<String>(
-      context: context,
-      color: c.panel,
-      position: RelativeRect.fromRect(pos & const Size(1, 1), Offset.zero & overlay.size),
-      items: [
-        PopupMenuItem(
-            value: 'edit', height: 38, child: Text('Tahrirlash', style: TextStyle(color: c.text, fontSize: 14))),
-        PopupMenuItem(
-            value: 'delete', height: 38, child: Text('O‘chirish', style: TextStyle(color: c.danger, fontSize: 14))),
-      ],
-    );
-    if (!context.mounted) return;
-    switch (choice) {
-      case 'edit':
-        await showCollectionEditor(context, state, existing: col);
-      case 'delete':
-        await confirmDeleteCollection(context, state, col);
-    }
-  }
 }
 
 class _RailItem extends StatelessWidget {
@@ -143,7 +89,6 @@ class _RailItem extends StatelessWidget {
     this.iconSize = 22,
     this.badge = 0,
     this.tooltip,
-    this.onMenu,
   });
 
   final String label;
@@ -155,9 +100,6 @@ class _RailItem extends StatelessWidget {
   final double iconSize;
   final int badge;
   final String? tooltip;
-
-  /// Right click: context menu at the pointer position.
-  final void Function(Offset globalPosition)? onMenu;
 
   @override
   Widget build(BuildContext context) {
@@ -218,8 +160,6 @@ class _RailItem extends StatelessWidget {
     );
     final tip = tooltip ?? (compact && label.isNotEmpty ? label : null);
     if (tip != null) body = Tooltip(message: tip, child: body);
-    final menu = onMenu;
-    if (menu != null) body = GestureDetector(onSecondaryTapDown: (d) => menu(d.globalPosition), child: body);
     return Padding(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1), child: body);
   }
 }

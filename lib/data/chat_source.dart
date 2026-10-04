@@ -41,6 +41,11 @@ abstract class ChatSource extends ChangeNotifier {
   Future<void> loadDetails(String chatId);
 
   Future<void> send(String chatId, String text);
+
+  /// Sends [files] to [chatId]. Images go as compressed photos when
+  /// [compressImages] is set (grouped into albums), everything else as
+  /// documents. [caption] goes with the first file.
+  Future<void> sendFiles(String chatId, List<OutgoingFile> files, {String caption = '', bool compressImages = true});
 }
 
 /// What the app needs after login: chats plus Focus-only local data.

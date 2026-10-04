@@ -333,6 +333,13 @@ class AppState extends ChangeNotifier {
     await source.send(id, text);
   }
 
+  /// Sends files to the open chat (see [ChatSource.sendFiles]).
+  Future<void> sendFiles(List<OutgoingFile> files, {String caption = '', bool compressImages = true}) async {
+    final id = activeChatId;
+    if (id == null || files.isEmpty) return;
+    await source.sendFiles(id, files, caption: caption, compressImages: compressImages);
+  }
+
   // ---- tasks ----
   /// Shows the board with only the tasks of [chatId].
   void showTasksForChat(String chatId) {

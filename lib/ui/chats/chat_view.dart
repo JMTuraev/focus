@@ -1,6 +1,9 @@
 import 'dart:math' as math;
 
+import 'package:desktop_drop/desktop_drop.dart';
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../data/format.dart';
 import '../../data/models.dart';
@@ -8,8 +11,10 @@ import '../../state/app_state.dart';
 import '../../theme.dart';
 import '../calendar/event_editor.dart';
 import '../common.dart';
+import 'file_actions.dart';
 import 'media.dart';
 import 'message_text.dart';
+import 'send_files_dialog.dart';
 
 class ChatView extends StatefulWidget {
   const ChatView({super.key, required this.state, required this.infoActive, required this.onInfo, this.onBack});
@@ -30,8 +35,35 @@ class ChatView extends StatefulWidget {
 class _ChatViewState extends State<ChatView> {
   final _input = TextEditingController();
   final _focus = FocusNode();
+  bool _emojiOpen = false;
+  bool _dragging = false;
 
   AppState get s => widget.state;
+
+  Future<void> _attach() async {
+    final files = await pickFiles();
+    if (files.isNotEmpty) await _sendFiles(files);
+  }
+
+  /// Shows the send dialog for picked or dropped files. Text already typed
+  /// in the composer becomes the caption.
+  Future<void> _sendFiles(List<OutgoingFile> files) async {
+    if (!mounted || files.isEmpty) return;
+    final choice = await showSendFilesDialog(context, files, caption: _input.text.trim());
+    if (choice == null || !mounted) return;
+    if (choice.caption.trim().isNotEmpty) _input.clear();
+    try {
+      await s.sendFiles(choice.files, caption: choice.caption, compressImages: choice.compressImages);
+    } catch (_) {
+      if (mounted) _toast('Fayl yuborilmadi. Internet aloqasini tekshirib, qayta urinib ko‘ring.');
+    }
+    _focus.requestFocus();
+  }
+
+  void _toggleEmoji() {
+    setState(() => _emojiOpen = !_emojiOpen);
+    _focus.requestFocus();
+  }
 
   @override
   void dispose() {
@@ -128,7 +160,7 @@ class _ChatViewState extends State<ChatView> {
     final items = _items(msgs);
     final loadingHistory = s.loadingHistory;
     final target = s.targetMessage;
-    return Column(
+    final body = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _Header(
@@ -217,11 +249,119 @@ class _ChatViewState extends State<ChatView> {
             ),
           ),
         ),
-        if (chat.canSend)
-          _Composer(controller: _input, focus: _focus, onSend: _send, onAttach: () => _toast('Fayl tanlash 1-bosqichda ulanadi'))
-        else
+        if (chat.canSend) ...[
+          if (_emojiOpen) _EmojiPanel(controller: _input, onPicked: () => _focus.requestFocus()),
+          _Composer(
+            controller: _input,
+            focus: _focus,
+            onSend: _send,
+            onAttach: _attach,
+            emojiOpen: _emojiOpen,
+            onEmoji: _toggleEmoji,
+            onEscape: _emojiOpen ? () => setState(() => _emojiOpen = false) : null,
+          ),
+        ] else
           _ReadOnlyBar(channel: chat.kind == ChatKind.channel),
       ],
+    );
+    if (!chat.canSend) return body;
+    // Files dragged from Explorer open the send dialog.
+    return DropTarget(
+      onDragEntered: (_) => setState(() => _dragging = true),
+      onDragExited: (_) => setState(() => _dragging = false),
+      onDragDone: (d) {
+        setState(() => _dragging = false);
+        _sendFiles(outgoingFiles(d.files.map((f) => f.path)));
+      },
+      child: Stack(
+        children: [
+          Positioned.fill(child: body),
+          if (_dragging) const Positioned.fill(child: _DropOverlay()),
+        ],
+      ),
+    );
+  }
+}
+
+class _DropOverlay extends StatelessWidget {
+  const _DropOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.fc;
+    return IgnorePointer(
+      child: Container(
+        color: c.panel.withValues(alpha: 0.86),
+        padding: const EdgeInsets.all(18),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: c.accent, width: 2),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.upload_file, size: 44, color: c.accent),
+                const SizedBox(height: 10),
+                Text('Fayllarni shu yerga tashlang',
+                    style: TextStyle(color: c.text, fontSize: 16, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Text('Yuborishdan oldin ko‘rib chiqasiz', style: TextStyle(color: c.text2, fontSize: 13)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Emoji picker above the composer; inserts at the cursor.
+class _EmojiPanel extends StatelessWidget {
+  const _EmojiPanel({required this.controller, required this.onPicked});
+
+  final TextEditingController controller;
+  final VoidCallback onPicked;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.fc;
+    return Container(
+      height: 280,
+      decoration: BoxDecoration(color: c.panel, border: Border(top: BorderSide(color: c.border))),
+      child: EmojiPicker(
+        textEditingController: controller,
+        onEmojiSelected: (_, __) => onPicked(),
+        config: Config(
+          height: 280,
+          checkPlatformCompatibility: false,
+          locale: Localizations.localeOf(context),
+          emojiTextStyle: const TextStyle(fontFamily: 'Segoe UI Emoji'),
+          emojiViewConfig: EmojiViewConfig(
+            columns: 10,
+            emojiSizeMax: 26,
+            backgroundColor: c.panel,
+            noRecents: Text('Hali emoji tanlanmagan', style: TextStyle(color: c.text2, fontSize: 13)),
+            buttonMode: ButtonMode.MATERIAL,
+          ),
+          categoryViewConfig: CategoryViewConfig(
+            backgroundColor: c.panel,
+            indicatorColor: c.accent,
+            iconColor: c.text2,
+            iconColorSelected: c.accent,
+            backspaceColor: c.accent,
+            dividerColor: c.border,
+          ),
+          bottomActionBarConfig: const BottomActionBarConfig(enabled: false),
+          searchViewConfig: SearchViewConfig(
+            backgroundColor: c.panel,
+            buttonIconColor: c.text2,
+            hintText: 'Qidirish',
+          ),
+          skinToneConfig: SkinToneConfig(dialogBackgroundColor: c.panel, indicatorColor: c.text2),
+        ),
+      ),
     );
   }
 }
@@ -480,7 +620,7 @@ class _Bubble extends StatelessWidget {
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: c.senderName(_colorIndex)),
                 ),
               ),
-            if (m.fileName != null) _FileRow(name: m.fileName!, meta: m.fileMeta ?? ''),
+            if (m.fileName != null) FileRow(message: m, state: state),
             if (info != null)
               MessageMedia(message: m, state: state, maxWidth: width - 22)
             else if (m.media != null)
@@ -577,53 +717,41 @@ class _Bubble extends StatelessWidget {
   }
 }
 
-class _FileRow extends StatelessWidget {
-  const _FileRow({required this.name, required this.meta});
-
-  final String name;
-  final String meta;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.fc;
-    return Padding(
-      padding: const EdgeInsets.only(top: 2, bottom: 6),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(color: c.accent, shape: BoxShape.circle),
-            child: const Icon(Icons.insert_drive_file_outlined, color: Colors.white, size: 20),
-          ),
-          const SizedBox(width: 10),
-          Flexible(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: c.text)),
-                Text(meta, style: TextStyle(fontSize: 12.5, color: c.text2)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _Composer extends StatelessWidget {
-  const _Composer({required this.controller, required this.focus, required this.onSend, required this.onAttach});
+  const _Composer({
+    required this.controller,
+    required this.focus,
+    required this.onSend,
+    required this.onAttach,
+    required this.emojiOpen,
+    required this.onEmoji,
+    this.onEscape,
+  });
 
   final TextEditingController controller;
   final FocusNode focus;
   final VoidCallback onSend;
   final VoidCallback onAttach;
+  final bool emojiOpen;
+  final VoidCallback onEmoji;
+
+  /// Closes the emoji panel (null when it is closed).
+  final VoidCallback? onEscape;
 
   @override
   Widget build(BuildContext context) {
     final c = context.fc;
+    final field = TextField(
+      controller: controller,
+      focusNode: focus,
+      onSubmitted: (_) => onSend(),
+      style: TextStyle(fontSize: 14.5, color: c.text),
+      decoration: InputDecoration(
+        hintText: 'Xabar yozing…',
+        hintStyle: TextStyle(color: c.text2),
+        border: InputBorder.none,
+      ),
+    );
     return Container(
       height: 58,
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -632,17 +760,18 @@ class _Composer extends StatelessWidget {
         children: [
           IconButton(tooltip: 'Fayl biriktirish', onPressed: onAttach, icon: Icon(Icons.attach_file, color: c.icon)),
           Expanded(
-            child: TextField(
-              controller: controller,
-              focusNode: focus,
-              onSubmitted: (_) => onSend(),
-              style: TextStyle(fontSize: 14.5, color: c.text),
-              decoration: InputDecoration(
-                hintText: 'Xabar yozing…',
-                hintStyle: TextStyle(color: c.text2),
-                border: InputBorder.none,
-              ),
-            ),
+            child: onEscape == null
+                ? field
+                : CallbackShortcuts(
+                    bindings: {const SingleActivator(LogicalKeyboardKey.escape): onEscape!},
+                    child: field,
+                  ),
+          ),
+          IconButton(
+            tooltip: emojiOpen ? 'Emojilarni yopish' : 'Emoji',
+            onPressed: onEmoji,
+            icon: Icon(emojiOpen ? Icons.keyboard_alt_outlined : Icons.emoji_emotions_outlined,
+                color: emojiOpen ? c.accent : c.icon),
           ),
           IconButton(tooltip: 'Yuborish', onPressed: onSend, icon: Icon(Icons.send_rounded, color: c.accent)),
         ],

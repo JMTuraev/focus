@@ -1,5 +1,6 @@
 import 'models.dart';
 import 'chat_source.dart';
+import 'format.dart';
 import 'meeting_parser.dart';
 import 'mock.dart';
 
@@ -70,6 +71,28 @@ class MockChatSource extends ChatSource {
     (_sent[chatId] ??= []).add(Message(id: '$chatId-s${now.microsecondsSinceEpoch}', text: t, time: time, out: true));
     final i = _chats.indexWhere((c) => c.id == chatId);
     if (i >= 0) _chats[i] = _chats[i].copyWith(last: 'Siz: $t', time: time, waiting: false);
+    notifyListeners();
+  }
+
+  @override
+  Future<void> sendFiles(String chatId, List<OutgoingFile> files, {String caption = '', bool compressImages = true}) async {
+    if (files.isEmpty) return;
+    final now = DateTime.now();
+    final time = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    for (var i = 0; i < files.length; i++) {
+      final f = files[i];
+      (_sent[chatId] ??= []).add(Message(
+        id: '$chatId-f${now.microsecondsSinceEpoch}-$i',
+        text: i == 0 ? caption.trim() : '',
+        time: time,
+        out: true,
+        fileName: f.name,
+        fileMeta: '${Fmt.size(f.size)} · ${f.extension.isEmpty ? 'Fayl' : f.extension.toUpperCase()}',
+        file: FileInfo(fileId: -1, size: f.size, path: f.path, progress: 1),
+      ));
+    }
+    final idx = _chats.indexWhere((c) => c.id == chatId);
+    if (idx >= 0) _chats[idx] = _chats[idx].copyWith(last: 'Siz: ${files.last.name}', time: time, waiting: false);
     notifyListeners();
   }
 }

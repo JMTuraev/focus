@@ -9,6 +9,7 @@ import '../data/chat_source.dart';
 import '../data/format.dart';
 import '../data/meeting_parser.dart';
 import '../data/models.dart';
+import '../data/send_plan.dart';
 import 'td_client.dart';
 
 /// Chats and messages from TDLib, kept up to date from `update*` objects.
@@ -215,11 +216,13 @@ class TdChatSource extends ChatSource {
     final done = local?['is_downloading_completed'] == true;
     final path = local?['path'] as String? ?? '';
     final size = (f['size'] as int?) ?? 0;
+    final remote = f['remote'] as Map?;
     return _FileState(
       path: done && path.isNotEmpty ? path : null,
       downloaded: (local?['downloaded_size'] as int?) ?? 0,
       total: size > 0 ? size : ((f['expected_size'] as int?) ?? 0),
       active: local?['is_downloading_active'] == true,
+      uploaded: (remote?['uploaded_size'] as int?) ?? 0,
     );
   }
 
@@ -390,6 +393,20 @@ class TdChatSource extends ChatSource {
     final state = _file(small);
     if (state.path == null) download(small['id'] as int);
     return state.path;
+  }
+
+  FileInfo? _fileInfo(TdObject f, {required bool uploading}) {
+    if (f['id'] is! int) return null;
+    final st = _files[f['id'] as int] ?? _file(f);
+    final size = st.total > 0 ? st.total : ((f['size'] as int?) ?? 0);
+    return FileInfo(
+      fileId: f['id'] as int,
+      size: size,
+      path: st.path,
+      progress: st.progress,
+      downloading: st.active,
+      uploadProgress: uploading ? (size > 0 ? (st.uploaded / size).clamp(0, 1).toDouble() : 0) : null,
+    );
   }
 
   @override
@@ -568,14 +585,17 @@ class TdChatSource extends ChatSource {
 
     String? fileName;
     String? fileMeta;
+    TdObject? fileObj;
     if (type == 'messageDocument') {
       final doc = content['document'] as TdObject;
+      fileObj = doc['document'] as TdObject?;
       fileName = (doc['file_name'] as String?) ?? 'Fayl';
       final size = ((doc['document'] as TdObject?)?['size'] as int?) ?? 0;
       final ext = fileName.contains('.') ? fileName.split('.').last.toUpperCase() : 'Fayl';
       fileMeta = '${Fmt.size(size)} · $ext';
     } else if (type == 'messageAudio') {
       final a = content['audio'] as TdObject;
+      fileObj = a['audio'] as TdObject?;
       final title = (a['title'] as String?) ?? '';
       fileName = title.isNotEmpty ? title : ((a['file_name'] as String?) ?? 'Audio');
       final size = ((a['audio'] as TdObject?)?['size'] as int?) ?? 0;
@@ -618,6 +638,7 @@ class TdChatSource extends ChatSource {
       senderPhoto: sender?.photo,
       meeting: showMeet ? meet.label : null,
       meetingAt: showMeet ? meet.at : null,
+      file: fileObj == null ? null : _fileInfo(fileObj, uploading: sending == 'messageSendingStatePending'),
     );
   }
 
@@ -932,10 +953,56 @@ class TdChatSource extends ChatSource {
       },
     });
   }
+
+  @override
+  Future<void> sendFiles(String chatId, List<OutgoingFile> files, {String caption = '', bool compressImages = true}) async {
+    if (files.isEmpty) return;
+    final id = int.parse(chatId);
+    var text = caption.trim();
+    if (text.length > kCaptionLimit) {
+      await send(chatId, text);
+      text = '';
+    }
+    final planned = await planFiles(files, compressImages: compressImages);
+    var first = true;
+    for (final group in groupForSending(planned)) {
+      final contents = [
+        for (var i = 0; i < group.length; i++) inputContent(group[i], first && i == 0 ? text : ''),
+      ];
+      first = false;
+      if (contents.length == 1) {
+        await td.query({'@type': 'sendMessage', 'chat_id': id, 'input_message_content': contents.single});
+      } else {
+        await td.query({'@type': 'sendMessageAlbum', 'chat_id': id, 'input_message_contents': contents});
+      }
+    }
+  }
+
+  /// TDLib content for one file (shapes as in td_api.tl of the pinned TDLib).
+  @visibleForTesting
+  static TdObject inputContent(PlannedFile p, String caption) {
+    final file = {'@type': 'inputFileLocal', 'path': p.file.path};
+    final text = {'@type': 'formattedText', 'text': caption};
+    if (p.asPhoto) {
+      return {
+        '@type': 'inputMessagePhoto',
+        'photo': {'@type': 'inputPhoto', 'photo': file, 'width': p.width, 'height': p.height},
+        'caption': text,
+      };
+    }
+    return {
+      '@type': 'inputMessageDocument',
+      'document': {'@type': 'inputDocument', 'document': file},
+      'caption': text,
+    };
+  }
 }
 
 class _FileState {
-  const _FileState({this.path, this.downloaded = 0, this.total = 0, this.active = false});
+  const _FileState({this.path, this.downloaded = 0, this.total = 0, this.active = false, this.uploaded = 0});
+
+  /// Bytes already uploaded (outgoing files).
+  final int uploaded;
 
   /// Set once the download is complete.
   final String? path;

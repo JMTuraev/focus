@@ -1,6 +1,8 @@
 // TdChatSource against a fake TDLib: chat list, previews, history, sending,
 // local "seen" counters, and the local-mode guarantee (no viewMessages).
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fokus/data/local_store.dart';
@@ -398,5 +400,98 @@ void main() {
     expect(types.intersection(LocalMode.forbiddenRequests), isEmpty);
     expect(types, isNot(contains('viewMessages')));
     state.dispose();
+  });
+
+  group('sending files', () {
+    late Directory dir;
+    // 2x1 PNG, enough for the size check.
+    final png = base64Decode(
+        'iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=');
+
+    setUp(() => dir = Directory.systemTemp.createTempSync('focus_send'));
+    tearDown(() => dir.deleteSync(recursive: true));
+
+    OutgoingFile file(String name, List<int> bytes) {
+      final f = File('${dir.path}${Platform.pathSeparator}$name')..writeAsBytesSync(bytes);
+      return OutgoingFile(path: f.path, name: name, size: bytes.length);
+    }
+
+    test('one image goes as a compressed photo with its size', () async {
+      final (td, source) = await started();
+      await source.sendFiles('5', [file('a.png', png)], caption: ' Rasm ');
+      final req = td.sent('sendMessage').single;
+      expect(req['chat_id'], 5);
+      final content = req['input_message_content'] as TdObject;
+      expect(content['@type'], 'inputMessagePhoto');
+      final photo = content['photo'] as TdObject;
+      expect(photo['@type'], 'inputPhoto');
+      expect((photo['photo'] as TdObject)['@type'], 'inputFileLocal');
+      expect(photo['width'], 2);
+      expect(photo['height'], 1);
+      expect((content['caption'] as TdObject)['text'], 'Rasm');
+    });
+
+    test('photos become an album, documents follow without the caption', () async {
+      final (td, source) = await started();
+      await source.sendFiles('5', [file('a.png', png), file('doc.pdf', [1, 2, 3]), file('b.png', png)], caption: 'Hammasi');
+      final album = td.sent('sendMessageAlbum').single;
+      final contents = (album['input_message_contents'] as List).cast<TdObject>();
+      expect(contents.map((c) => c['@type']), ['inputMessagePhoto', 'inputMessagePhoto']);
+      expect((contents[0]['caption'] as TdObject)['text'], 'Hammasi');
+      expect((contents[1]['caption'] as TdObject)['text'], '');
+      final doc = td.sent('sendMessage').single['input_message_content'] as TdObject;
+      expect(doc['@type'], 'inputMessageDocument');
+      expect((doc['document'] as TdObject)['@type'], 'inputDocument');
+      expect((doc['caption'] as TdObject)['text'], '');
+    });
+
+    test('without compression images go as files; long captions go first as text', () async {
+      final (td, source) = await started();
+      await source.sendFiles('5', [file('a.png', png)], caption: 'x' * 1100, compressImages: false);
+      final sent = td.sent('sendMessage');
+      expect(sent, hasLength(2));
+      expect((sent[0]['input_message_content'] as TdObject)['@type'], 'inputMessageText');
+      expect((sent[1]['input_message_content'] as TdObject)['@type'], 'inputMessageDocument');
+    });
+
+    test('upload progress shows on the pending document, then clears', () async {
+      final (td, source) = await started(setup: (td) {
+        td.handlers['getChatHistory'] = (_) => {'messages': []};
+      });
+      td.push({'@type': 'updateNewChat', 'chat': privateChat(1, 'Dilshod', order: 10)});
+      await source.open('1');
+      TdObject doc({TdObject? sending, int uploaded = 0}) => {
+            ...text(1, 9000002, '', out: true, sending: sending),
+            'content': {
+              '@type': 'messageDocument',
+              'document': {
+                'file_name': 'hisobot.xlsx',
+                'document': {
+                  'id': 77,
+                  'size': 1000,
+                  'local': {'path': 'C:/x/hisobot.xlsx', 'is_downloading_completed': true},
+                  'remote': {'uploaded_size': uploaded},
+                },
+              },
+              'caption': {'text': ''},
+            },
+          };
+      td.push({'@type': 'updateNewMessage', 'message': doc(sending: {'@type': 'messageSendingStatePending'})});
+      expect(source.messagesOf('1').single.file!.uploadProgress, 0);
+      td.push({
+        '@type': 'updateFile',
+        'file': {
+          'id': 77,
+          'size': 1000,
+          'local': {'path': 'C:/x/hisobot.xlsx', 'is_downloading_completed': true},
+          'remote': {'uploaded_size': 400},
+        },
+      });
+      final pending = source.messagesOf('1').single;
+      expect(pending.file!.uploadProgress, closeTo(0.4, 1e-9));
+      expect(pending.file!.path, 'C:/x/hisobot.xlsx');
+      td.push({'@type': 'updateMessageSendSucceeded', 'old_message_id': 9000002, 'message': {...doc(uploaded: 1000), 'id': 61}});
+      expect(source.messagesOf('1').single.file!.uploadProgress, isNull);
+    });
   });
 }

@@ -125,8 +125,7 @@ void main() {
     await tester.tap(find.byIcon(Icons.local_shipping_outlined));
     await tester.tap(find.widgetWithText(FilledButton, 'Yaratish'));
     await tester.pumpAndSettle();
-    expect(find.text('Ishchi guruh'), findsWidgets, reason: 'card and rail');
-    expect(find.descendant(of: find.byType(Rail), matching: find.byIcon(Icons.local_shipping_outlined)), findsOneWidget);
+    expect(find.text('Ishchi guruh'), findsWidgets);
 
     // A duplicate name is refused.
     await tester.tap(find.text('Yangi to‘plam').first);
@@ -150,8 +149,13 @@ void main() {
     expect(find.text('Yetkazuvchilar'), findsWidgets);
     expect(find.text('Ishchi guruh'), findsNothing);
 
-    // Delete via the rail context menu.
-    await tester.tap(find.descendant(of: find.byType(Rail), matching: find.byIcon(Icons.local_shipping_outlined)), buttons: kSecondaryButton);
+    // Delete via the context menu of its tab above the chat list.
+    await tester.tap(find.descendant(of: find.byType(Rail), matching: find.byIcon(Icons.chat_bubble_outline)));
+    await tester.pumpAndSettle();
+    final tab = find.descendant(of: find.byType(ChatList), matching: find.text('Yetkazuvchilar'));
+    await tester.ensureVisible(tab);
+    await tester.pumpAndSettle();
+    await tester.tap(tab, buttons: kSecondaryButton);
     await tester.pumpAndSettle();
     await tester.tap(find.text('O‘chirish').last);
     await tester.pumpAndSettle();
@@ -171,7 +175,11 @@ void main() {
     await tester.tap(find.text('Oila').last);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.descendant(of: find.byType(Rail), matching: find.byIcon(Icons.home_outlined)));
+    // The "Oila" tab above the chat list now shows him.
+    final tab = find.descendant(of: find.byType(ChatList), matching: find.text('Oila'));
+    await tester.ensureVisible(tab);
+    await tester.pumpAndSettle();
+    await tester.tap(tab);
     await tester.pumpAndSettle();
     expect(find.text('Dilshod Karimov'), findsWidgets);
     expect(find.text('Oila'), findsWidgets);

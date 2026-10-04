@@ -239,6 +239,7 @@ class Message {
     this.senderColor = 0,
     this.senderPhoto,
     this.meetingAt,
+    this.file,
   });
 
   final String id;
@@ -286,6 +287,9 @@ class Message {
   final int senderColor;
   final String? senderPhoto;
 
+  /// Document or audio file: download state, or upload state while sending.
+  final FileInfo? file;
+
   /// Same message with a detected meeting (or none).
   Message withMeeting(String? label, DateTime? at) => Message(
         id: id,
@@ -310,5 +314,47 @@ class Message {
         senderInitials: senderInitials,
         senderColor: senderColor,
         senderPhoto: senderPhoto,
+        file: file,
       );
+}
+
+/// A document or audio file inside a message.
+class FileInfo {
+  const FileInfo({
+    required this.fileId,
+    this.size = 0,
+    this.path,
+    this.progress = 0,
+    this.downloading = false,
+    this.uploadProgress,
+  });
+
+  final int fileId;
+  final int size;
+
+  /// Local path once the file is downloaded (or the source of an upload).
+  final String? path;
+
+  /// Download progress 0..1.
+  final double progress;
+  final bool downloading;
+
+  /// Upload progress 0..1 while the message is being sent, else null.
+  final double? uploadProgress;
+
+  bool get downloaded => path != null;
+}
+
+/// A file the user picked or dropped to send.
+class OutgoingFile {
+  const OutgoingFile({required this.path, required this.name, this.size = 0});
+
+  final String path;
+  final String name;
+  final int size;
+
+  String get extension => name.contains('.') ? name.split('.').last.toLowerCase() : '';
+
+  /// Formats Telegram can show as a compressed photo.
+  bool get isImage => const {'jpg', 'jpeg', 'png', 'webp', 'bmp'}.contains(extension);
 }

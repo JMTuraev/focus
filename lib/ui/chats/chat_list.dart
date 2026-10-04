@@ -30,9 +30,11 @@ class ChatList extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
             child: _SearchField(onChanged: state.setQuery),
           ),
+          _CollectionTabs(state: state),
+          const SizedBox(height: 6),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             // scaleDown keeps the three chips on one line if fonts or text
@@ -103,6 +105,125 @@ class ChatList extends StatelessWidget {
                   ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Collections as Telegram-like folder tabs: click to filter, right click
+/// to edit or delete, + to add.
+class _CollectionTabs extends StatelessWidget {
+  const _CollectionTabs({required this.state});
+
+  final AppState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.fc;
+    return Container(
+      height: 38,
+      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: c.border))),
+      // A Row, not a lazy ListView: all tabs exist, so any can be scrolled to.
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final col in [kAllCollection, ...state.collections])
+              _CollectionTab(
+                label: col.label,
+                badge: state.badgeFor(col.id),
+                active: state.collection == col.id,
+                onTap: () => state.pickCollection(col.id),
+                onMenu: col.id == kAllCollection.id ? null : (pos) => _menu(context, col, pos),
+              ),
+            Tooltip(
+              message: 'To‘plam qo‘shish',
+              child: IconButton(
+                onPressed: () => showCollectionEditor(context, state),
+                visualDensity: VisualDensity.compact,
+                icon: Icon(Icons.add, size: 18, color: c.text2),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _menu(BuildContext context, Collection col, Offset pos) async {
+    final c = context.fc;
+    final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
+    final choice = await showMenu<String>(
+      context: context,
+      color: c.panel,
+      position: RelativeRect.fromRect(pos & const Size(1, 1), Offset.zero & overlay.size),
+      items: [
+        PopupMenuItem(
+            value: 'edit', height: 38, child: Text('Tahrirlash', style: TextStyle(color: c.text, fontSize: 14))),
+        PopupMenuItem(
+            value: 'delete', height: 38, child: Text('O‘chirish', style: TextStyle(color: c.danger, fontSize: 14))),
+      ],
+    );
+    if (!context.mounted) return;
+    switch (choice) {
+      case 'edit':
+        await showCollectionEditor(context, state, existing: col);
+      case 'delete':
+        await confirmDeleteCollection(context, state, col);
+    }
+  }
+}
+
+class _CollectionTab extends StatelessWidget {
+  const _CollectionTab(
+      {required this.label, required this.badge, required this.active, required this.onTap, this.onMenu});
+
+  final String label;
+  final int badge;
+  final bool active;
+  final VoidCallback onTap;
+  final void Function(Offset globalPosition)? onMenu;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.fc;
+    final fg = active ? c.accentText : c.text2;
+    final menu = onMenu;
+    return InkWell(
+      onTap: onTap,
+      onSecondaryTapDown: menu == null ? null : (d) => menu(d.globalPosition),
+      hoverColor: c.hover,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: active ? c.accent : Colors.transparent, width: 2.5)),
+        ),
+        alignment: Alignment.center,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label, style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: fg)),
+            if (badge > 0) ...[
+              const SizedBox(width: 5),
+              Container(
+                constraints: const BoxConstraints(minWidth: 18),
+                height: 18,
+                padding: const EdgeInsets.symmetric(horizontal: 5),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: active ? c.accentStrong : c.muted,
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Text(
+                  badge > 99 ? '99+' : '$badge',
+                  style: const TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

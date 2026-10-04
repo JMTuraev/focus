@@ -57,6 +57,7 @@ Breakpoints are in `lib/ui/layout.dart`, modelled on Telegram Desktop:
 - Collections are Focus-only (`LocalStore`): create, rename, change icon, delete, reorder. Deleting a collection makes its chats unsorted; nothing is ever changed in Telegram.
 - `AppState.collectionOf` returns '' for unsorted chats or chats of a deleted collection.
 - "To‘plamlar" screen (`lib/ui/collections/`): collection cards and the "Saralanmagan" list with type tabs and bulk moves. Chats move by right click in the chat list, the info panel chips, or the unsorted list.
+- The rail holds only the modules. Collections are tabs above the chat list (`_CollectionTabs` in `chat_list.dart`): click filters, right click edits or deletes, + adds. The tabs are a `Row` in a scroll view, not a lazy `ListView`, so every tab exists for `ensureVisible`.
 - Filters: waiting / unread chips plus the chat type filter (Shaxsiy, Guruhlar, Kanallar, Botlar) and "hide muted"; the chips count within the type filter.
 
 ## Local database (phase 2)
@@ -97,6 +98,12 @@ Breakpoints are in `lib/ui/layout.dart`, modelled on Telegram Desktop:
 - Media (`MediaInfo`): photos and video thumbnails download automatically; videos and voice messages download on click. Playback uses media_kit (libmpv), which adds about 45 MB to the build.
 - Media viewers must stay closable by mouse and Escape and must not cover the title bar close button.
 
+## Sending files and emoji
+- 📎 or dragging files from Explorer (`desktop_drop`) opens `send_files_dialog.dart`: files, "Rasmlarni siqib yuborish", caption (text already typed in the composer becomes the caption).
+- `lib/data/send_plan.dart` decides how files go: images that fit Telegram's photo limits as `inputMessagePhoto` with width and height, the rest as `inputMessageDocument`; photos first, albums of at most 10 (`sendMessageAlbum`); caption on the first file; captions over 1024 characters go first as a text message.
+- Documents in messages (`FileRow` in `file_actions.dart`): click downloads, then opens with the Windows app; right click: open, show in folder, save elsewhere. Programs and scripts (`isRiskyFile`) ask before opening. Upload progress comes from `remote.uploaded_size`.
+- Emoji: `emoji_picker_flutter` panel above the composer (Segoe UI Emoji); Escape or the keyboard button closes it.
+
 ## Backup (phase 3)
 - `lib/backup/`: `BackupService` takes a snapshot of `fokus.sqlite` (`VACUUM INTO` + gzip), encrypts it and uploads it to the user's own Saved Messages as a document whose caption starts with `#fokus_backup`. Only that chat is touched.
 - Crypto (`backup_crypto.dart`): Argon2id (64 MiB, t=3) from the backup password, AES-256-GCM. File format `FOKUSBAK` v1; the header (KDF params, salt, nonce) is the AAD. Never change the format without a new version number.
@@ -106,7 +113,7 @@ Breakpoints are in `lib/ui/layout.dart`, modelled on Telegram Desktop:
 - Daily automatic backup runs while Focus is open (checked hourly). Settings → "Zaxira nusxa".
 
 ## Donations (phase 3)
-- `lib/ui/donate_dialog.dart`, opened by the heart in the title bar (also on the login screen) and from Settings → "Focus haqida". Kept out of the rail so collections keep their space.
+- `lib/ui/donate_dialog.dart`, opened by the heart in the title bar (also on the login screen) and from Settings → "Focus haqida".
 - Payment details come from build-time defines in `secrets.json` (`DONATE_CARD`, `DONATE_CARD_HOLDER`, `DONATE_CARD_LABEL`, `DONATE_PAYME_URL`, `DONATE_CLICK_URL`, `DONATE_TIRIKCHILIK_URL`, `DONATE_OTHER_URL`, `DONATE_OTHER_LABEL`, `DONATE_TELEGRAM_URL`; see `secrets.example.json`), read by `lib/donate/donate_info.dart`. Never hard-code them. Empty or invalid values are hidden; only https links are opened; card numbers must be 12–19 digits.
 - Donations are voluntary and never unlock a feature (also a Microsoft Store requirement for external payment links in non-game apps).
 - GitHub star and issue links use `AppConfig.repoUrl`.
