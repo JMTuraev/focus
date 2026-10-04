@@ -52,6 +52,12 @@ Breakpoints are in `lib/ui/layout.dart`, modelled on Telegram Desktop:
 - Fokus-only data (collections, unread already seen in Fokus) lives in `lib/data/local_store.dart` (`local_state.json`) until phase 2 moves it to drift.
 - `openChat`/`closeChat`/`getChatHistory` are allowed; anything that marks messages as read is not.
 
+## Collections and filters
+- Collections are Fokus-only (`LocalStore`): create, rename, change icon, delete, reorder. Deleting a collection makes its chats unsorted; nothing is ever changed in Telegram.
+- `AppState.collectionOf` returns '' for unsorted chats or chats of a deleted collection.
+- "To‘plamlar" screen (`lib/ui/collections/`): collection cards and the "Saralanmagan" list with type tabs and bulk moves. Chats move by right click in the chat list, the info panel chips, or the unsorted list.
+- Filters: waiting / unread chips plus the chat type filter (Shaxsiy, Guruhlar, Kanallar, Botlar) and "hide muted"; the chips count within the type filter.
+
 ## Messages: formatting and media
 - Text entities are mapped in `TdChatSource.entitiesOf` and drawn by `lib/ui/chats/message_text.dart`. Links open only for http, https, mailto, tel and tg; hidden links (`textUrl`) ask for confirmation first.
 - Media (`MediaInfo`): photos and video thumbnails download automatically; videos and voice messages download on click. Playback uses media_kit (libmpv), which adds about 45 MB to the build.

@@ -2,12 +2,58 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+/// Icons a collection can use, by a stable key (stored in local_state.json).
+const kCollectionIcons = <String, IconData>{
+  'forum': Icons.forum_outlined,
+  'person': Icons.person_outline,
+  'work': Icons.work_outline,
+  'groups': Icons.groups_outlined,
+  'handshake': Icons.handshake_outlined,
+  'wallet': Icons.account_balance_wallet_outlined,
+  'home': Icons.home_outlined,
+  'public': Icons.public,
+  'star': Icons.star_outline,
+  'favorite': Icons.favorite_border,
+  'school': Icons.school_outlined,
+  'shopping': Icons.shopping_bag_outlined,
+  'truck': Icons.local_shipping_outlined,
+  'campaign': Icons.campaign_outlined,
+  'code': Icons.code,
+  'health': Icons.medical_services_outlined,
+  'sport': Icons.sports_soccer_outlined,
+  'flag': Icons.flag_outlined,
+  'folder': Icons.folder_outlined,
+  'bolt': Icons.bolt_outlined,
+};
+
+/// A user-defined group of chats (Fokus-only, never sent to Telegram).
 class Collection {
-  const Collection(this.id, this.label, this.icon);
+  const Collection(this.id, this.label, this.iconKey);
   final String id;
   final String label;
-  final IconData icon;
+  final String iconKey;
+
+  IconData get icon => kCollectionIcons[iconKey] ?? Icons.folder_outlined;
+
+  Map<String, String> toJson() => {'id': id, 'label': label, 'icon': iconKey};
+
+  static Collection fromJson(Map<String, dynamic> j) =>
+      Collection(j['id'] as String, j['label'] as String, (j['icon'] as String?) ?? 'folder');
 }
+
+/// The virtual "all chats" entry at the top of the rail.
+const kAllCollection = Collection('all', 'Hammasi', 'forum');
+
+/// Collections a new install starts with.
+const kDefaultCollections = <Collection>[
+  Collection('mijoz', 'Mijozlar', 'person'),
+  Collection('ish', 'Ish', 'work'),
+  Collection('jamoa', 'Jamoa', 'groups'),
+  Collection('hamkor', 'Hamkorlar', 'handshake'),
+  Collection('moliya', 'Moliya', 'wallet'),
+  Collection('oila', 'Oila', 'home'),
+  Collection('hamjam', 'Hamjamiyatlar', 'public'),
+];
 
 enum ChatKind { private, bot, group, channel, saved }
 

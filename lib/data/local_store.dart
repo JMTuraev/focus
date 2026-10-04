@@ -2,9 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'models.dart';
+
 /// Fokus-only data about chats, kept on this PC in `local_state.json`:
+/// - the user's collections (name, icon, order);
 /// - which collection a chat belongs to;
 /// - how many unread messages the user has already seen in Fokus.
 ///
@@ -12,38 +16,88 @@ import 'package:path_provider/path_provider.dart';
 /// are; the "seen" numbers here only hide the badge inside Fokus.
 /// Phase 2 moves this into the SQLite (drift) database.
 class LocalStore {
-  LocalStore._(this._file, this._collections, this._seen);
+  LocalStore._(this._file, this._defs, this._assigned, this._seen);
 
-  /// Not persisted (mock data and tests).
-  LocalStore.memory() : this._(null, {}, {});
+  /// Not persisted (mock data and tests); starts with the default collections.
+  LocalStore.memory() : this._(null, List.of(kDefaultCollections), {}, {});
 
   final File? _file;
-  final Map<String, String> _collections;
+  final List<Collection> _defs;
+  final Map<String, String> _assigned;
   final Map<String, int> _seen;
   Timer? _saveTimer;
 
   static Future<LocalStore> open() async {
-    File? file;
-    final collections = <String, String>{};
+    final dir = await getApplicationSupportDirectory();
+    return openAt(File('${dir.path}${Platform.pathSeparator}local_state.json'));
+  }
+
+  @visibleForTesting
+  static Future<LocalStore> openAt(File file) async {
+    var defs = List.of(kDefaultCollections);
+    final assigned = <String, String>{};
     final seen = <String, int>{};
     try {
-      final dir = await getApplicationSupportDirectory();
-      file = File('${dir.path}${Platform.pathSeparator}local_state.json');
       if (await file.exists()) {
         final json = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
-        (json['collections'] as Map<String, dynamic>? ?? {}).forEach((k, v) => collections[k] = v as String);
+        final list = json['collectionList'] as List?;
+        if (list != null) defs = [for (final j in list) Collection.fromJson(j as Map<String, dynamic>)];
+        (json['collections'] as Map<String, dynamic>? ?? {}).forEach((k, v) => assigned[k] = v as String);
         (json['seen'] as Map<String, dynamic>? ?? {}).forEach((k, v) => seen[k] = v as int);
       }
     } catch (_) {
-      // A broken file is not fatal: start empty.
+      // A broken file is not fatal: start with defaults.
     }
-    return LocalStore._(file, collections, seen);
+    return LocalStore._(file, defs, assigned, seen);
   }
 
-  String? collectionOf(String chatId) => _collections[chatId];
+  // ---- collections ----
+
+  List<Collection> get collections => List.unmodifiable(_defs);
+
+  Collection? collectionById(String id) {
+    for (final c in _defs) {
+      if (c.id == id) return c;
+    }
+    return null;
+  }
+
+  Collection addCollection(String label, String iconKey) {
+    final c = Collection('c${DateTime.now().microsecondsSinceEpoch}', label.trim(), iconKey);
+    _defs.add(c);
+    _scheduleSave();
+    return c;
+  }
+
+  void updateCollection(String id, {required String label, required String iconKey}) {
+    final i = _defs.indexWhere((c) => c.id == id);
+    if (i < 0) return;
+    _defs[i] = Collection(id, label.trim(), iconKey);
+    _scheduleSave();
+  }
+
+  /// Removes a collection; its chats become unsorted.
+  void deleteCollection(String id) {
+    _defs.removeWhere((c) => c.id == id);
+    _assigned.updateAll((_, v) => v == id ? '' : v);
+    _scheduleSave();
+  }
+
+  /// Moves the collection at [from] to position [to] (rail order).
+  void moveCollection(int from, int to) {
+    if (from < 0 || from >= _defs.length) return;
+    final c = _defs.removeAt(from);
+    _defs.insert(to.clamp(0, _defs.length), c);
+    _scheduleSave();
+  }
+
+  // ---- chats ----
+
+  /// The collection chosen for [chatId]: null = never chosen, '' = unsorted.
+  String? collectionOf(String chatId) => _assigned[chatId];
 
   void setCollection(String chatId, String collectionId) {
-    _collections[chatId] = collectionId;
+    _assigned[chatId] = collectionId;
     _scheduleSave();
   }
 
@@ -60,6 +114,8 @@ class LocalStore {
     _scheduleSave();
   }
 
+  // ---- saving ----
+
   void _scheduleSave() {
     if (_file == null) return;
     _saveTimer?.cancel();
@@ -69,7 +125,11 @@ class LocalStore {
   Future<void> _save() async {
     try {
       await _file!.parent.create(recursive: true);
-      await _file.writeAsString(jsonEncode({'collections': _collections, 'seen': _seen}));
+      await _file.writeAsString(jsonEncode({
+        'collectionList': [for (final c in _defs) c.toJson()],
+        'collections': _assigned,
+        'seen': _seen,
+      }));
     } catch (_) {
       // Best effort.
     }

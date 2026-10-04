@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../data/mock.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
+import '../collections/collection_dialogs.dart';
 import '../common.dart';
 
 class InfoPanel extends StatelessWidget {
@@ -39,8 +39,11 @@ class InfoPanel extends StatelessWidget {
             decoration: BoxDecoration(border: Border(bottom: BorderSide(color: c.border))),
             child: Row(
               children: [
-                Expanded(child: Text('Ma’lumot', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: c.text))),
-                IconButton(tooltip: 'Panelni yopish', onPressed: onClose, icon: Icon(Icons.close, size: 18, color: c.icon)),
+                Expanded(
+                    child:
+                        Text('Ma’lumot', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: c.text))),
+                IconButton(
+                    tooltip: 'Panelni yopish', onPressed: onClose, icon: Icon(Icons.close, size: 18, color: c.icon)),
               ],
             ),
           ),
@@ -74,18 +77,33 @@ class InfoPanel extends StatelessWidget {
                   spacing: 6,
                   runSpacing: 6,
                   children: [
-                    for (final col in kCollections.skip(1))
+                    for (final col in state.collections)
                       _TagChip(
                         label: col.label,
                         active: current == col.id,
                         onTap: () {
-                          state.moveToCollection(chat.id, col.id);
+                          // Tapping the current collection takes the chat out of it.
+                          final target = current == col.id ? '' : col.id;
+                          state.moveToCollection(chat.id, target);
                           showToast(
                             context,
-                            (w) => SnackBar(width: w < 480 ? w : 480, content: Text('${chat.name} → ${col.label} to‘plamiga ko‘chirildi')),
+                            (w) => SnackBar(
+                              width: w < 480 ? w : 480,
+                              content: Text(target.isEmpty
+                                  ? '${chat.name} «${col.label}» to‘plamidan chiqarildi'
+                                  : '${chat.name} → ${col.label} to‘plamiga ko‘chirildi'),
+                            ),
                           );
                         },
                       ),
+                    _TagChip(
+                      label: '+ Yangi',
+                      active: false,
+                      onTap: () async {
+                        final created = await showCollectionEditor(context, state);
+                        if (created != null) state.moveToCollection(chat.id, created.id);
+                      },
+                    ),
                   ],
                 ),
               ],
@@ -97,7 +115,10 @@ class InfoPanel extends StatelessWidget {
             child: Text('Shu chatdan', style: accentLabel),
           ),
           _Link(icon: Icons.checklist, label: 'Vazifalar', onTap: () => state.openModule(Module.tasks)),
-          _Link(icon: Icons.calendar_today_outlined, label: 'Uchrashuvlar', onTap: () => state.openModule(Module.calendar)),
+          _Link(
+              icon: Icons.calendar_today_outlined,
+              label: 'Uchrashuvlar',
+              onTap: () => state.openModule(Module.calendar)),
           _Link(icon: Icons.sticky_note_2_outlined, label: 'Eslatmalar', onTap: () => state.openModule(Module.notes)),
           _Link(icon: Icons.folder_outlined, label: 'Fayllar', onTap: () => state.openModule(Module.files)),
           const SizedBox(height: 12),

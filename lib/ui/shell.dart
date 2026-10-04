@@ -4,6 +4,7 @@ import '../state/app_state.dart';
 import '../state/settings.dart';
 import '../theme.dart';
 import 'chats/chats_screen.dart';
+import 'collections/collections_screen.dart';
 import 'layout.dart';
 import 'rail.dart';
 import 'title_bar.dart';
@@ -42,7 +43,7 @@ class Shell extends StatelessWidget {
   Widget _screenFor(AppState s, LayoutMode mode) {
     return switch (s.module) {
       Module.chats => ChatsScreen(state: s, mode: mode),
-      Module.collections => const _Planned('To‘plamlar', 'Kartochka rejimi va «Saralanmagan» ro‘yxati', 1),
+      Module.collections => CollectionsScreen(state: s),
       Module.tasks => const _Planned('Vazifalar', 'Rejada · Jarayonda · Kutilmoqda · Bajarildi', 2),
       Module.calendar => const _Planned('Kalendar', 'Hafta ko‘rinishi va chatdan uchrashuv qo‘shish', 2),
       Module.notes => const _Planned('Eslatmalar', 'Rangli eslatmalar, ro‘yxatlar, «Chatdan saqlangan»', 2),

@@ -8,6 +8,24 @@ enum Module { chats, collections, tasks, calendar, notes, files, stats }
 
 enum ChatFilter { waiting, unread, all }
 
+/// Chat types for the type filter and the "Saralanmagan" tabs.
+enum ChatType {
+  private('Shaxsiy'),
+  group('Guruhlar'),
+  channel('Kanallar'),
+  bot('Botlar');
+
+  const ChatType(this.label);
+  final String label;
+
+  static ChatType of(Chat c) => switch (c.kind) {
+        ChatKind.private || ChatKind.saved => ChatType.private,
+        ChatKind.group => ChatType.group,
+        ChatKind.channel => ChatType.channel,
+        ChatKind.bot => ChatType.bot,
+      };
+}
+
 /// UI state on top of a [ChatSource] (mock or TDLib) and the [LocalStore]
 /// with Fokus-only data (collections, locally seen messages).
 class AppState extends ChangeNotifier {
@@ -92,7 +110,81 @@ class AppState extends ChangeNotifier {
   }
 
   // ---- chats ----
-  String collectionOf(Chat c) => store.collectionOf(c.id) ?? c.collection;
+  // ---- collections ----
+  List<Collection> get collections => store.collections;
+
+  /// [kAllCollection] for 'all'; null if the id no longer exists.
+  Collection? collectionById(String id) => id == kAllCollection.id ? kAllCollection : store.collectionById(id);
+
+  /// The chat's collection id, or '' when it is unsorted (or its collection
+  /// was deleted).
+  String collectionOf(Chat c) {
+    final id = store.collectionOf(c.id) ?? c.collection;
+    return id.isNotEmpty && store.collectionById(id) != null ? id : '';
+  }
+
+  /// Chats that are in no collection yet, optionally of one [type].
+  List<Chat> unsorted({ChatType? type}) =>
+      source.chats.where((c) => collectionOf(c).isEmpty && (type == null || ChatType.of(c) == type)).toList();
+
+  int countIn(String collectionId) => source.chats.where((c) => collectionOf(c) == collectionId).length;
+
+  List<Chat> chatsIn(String collectionId) => source.chats.where((c) => collectionOf(c) == collectionId).toList();
+
+  Collection createCollection(String label, String iconKey) {
+    final c = store.addCollection(label, iconKey);
+    notifyListeners();
+    return c;
+  }
+
+  void updateCollection(String id, {required String label, required String iconKey}) {
+    store.updateCollection(id, label: label, iconKey: iconKey);
+    notifyListeners();
+  }
+
+  void deleteCollection(String id) {
+    store.deleteCollection(id);
+    if (collection == id) collection = kAllCollection.id;
+    notifyListeners();
+  }
+
+  void moveCollection(int from, int to) {
+    store.moveCollection(from, to);
+    notifyListeners();
+  }
+
+  /// Puts every chat in [chats] into [collectionId] ('' = unsorted).
+  void assignAll(Iterable<Chat> chats, String collectionId) {
+    for (final c in chats) {
+      store.setCollection(c.id, collectionId);
+    }
+    notifyListeners();
+  }
+
+  // ---- type filter ----
+  /// Empty = every type.
+  final Set<ChatType> types = {};
+  bool hideMuted = false;
+
+  int get typeFilterCount => types.length + (hideMuted ? 1 : 0);
+
+  void toggleType(ChatType t) {
+    if (!types.remove(t)) types.add(t);
+    notifyListeners();
+  }
+
+  void setHideMuted(bool v) {
+    hideMuted = v;
+    notifyListeners();
+  }
+
+  void clearTypeFilter() {
+    types.clear();
+    hideMuted = false;
+    notifyListeners();
+  }
+
+  bool _passesType(Chat c) => (types.isEmpty || types.contains(ChatType.of(c))) && !(hideMuted && c.muted);
 
   /// Unread messages not yet seen in Fokus. Telegram's own counter is left
   /// untouched (no viewMessages); if it drops because the chat was read on
@@ -115,8 +207,11 @@ class AppState extends ChangeNotifier {
 
   bool get loadingChats => source.loading;
 
-  List<Chat> get chatsInCollection =>
-      source.chats.where((c) => collection == 'all' || collectionOf(c) == collection).toList();
+  /// Chats of the selected collection that pass the type filter; the
+  /// waiting/unread chips count and filter within these.
+  List<Chat> get chatsInCollection => source.chats
+      .where((c) => (collection == kAllCollection.id || collectionOf(c) == collection) && _passesType(c))
+      .toList();
 
   List<Chat> get visibleChats {
     final q = query.trim().toLowerCase();
@@ -132,10 +227,7 @@ class AppState extends ChangeNotifier {
   int get unreadChatCount => chatsInCollection.where((c) => unreadOf(c) > 0).length;
 
   int badgeFor(String collectionId) => source.chats
-      .where((c) =>
-          (collectionId == 'all' || collectionOf(c) == collectionId) &&
-          unreadOf(c) > 0 &&
-          !c.muted)
+      .where((c) => (collectionId == 'all' || collectionOf(c) == collectionId) && unreadOf(c) > 0 && !c.muted)
       .length;
 
   String lastOf(Chat c) => c.last;

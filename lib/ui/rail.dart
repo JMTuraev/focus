@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../data/mock.dart';
+import '../data/models.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
+import 'collections/collection_dialogs.dart';
 
 const _modules = <(Module, String, IconData)>[
   (Module.chats, 'Chatlar', Icons.chat_bubble_outline),
@@ -52,8 +53,9 @@ class Rail extends StatelessWidget {
             child: ListView(
               padding: EdgeInsets.zero,
               children: [
-                for (final col in kCollections)
+                for (final col in [kAllCollection, ...state.collections])
                   _RailItem(
+                    onMenu: col.id == kAllCollection.id ? null : (pos) => _collectionMenu(context, col, pos),
                     label: col.label,
                     icon: col.icon,
                     compact: compact,
@@ -70,7 +72,7 @@ class Rail extends StatelessWidget {
                   height: 38,
                   iconSize: 20,
                   tooltip: 'To‘plam qo‘shish',
-                  onTap: () => state.openModule(Module.collections),
+                  onTap: () => showCollectionEditor(context, state),
                 ),
               ],
             ),
@@ -88,6 +90,29 @@ class Rail extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _collectionMenu(BuildContext context, Collection col, Offset pos) async {
+    final c = context.fc;
+    final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
+    final choice = await showMenu<String>(
+      context: context,
+      color: c.panel,
+      position: RelativeRect.fromRect(pos & const Size(1, 1), Offset.zero & overlay.size),
+      items: [
+        PopupMenuItem(
+            value: 'edit', height: 38, child: Text('Tahrirlash', style: TextStyle(color: c.text, fontSize: 14))),
+        PopupMenuItem(
+            value: 'delete', height: 38, child: Text('O‘chirish', style: TextStyle(color: c.danger, fontSize: 14))),
+      ],
+    );
+    if (!context.mounted) return;
+    switch (choice) {
+      case 'edit':
+        await showCollectionEditor(context, state, existing: col);
+      case 'delete':
+        await confirmDeleteCollection(context, state, col);
+    }
+  }
 }
 
 class _RailItem extends StatelessWidget {
@@ -101,6 +126,7 @@ class _RailItem extends StatelessWidget {
     this.iconSize = 22,
     this.badge = 0,
     this.tooltip,
+    this.onMenu,
   });
 
   final String label;
@@ -112,6 +138,9 @@ class _RailItem extends StatelessWidget {
   final double iconSize;
   final int badge;
   final String? tooltip;
+
+  /// Right click: context menu at the pointer position.
+  final void Function(Offset globalPosition)? onMenu;
 
   @override
   Widget build(BuildContext context) {
@@ -172,6 +201,8 @@ class _RailItem extends StatelessWidget {
     );
     final tip = tooltip ?? (compact && label.isNotEmpty ? label : null);
     if (tip != null) body = Tooltip(message: tip, child: body);
+    final menu = onMenu;
+    if (menu != null) body = GestureDetector(onSecondaryTapDown: (d) => menu(d.globalPosition), child: body);
     return Padding(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1), child: body);
   }
 }

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../data/mock.dart';
 import '../../data/models.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
+import '../collections/collection_dialogs.dart';
 import '../common.dart';
 
 class ChatList extends StatelessWidget {
@@ -19,7 +19,7 @@ class ChatList extends StatelessWidget {
     final c = context.fc;
     final meta = TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: c.text2);
     final chats = state.visibleChats;
-    final colLabel = kCollections.firstWhere((col) => col.id == state.collection).label;
+    final colLabel = state.collectionById(state.collection)?.label ?? kAllCollection.label;
     return Container(
       width: width,
       decoration: BoxDecoration(
@@ -74,6 +74,8 @@ class ChatList extends StatelessWidget {
                 Text(colLabel == 'Hammasi' ? 'Barcha chatlar' : colLabel, style: meta),
                 const Spacer(),
                 Text('${chats.length} ta chat', style: meta),
+                const SizedBox(width: 4),
+                _TypeFilterButton(state: state),
               ],
             ),
           ),
@@ -84,7 +86,10 @@ class ChatList extends StatelessWidget {
                         ? Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.4, color: c.accent)),
+                              SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(strokeWidth: 2.4, color: c.accent)),
                               const SizedBox(height: 12),
                               Text('Chatlar yuklanmoqda…', style: TextStyle(color: c.text2)),
                             ],
@@ -193,61 +198,130 @@ class _ChatTile extends StatelessWidget {
     final waiting = state.waitingOf(chat);
     final main = active ? Colors.white : c.text;
     final sub = active ? Colors.white : c.text2;
-    return Tap(
-      onTap: () => state.openChat(chat.id),
-      color: active ? c.accentStrong : Colors.transparent,
-      hover: active ? c.accentStrong : c.hover,
-      child: SizedBox(
-        height: 66,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: Row(
-            children: [
-              ChatAvatar(chat),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(chat.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, color: main)),
-                        ),
-                        Text(chat.time, style: TextStyle(fontSize: 12, color: sub)),
-                      ],
-                    ),
-                    const SizedBox(height: 3),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(state.lastOf(chat),
-                              maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13.5, color: sub)),
-                        ),
-                        if (waiting) ...[const SizedBox(width: 6), WaitingDot(ring: active)],
-                        if (unread > 0) ...[
-                          const SizedBox(width: 6),
-                          CountBadge(unread, muted: chat.muted, inverted: active),
-                        ] else if (chat.pinned && !waiting) ...[
-                          const SizedBox(width: 6),
-                          Tooltip(
-                            message: 'Qadalgan',
-                            child: Transform.rotate(
-                              angle: 0.75,
-                              child: Icon(Icons.push_pin_outlined, size: 16, color: active ? Colors.white : c.text2),
-                            ),
+    // Right click: move the chat to a collection.
+    return GestureDetector(
+      onSecondaryTapDown: (d) => showAssignMenu(context, state, chat, d.globalPosition),
+      child: Tap(
+        onTap: () => state.openChat(chat.id),
+        color: active ? c.accentStrong : Colors.transparent,
+        hover: active ? c.accentStrong : c.hover,
+        child: SizedBox(
+          height: 66,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Row(
+              children: [
+                ChatAvatar(chat),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(chat.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, color: main)),
                           ),
+                          Text(chat.time, style: TextStyle(fontSize: 12, color: sub)),
                         ],
-                      ],
-                    ),
-                  ],
+                      ),
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(state.lastOf(chat),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontSize: 13.5, color: sub)),
+                          ),
+                          if (waiting) ...[const SizedBox(width: 6), WaitingDot(ring: active)],
+                          if (unread > 0) ...[
+                            const SizedBox(width: 6),
+                            CountBadge(unread, muted: chat.muted, inverted: active),
+                          ] else if (chat.pinned && !waiting) ...[
+                            const SizedBox(width: 6),
+                            Tooltip(
+                              message: 'Qadalgan',
+                              child: Transform.rotate(
+                                angle: 0.75,
+                                child: Icon(Icons.push_pin_outlined, size: 16, color: active ? Colors.white : c.text2),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Filter by chat type (several can be ticked) and hide muted chats.
+class _TypeFilterButton extends StatelessWidget {
+  const _TypeFilterButton({required this.state});
+
+  final AppState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.fc;
+    final active = state.typeFilterCount;
+    final item = TextStyle(color: c.text, fontSize: 14);
+    return MenuAnchor(
+      style: MenuStyle(backgroundColor: WidgetStatePropertyAll(c.panel)),
+      menuChildren: [
+        for (final t in ChatType.values)
+          CheckboxMenuButton(
+            value: state.types.contains(t),
+            closeOnActivate: false,
+            onChanged: (_) => state.toggleType(t),
+            child: Text(t.label, style: item),
+          ),
+        const Divider(height: 8),
+        CheckboxMenuButton(
+          value: state.hideMuted,
+          closeOnActivate: false,
+          onChanged: (v) => state.setHideMuted(v ?? false),
+          child: Text('Ovozsizlarni yashirish', style: item),
+        ),
+        if (active > 0)
+          MenuItemButton(
+            onPressed: state.clearTypeFilter,
+            child: Text('Filtrni tozalash', style: TextStyle(color: c.accentText, fontSize: 14)),
+          ),
+      ],
+      builder: (context, controller, _) => Tooltip(
+        message: 'Chat turi bo‘yicha filtr',
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () => controller.isOpen ? controller.close() : controller.open(),
+          child: Container(
+            height: 24,
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            decoration: BoxDecoration(
+              color: active > 0 ? c.accentSoft : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.tune, size: 16, color: active > 0 ? c.accentText : c.text2),
+                if (active > 0) ...[
+                  const SizedBox(width: 3),
+                  Text('$active', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: c.accentText)),
+                ],
+              ],
+            ),
           ),
         ),
       ),
