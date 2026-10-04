@@ -48,14 +48,31 @@ class LocalStore {
   static Future<LocalStore> openDb(AppDatabase db, {File? legacy}) async {
     final imported = await (db.select(db.keyValues)..where((t) => t.key.equals(_importedKey))).getSingleOrNull();
     if (imported == null) await _import(db, legacy);
+    final store = LocalStore._(db, [], {}, {});
+    await store.reload();
+    return store;
+  }
 
+  /// Re-reads everything from the database (also after a backup restore).
+  Future<void> reload() async {
+    final db = _db;
+    if (db == null) return;
+    await flush();
     final defs = [
       for (final r in await (db.select(db.collections)..orderBy([(t) => OrderingTerm.asc(t.position)])).get())
         Collection(r.id, r.label, r.icon),
     ];
     final assigned = {for (final r in await db.select(db.chatCollections).get()) r.chatId: r.collectionId};
     final seen = {for (final r in await db.select(db.seenCounts).get()) r.chatId: r.count};
-    return LocalStore._(db, defs, assigned, seen);
+    _defs
+      ..clear()
+      ..addAll(defs);
+    _assigned
+      ..clear()
+      ..addAll(assigned);
+    _seen
+      ..clear()
+      ..addAll(seen);
   }
 
   /// First start on the database: take collections, assignments and seen

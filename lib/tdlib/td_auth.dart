@@ -6,11 +6,13 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../auth/auth.dart';
+import '../backup/backup_key_store.dart';
 import '../data/chat_source.dart';
 import '../data/local_store.dart';
 import '../db/database.dart';
 import '../config.dart';
 import 'db_key.dart';
+import 'td_backup.dart';
 import 'td_chats.dart';
 import 'td_client.dart';
 
@@ -257,7 +259,13 @@ class TdAuth implements AuthService {
     final source = TdChatSource(td);
     unawaited(source.start());
     final db = AppDatabase.open();
-    return ChatSession(source: source, store: await LocalStore.open(db), db: db);
+    return ChatSession(
+      source: source,
+      store: await LocalStore.open(db),
+      db: db,
+      backupTransport: TdBackupTransport(td),
+      backupKeys: DpapiBackupKeyStore(),
+    );
   }
 
   Future<void> dispose() async {

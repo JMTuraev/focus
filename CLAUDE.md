@@ -73,13 +73,13 @@ Breakpoints are in `lib/ui/layout.dart`, modelled on Telegram Desktop:
 - `lib/calendar/event_store.dart` (`Events` table, schema v2 with a migration from v1); grid in `lib/ui/calendar/`: week on wide windows, day on narrow ones, tasks with a due date in the all-day row.
 - Events: click an empty slot to add; drag to move (15 min / day snapping, mouse); drag the bottom edge to resize; right click for a menu.
 - Meetings in messages: `lib/data/meeting_parser.dart` (Uzbek Latin/Cyrillic and Russian). It needs both a day and a time; relative days count from the message date; only meetings that have not passed are offered. Add every new phrase to `test/meeting_parser_test.dart`.
-- "Kalendarga" adds a detected meeting at once (1 hour, reminder 30 min before); without one it opens the editor prefilled from the message. Reminder notifications are not implemented yet.
+- "Kalendarga" adds a detected meeting at once (1 hour, reminder 30 min before); without one it opens the editor prefilled from the message.
 
 ## Reminders (notifications)
 - `lib/reminders/`: `ReminderService` keeps Windows scheduled toasts in line with meetings (`remindBefore`) and open tasks with a due date (at `Settings.taskReminderHour`). Ids: 100000000 + event id, 200000000 + task id. Payloads `event:ID` / `task:ID` open the calendar or the tasks board.
 - Windows keeps scheduled toasts, so they fire when Fokus is closed. App identity (`appUserModelId`, `guid` in `notifier.dart`) must never change.
 - Building needs the Visual Studio component "C++ ATL" (`Microsoft.VisualStudio.Component.VC.ATL`) for flutter_local_notifications_windows.
-- Settings dialog (rail ⚙): theme (system / light / dark), reminders on/off, task reminder hour, test notification.
+- Settings dialog (rail ⚙): theme (system / light / dark), reminders on/off, task reminder hour, test notification, backup.
 
 ## Windows runner
 - `windows/runner/main.cpp` allows one instance (named mutex): a second start brings the running window to the front and exits, because two instances would fight over the TDLib database. Close the app before `flutter run`.
@@ -94,6 +94,14 @@ Breakpoints are in `lib/ui/layout.dart`, modelled on Telegram Desktop:
 - Text entities are mapped in `TdChatSource.entitiesOf` and drawn by `lib/ui/chats/message_text.dart`. Links open only for http, https, mailto, tel and tg; hidden links (`textUrl`) ask for confirmation first.
 - Media (`MediaInfo`): photos and video thumbnails download automatically; videos and voice messages download on click. Playback uses media_kit (libmpv), which adds about 45 MB to the build.
 - Media viewers must stay closable by mouse and Escape and must not cover the title bar close button.
+
+## Backup (phase 3)
+- `lib/backup/`: `BackupService` takes a snapshot of `fokus.sqlite` (`VACUUM INTO` + gzip), encrypts it and uploads it to the user's own Saved Messages as a document whose caption starts with `#fokus_backup`. Only that chat is touched.
+- Crypto (`backup_crypto.dart`): Argon2id (64 MiB, t=3) from the backup password, AES-256-GCM. File format `FOKUSBAK` v1; the header (KDF params, salt, nonce) is the AAD. Never change the format without a new version number.
+- The derived key is kept on this PC in `backup.key` (DPAPI), outside the database, so backups need no password here. Restoring a backup with another salt asks for its password. The password itself is never stored.
+- Restore (`snapshot.dart`): refuse newer schemas, run migrations on the backup copy, then `ATTACH` it and copy every table with explicit columns in one transaction. Then `AppState.reloadLocalData()`. The local `backupLastAt` and `backupAuto` values win over the backup.
+- TDLib transport (`lib/tdlib/td_backup.dart`): `inputMessageDocument.document` is an `inputDocument` that wraps the `InputFile` (TDLib 1.8.6x). Check `td_api.tl` for the pinned commit before changing any TDLib call.
+- Daily automatic backup runs while Fokus is open (checked hourly). Settings → "Zaxira nusxa".
 
 ## Phases
 0. Skeleton: mock UI, TDLib FFI layer, Windows build, TDLib CI build.

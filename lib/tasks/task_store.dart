@@ -151,6 +151,9 @@ class TaskStore extends ChangeNotifier {
     await _reload();
   }
 
+  /// Re-reads everything (after a backup was restored).
+  Future<void> reload() => _reload();
+
   Future<void> _reload() async {
     final rows = await (db.select(db.tasks)
           ..orderBy([(t) => OrderingTerm.asc(t.position), (t) => OrderingTerm.asc(t.id)]))

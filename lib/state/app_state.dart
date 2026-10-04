@@ -419,6 +419,12 @@ class AppState extends ChangeNotifier {
     );
   }
 
+  /// After a backup restore: re-read tasks, events, notes, collections.
+  Future<void> reloadLocalData() async {
+    await Future.wait([tasks.reload(), events.reload(), notes.reload(), store.reload()]);
+    notifyListeners();
+  }
+
   // ---- notes ----
   void showNotesForChat(String chatId) {
     noteChatFilter = chatId;

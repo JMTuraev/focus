@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../backup/backup_key_store.dart';
+import '../backup/backup_transport.dart';
 import '../db/database.dart';
 import 'local_store.dart';
 import 'models.dart';
@@ -43,14 +45,28 @@ abstract class ChatSource extends ChangeNotifier {
 
 /// What the app needs after login: chats plus Fokus-only local data.
 class ChatSession {
-  ChatSession({required this.source, required this.store, AppDatabase? db, this.initialChatId})
-      : db = db ?? AppDatabase.memory();
+  ChatSession({
+    required this.source,
+    required this.store,
+    AppDatabase? db,
+    BackupTransport? backupTransport,
+    BackupKeyStore? backupKeys,
+    this.initialChatId,
+  })  : db = db ?? AppDatabase.memory(),
+        backupTransport = backupTransport ?? MemoryBackupTransport(),
+        backupKeys = backupKeys ?? MemoryBackupKeyStore();
 
   final ChatSource source;
   final LocalStore store;
 
   /// Tasks and other Fokus data (in memory for mock sessions).
   final AppDatabase db;
+
+  /// Where encrypted backups go (Saved Messages; memory for mock sessions).
+  final BackupTransport backupTransport;
+
+  /// The backup key on this PC (DPAPI; memory for mock sessions).
+  final BackupKeyStore backupKeys;
 
   /// Chat selected at start (mock data opens the first scripted chat).
   final String? initialChatId;

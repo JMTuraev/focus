@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../auth/auth.dart';
+import '../backup/backup_service.dart';
 import '../calendar/event_store.dart';
 import '../data/chat_source.dart';
 import '../notes/note_store.dart';
@@ -36,6 +37,7 @@ class _AuthGateState extends State<AuthGate> {
   ChatSession? _session;
   AppState? _state;
   ReminderService? _reminders;
+  BackupService? _backup;
   StreamSubscription<String>? _taps;
   bool _opening = false;
   bool _launchHandled = false;
@@ -76,6 +78,8 @@ class _AuthGateState extends State<AuthGate> {
             notes: NoteStore(session.db),
             initialChatId: session.initialChatId,
           );
+          _backup = BackupService(db: session.db, transport: session.backupTransport, keys: session.backupKeys);
+          _backup!.init().then((_) => _backup?.startAuto());
           final n = widget.notifier;
           if (n != null) {
             _reminders = ReminderService(notifier: n, events: _state!.events, tasks: _state!.tasks, settings: widget.settings)
@@ -94,6 +98,8 @@ class _AuthGateState extends State<AuthGate> {
   void _closeSession() {
     _reminders?.dispose();
     _reminders = null;
+    _backup?.dispose();
+    _backup = null;
     _state?.dispose();
     _session?.close();
     _state = null;
@@ -142,7 +148,14 @@ class _AuthGateState extends State<AuthGate> {
             state: state,
             settings: widget.settings,
             onLogout: () => _confirmLogout(context),
-            onSettings: () => showSettingsDialog(context, widget.settings, notifier: widget.notifier, reminders: _reminders),
+            onSettings: () => showSettingsDialog(
+              context,
+              widget.settings,
+              notifier: widget.notifier,
+              reminders: _reminders,
+              backup: _backup,
+              onRestored: state.reloadLocalData,
+            ),
           );
         }
         return LoginScreen(auth: widget.auth, settings: widget.settings);

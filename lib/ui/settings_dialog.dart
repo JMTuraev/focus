@@ -1,30 +1,48 @@
 import 'package:flutter/material.dart';
 
+import '../backup/backup_service.dart';
 import '../config.dart';
+import '../data/format.dart';
 import '../reminders/notifier.dart';
 import '../reminders/reminder_service.dart';
 import '../state/settings.dart';
 import '../theme.dart';
+import 'backup_dialog.dart';
 import 'common.dart';
 
-/// Settings: theme, reminders (Windows notifications) and the hour for
-/// task reminders.
-Future<void> showSettingsDialog(BuildContext context, Settings settings, {Notifier? notifier, ReminderService? reminders}) {
+/// Settings: theme, reminders (Windows notifications), the hour for task
+/// reminders, and the encrypted backup.
+Future<void> showSettingsDialog(
+  BuildContext context,
+  Settings settings, {
+  Notifier? notifier,
+  ReminderService? reminders,
+  BackupService? backup,
+  Future<void> Function()? onRestored,
+}) {
   return showDialog<void>(
     context: context,
     builder: (_) => ListenableBuilder(
-      listenable: settings,
-      builder: (context, _) => _SettingsDialog(settings: settings, notifier: notifier, reminders: reminders),
+      listenable: Listenable.merge([settings, if (backup != null) backup]),
+      builder: (context, _) => _SettingsDialog(
+        settings: settings,
+        notifier: notifier,
+        reminders: reminders,
+        backup: backup,
+        onRestored: onRestored,
+      ),
     ),
   );
 }
 
 class _SettingsDialog extends StatelessWidget {
-  const _SettingsDialog({required this.settings, this.notifier, this.reminders});
+  const _SettingsDialog({required this.settings, this.notifier, this.reminders, this.backup, this.onRestored});
 
   final Settings settings;
   final Notifier? notifier;
   final ReminderService? reminders;
+  final BackupService? backup;
+  final Future<void> Function()? onRestored;
 
   static const _hours = [7, 8, 9, 10, 12, 18];
 
@@ -114,6 +132,23 @@ class _SettingsDialog extends StatelessWidget {
                       child: const Text('Sinab ko‘rish'),
                     ),
                   ],
+                ),
+              ],
+              if (backup != null) ...[
+                label('Zaxira nusxa'),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.cloud_done_outlined, color: c.icon),
+                  title: Text('Shifrlangan zaxira (Saved Messages)', style: TextStyle(color: c.text, fontSize: 14.5)),
+                  subtitle: Text(
+                    switch (backup!.lastBackupAt) {
+                      null => backup!.hasPassword ? 'Hali saqlanmagan' : 'Sozlanmagan',
+                      final d => 'Oxirgi: ${Fmt.dueLabel(d)}, ${Fmt.hm(d)}',
+                    },
+                    style: TextStyle(color: c.text2, fontSize: 12.5),
+                  ),
+                  trailing: Icon(Icons.chevron_right, color: c.text2),
+                  onTap: () => showBackupDialog(context, backup!, onRestored: onRestored ?? () async {}),
                 ),
               ],
               const SizedBox(height: 16),

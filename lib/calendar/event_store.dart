@@ -140,6 +140,9 @@ class EventStore extends ChangeNotifier {
     await _reload();
   }
 
+  /// Re-reads everything (after a backup was restored).
+  Future<void> reload() => _reload();
+
   Future<void> _reload() async {
     final rows = await (db.select(db.events)..orderBy([(t) => OrderingTerm.asc(t.start), (t) => OrderingTerm.asc(t.id)])).get();
     if (_disposed) return;
