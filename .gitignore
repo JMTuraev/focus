@@ -17,3 +17,6 @@ build/
 .idea/
 .vscode/
 windows/flutter/ephemeral/
+
+# Flutter crash logs
+flutter_*.log
