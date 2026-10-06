@@ -7,8 +7,10 @@ import 'package:fokus/calendar/event_store.dart';
 import 'package:fokus/data/chat_source.dart';
 import 'package:fokus/data/local_store.dart';
 import 'package:fokus/data/mock_source.dart';
+import 'package:fokus/data/models.dart';
 import 'package:fokus/db/database.dart';
 import 'package:fokus/main.dart';
+import 'package:fokus/reminders/message_notifier.dart';
 import 'package:fokus/reminders/reminder_service.dart';
 import 'package:fokus/state/settings.dart';
 import 'package:fokus/tasks/task_store.dart';
@@ -28,6 +30,96 @@ class _DbAuth extends MockAuth {
 }
 
 void main() {
+  group('MessageNotifier', () {
+    late MockChatSource source;
+    late FakeNotifier notifier;
+    late Settings settings;
+    var active = false;
+    String? open;
+
+    MessageNotifier make() => MessageNotifier(
+          notifier: notifier,
+          source: source,
+          settings: settings,
+          windowActive: () => active,
+          activeChatId: () => open,
+        )..start();
+
+    setUp(() {
+      source = MockChatSource();
+      notifier = FakeNotifier();
+      settings = Settings.inMemory();
+      active = false;
+      open = null;
+    });
+
+    Future<void> pump() => Future<void>.delayed(Duration.zero);
+
+    test('a toast per message with the chat title, the text and a chat payload', () async {
+      make();
+      source.receive('dilshod', 'Salom!');
+      await pump();
+      expect(notifier.shown, ['Dilshod Karimov: Salom!']);
+      expect(notifier.shownPayloads, ['chat:dilshod']);
+    });
+
+    test('groups name the sender; the same chat reuses one notification id', () async {
+      make();
+      source.receive('team', 'Hisobot tayyor', sender: 'Sardor');
+      await pump();
+      expect(notifier.shown.single, endsWith(': Sardor: Hisobot tayyor'));
+      expect(MessageNotifier.idFor('team'), MessageNotifier.idFor('team'));
+      expect(MessageNotifier.idFor('team'), isNot(MessageNotifier.idFor('dilshod')));
+      expect(MessageNotifier.idFor('team'), greaterThanOrEqualTo(MessageNotifier.base));
+    });
+
+    test('muted chats, channels (unless enabled) and Saved Messages stay quiet', () {
+      final n = make();
+      IncomingMessage msg(ChatKind kind, {bool muted = false}) =>
+          IncomingMessage(chatId: 'c', chatTitle: 'C', kind: kind, muted: muted, preview: 'x');
+      expect(n.wanted(msg(ChatKind.private)), isTrue);
+      expect(n.wanted(msg(ChatKind.private, muted: true)), isFalse);
+      expect(n.wanted(msg(ChatKind.group)), isTrue);
+      expect(n.wanted(msg(ChatKind.bot)), isTrue);
+      expect(n.wanted(msg(ChatKind.saved)), isFalse);
+      expect(n.wanted(msg(ChatKind.channel)), isFalse, reason: 'channels are off by default');
+      settings.setNotifyChannels(true);
+      expect(n.wanted(msg(ChatKind.channel)), isTrue);
+      expect(n.wanted(msg(ChatKind.channel, muted: true)), isFalse);
+      n.dispose();
+    });
+
+    test('the open chat in a focused window and the master switch', () async {
+      final n = make();
+      active = true;
+      open = 'dilshod';
+      source.receive('dilshod', 'ko‘rib turibsiz');
+      await pump();
+      expect(notifier.shown, isEmpty, reason: 'the user is looking at this chat');
+      source.receive('nodira', 'boshqa chat');
+      await pump();
+      expect(notifier.shown.length, 1);
+      active = false;
+      source.receive('dilshod', 'endi oyna faol emas');
+      await pump();
+      expect(notifier.shown.length, 2);
+
+      settings.setMessageNotifications(false);
+      source.receive('dilshod', 'o‘chirilgan');
+      await pump();
+      expect(notifier.shown.length, 2);
+      n.dispose();
+    });
+
+    test('hidden text shows only the chat name', () async {
+      settings.setNotifyShowText(false);
+      make();
+      source.receive('dilshod', 'maxfiy');
+      await pump();
+      expect(notifier.shown.single, 'Dilshod Karimov: Yangi xabar');
+    });
+  });
+
   setUpAll(loadSegoeUi);
 
   // Monday, 5 October 2026, 08:00.
@@ -177,9 +269,15 @@ void main() {
     await tester.pumpAndSettle();
     expect(notifier.shown, ['Focus: Bildirishnomalar ishlayapti.']);
 
-    await tester.tap(find.byType(Switch));
+    await tester.tap(find.byType(Switch).first);
     await tester.pumpAndSettle();
     expect(find.text('10:00'), findsNothing, reason: 'hour picker hidden when reminders are off');
+
+    // New message toasts: master switch hides the two sub-switches.
+    expect(find.text('Kanallardan ham'), findsOneWidget);
+    await tester.tap(find.widgetWithText(SwitchListTile, 'Yangi xabar bildirishnomalari'));
+    await tester.pumpAndSettle();
+    expect(find.text('Kanallardan ham'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -191,6 +289,6 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Sozlamalar'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('ishga tushmadi'), findsOneWidget);
+    expect(find.textContaining('ishga tushmadi'), findsNWidgets(2), reason: 'reminders and new message toasts');
   });
 }

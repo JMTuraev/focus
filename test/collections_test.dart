@@ -12,6 +12,7 @@ import 'package:fokus/main.dart';
 import 'package:fokus/state/app_state.dart';
 import 'package:fokus/state/settings.dart';
 import 'package:fokus/ui/chats/chat_list.dart';
+import 'package:fokus/ui/chats/info_panel.dart';
 import 'package:fokus/ui/collections/collections_screen.dart';
 import 'package:fokus/ui/rail.dart';
 
@@ -40,6 +41,12 @@ Future<void> _pump(WidgetTester tester, {LocalStore? store, Size size = const Si
 
 Future<void> _openCollections(WidgetTester tester) async {
   await tester.tap(find.descendant(of: find.byType(Rail), matching: find.byIcon(Icons.grid_view_outlined)));
+  await tester.pumpAndSettle();
+}
+
+/// "To‘plamlar" side of the switch above the chat list.
+Future<void> _openCollectionList(WidgetTester tester) async {
+  await tester.tap(find.descendant(of: find.byType(ChatList), matching: find.text('To‘plamlar')));
   await tester.pumpAndSettle();
 }
 
@@ -85,10 +92,6 @@ void main() {
       expect(s.typeFilterCount, 3);
       s.clearTypeFilter();
       expect(s.visibleChats.length, all);
-
-      // Waiting / unread chips count inside the type filter.
-      s.toggleType(ChatType.channel);
-      expect(s.waitingCount, 0);
     });
   });
 
@@ -149,13 +152,15 @@ void main() {
     expect(find.text('Yetkazuvchilar'), findsWidgets);
     expect(find.text('Ishchi guruh'), findsNothing);
 
-    // Delete via the context menu of its tab above the chat list.
+    // Delete via the context menu of its row in the collections list
+    // ("To‘plamlar" side of the switch above the chat list).
     await tester.tap(find.descendant(of: find.byType(Rail), matching: find.byIcon(Icons.chat_bubble_outline)));
     await tester.pumpAndSettle();
-    final tab = find.descendant(of: find.byType(ChatList), matching: find.text('Yetkazuvchilar'));
-    await tester.ensureVisible(tab);
+    await _openCollectionList(tester);
+    final row = find.descendant(of: find.byType(ChatList), matching: find.text('Yetkazuvchilar'));
+    await tester.ensureVisible(row);
     await tester.pumpAndSettle();
-    await tester.tap(tab, buttons: kSecondaryButton);
+    await tester.tap(row, buttons: kSecondaryButton);
     await tester.pumpAndSettle();
     await tester.tap(find.text('O‘chirish').last);
     await tester.pumpAndSettle();
@@ -164,6 +169,39 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Yetkazuvchilar'), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the info panel shows the collection as one badge that opens the move menu', (tester) async {
+    await _pump(tester);
+    final panel = find.byType(InfoPanel);
+    expect(find.descendant(of: panel, matching: find.text('Mijozlar')), findsOneWidget);
+    expect(find.descendant(of: panel, matching: find.text('Oila')), findsNothing, reason: 'no chip list any more');
+    await tester.tap(find.descendant(of: panel, matching: find.text('Mijozlar')));
+    await tester.pumpAndSettle();
+    expect(find.text('To‘plamga qo‘shish'), findsOneWidget);
+    await tester.tap(find.text('Oila').last);
+    await tester.pumpAndSettle();
+    expect(find.descendant(of: panel, matching: find.text('Oila')), findsOneWidget);
+  });
+
+  testWidgets('right click on a chat pins it in Telegram', (tester) async {
+    await _pump(tester);
+    Finder inList(String t) => find.descendant(of: find.byType(ChatList), matching: find.text(t));
+    final before = tester.widget<Text>(inList('Dilshod Karimov')).data;
+    expect(before, 'Dilshod Karimov');
+    await tester.tap(inList('Dilshod Karimov'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Qadash'));
+    await tester.pumpAndSettle();
+    // Mock source: the chat moves to the top and the menu now offers to unpin.
+    final names = tester.widgetList<Text>(find.descendant(of: find.byType(ChatList), matching: find.byType(Text)));
+    expect(names.map((t) => t.data).contains('Dilshod Karimov'), isTrue);
+    await tester.tap(inList('Dilshod Karimov'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    expect(find.text('Qadalganini yechish'), findsOneWidget);
+    await tester.tap(find.text('Qadalganini yechish'));
+    await tester.pumpAndSettle();
+    expect(find.text('Qadalganini yechish'), findsNothing);
   });
 
   testWidgets('right click on a chat moves it to a collection', (tester) async {
@@ -175,14 +213,46 @@ void main() {
     await tester.tap(find.text('Oila').last);
     await tester.pumpAndSettle();
 
-    // The "Oila" tab above the chat list now shows him.
-    final tab = find.descendant(of: find.byType(ChatList), matching: find.text('Oila'));
-    await tester.ensureVisible(tab);
+    // The "Oila" row in the collections list now opens a list with him.
+    await _openCollectionList(tester);
+    final row = find.descendant(of: find.byType(ChatList), matching: find.text('Oila'));
+    await tester.ensureVisible(row);
     await tester.pumpAndSettle();
-    await tester.tap(tab);
+    await tester.tap(row);
     await tester.pumpAndSettle();
     expect(find.text('Dilshod Karimov'), findsWidgets);
     expect(find.text('Oila'), findsWidgets);
+  });
+
+  testWidgets('switch: chats, collections list, a collection and back', (tester) async {
+    await _pump(tester);
+    Finder inList(String t) => find.descendant(of: find.byType(ChatList), matching: find.text(t));
+
+    // "Chatlar" side: every chat, header "Barcha chatlar".
+    expect(inList('Barcha chatlar'), findsOneWidget);
+    expect(inList('Dilshod Karimov'), findsOneWidget);
+
+    // "To‘plamlar" side: one row per collection and "+ Yangi to‘plam".
+    await _openCollectionList(tester);
+    expect(inList('Mijozlar'), findsOneWidget);
+    expect(inList('Yangi to‘plam'), findsOneWidget);
+    expect(inList('Dilshod Karimov'), findsNothing, reason: 'the chat list is replaced by the collections');
+
+    // A collection: only its chats, header with its name leads back.
+    await tester.tap(inList('Mijozlar'));
+    await tester.pumpAndSettle();
+    expect(inList('Dilshod Karimov'), findsOneWidget);
+    expect(inList('Yangi to‘plam'), findsNothing);
+    await tester.tap(find.byTooltip('To‘plamlar'));
+    await tester.pumpAndSettle();
+    expect(inList('Yangi to‘plam'), findsOneWidget);
+
+    // Back to "Chatlar".
+    await tester.tap(inList('Chatlar'));
+    await tester.pumpAndSettle();
+    expect(inList('Barcha chatlar'), findsOneWidget);
+    expect(inList('Dilshod Karimov'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('bulk move in the unsorted list', (tester) async {

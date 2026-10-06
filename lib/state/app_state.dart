@@ -11,9 +11,11 @@ import '../tasks/task_store.dart';
 
 enum Module { chats, collections, tasks, calendar, notes, files, stats }
 
-enum ChatFilter { waiting, unread, all }
 
 /// Chat types for the type filter and the "Saralanmagan" tabs.
+/// Grouping of the files screen.
+enum FilesGroup { none, day, chat }
+
 enum ChatType {
   private,
   group,
@@ -67,7 +69,10 @@ class AppState extends ChangeNotifier {
 
   Module module = Module.chats;
   String collection = 'all';
-  ChatFilter filter = ChatFilter.all;
+
+  /// Chat list column shows the list of collections instead of chats
+  /// (the "To‘plamlar" side of the switch before a collection is picked).
+  bool collectionsOpen = false;
   String? activeChatId;
   String query = '';
 
@@ -88,6 +93,12 @@ class AppState extends ChangeNotifier {
 
   /// Notes screen shows only the notes of this chat.
   String? noteChatFilter;
+
+  /// Files screen shows only the files of this chat.
+  String? fileChatFilter;
+
+  /// How the files screen groups its cards.
+  FilesGroup filesGroup = FilesGroup.day;
 
   /// A day inside the week (or the day) the calendar shows.
   DateTime calendarFocus = EventStore.day(DateTime.now());
@@ -120,16 +131,25 @@ class AppState extends ChangeNotifier {
 
   void pickCollection(String id) {
     collection = id;
+    collectionsOpen = false;
+    if (id != kAllCollection.id) query = '';
     module = Module.chats;
     narrowChatOpen = false;
     infoOverlayOpen = false;
     notifyListeners();
   }
 
-  void setFilter(ChatFilter f) {
-    filter = f;
+  /// "To‘plamlar" side of the switch: the list of collections.
+  void openCollectionList() {
+    collectionsOpen = true;
+    query = '';
+    narrowChatOpen = false;
+    infoOverlayOpen = false;
     notifyListeners();
   }
+
+  /// True when a chat of [collectionId] belongs to the picked collection.
+  bool _inPicked(Chat c) => collection == kAllCollection.id || collectionOf(c) == collection;
 
   void setQuery(String q) {
     query = q;
@@ -175,14 +195,14 @@ class AppState extends ChangeNotifier {
 
   List<Chat> chatsIn(String collectionId) => source.chats.where((c) => collectionOf(c) == collectionId).toList();
 
-  Collection createCollection(String label, String iconKey) {
-    final c = store.addCollection(label, iconKey);
+  Collection createCollection(String label, String iconKey, {String colorKey = ''}) {
+    final c = store.addCollection(label, iconKey, colorKey: colorKey);
     notifyListeners();
     return c;
   }
 
-  void updateCollection(String id, {required String label, required String iconKey}) {
-    store.updateCollection(id, label: label, iconKey: iconKey);
+  void updateCollection(String id, {required String label, required String iconKey, String colorKey = ''}) {
+    store.updateCollection(id, label: label, iconKey: iconKey, colorKey: colorKey);
     notifyListeners();
   }
 
@@ -251,24 +271,14 @@ class AppState extends ChangeNotifier {
 
   bool get loadingChats => source.loading;
 
-  /// Chats of the selected collection that pass the type filter; the
-  /// waiting/unread chips count and filter within these.
-  List<Chat> get chatsInCollection => source.chats
-      .where((c) => (collection == kAllCollection.id || collectionOf(c) == collection) && _passesType(c))
-      .toList();
+  /// Chats of the selected collection that pass the type filter.
+  List<Chat> get chatsInCollection => source.chats.where((c) => _inPicked(c) && _passesType(c)).toList();
 
   List<Chat> get visibleChats {
     final q = query.trim().toLowerCase();
-    return chatsInCollection.where((c) {
-      if (filter == ChatFilter.waiting && !waitingOf(c)) return false;
-      if (filter == ChatFilter.unread && unreadOf(c) == 0) return false;
-      if (q.isNotEmpty && !c.name.toLowerCase().contains(q)) return false;
-      return true;
-    }).toList();
+    if (q.isEmpty) return chatsInCollection;
+    return chatsInCollection.where((c) => c.name.toLowerCase().contains(q)).toList();
   }
-
-  int get waitingCount => chatsInCollection.where(waitingOf).length;
-  int get unreadChatCount => chatsInCollection.where((c) => unreadOf(c) > 0).length;
 
   int badgeFor(String collectionId) => source.chats
       .where((c) => (collectionId == 'all' || collectionOf(c) == collectionId) && unreadOf(c) > 0 && !c.muted)
@@ -289,6 +299,9 @@ class AppState extends ChangeNotifier {
     source.open(id);
     notifyListeners();
   }
+
+  /// Pins or unpins the chat in Telegram (all devices see it).
+  Future<void> togglePinned(Chat c) => source.setPinned(c.id, !c.pinned);
 
   void moveToCollection(String chatId, String collectionId) {
     store.setCollection(chatId, collectionId);
@@ -348,6 +361,112 @@ class AppState extends ChangeNotifier {
 
   // ---- tasks ----
   /// Shows the board with only the tasks of [chatId].
+  void showFilesForChat(String chatId) {
+    fileChatFilter = chatId;
+    openModule(Module.files);
+  }
+
+  void clearFileChatFilter() {
+    fileChatFilter = null;
+    notifyListeners();
+  }
+
+  void setFilesGroup(FilesGroup g) {
+    filesGroup = g;
+    notifyListeners();
+  }
+
+  FileMark? fileMark(String chatId, String messageId) => store.markOf(chatId, messageId);
+
+  FileMark _markFor(String chatId, String messageId, String kind) =>
+      store.markOf(chatId, messageId) ??
+      FileMark(chatId: chatId, messageId: messageId, kind: kind, updatedAt: DateTime.now());
+
+  void toggleFileFavorite(String chatId, String messageId, String kind) {
+    final m = _markFor(chatId, messageId, kind);
+    store.setMark(FileMark(
+        chatId: chatId, messageId: messageId, kind: kind, favorite: !m.favorite, tags: m.tags, updatedAt: DateTime.now()));
+    notifyListeners();
+  }
+
+  /// Puts [tag] on the file ([on]) or takes it off. Tags are trimmed and
+  /// matched without case; the first spelling used is kept.
+  void setFileTag(String chatId, String messageId, String kind, String tag, bool on) {
+    final t = tag.trim();
+    if (t.isEmpty) return;
+    final m = _markFor(chatId, messageId, kind);
+    final tags = [for (final x in m.tags) if (x.toLowerCase() != t.toLowerCase()) x];
+    if (on) {
+      final existing = store.tagCounts.map((e) => e.$1).where((x) => x.toLowerCase() == t.toLowerCase());
+      tags.add(existing.isEmpty ? t : existing.first);
+    }
+    store.setMark(FileMark(
+        chatId: chatId, messageId: messageId, kind: kind, favorite: m.favorite, tags: tags, updatedAt: DateTime.now()));
+    notifyListeners();
+  }
+
+  // ---- saved items ("Fayllar") ----
+
+  bool isSaved(String chatId, String messageId) => store.savedOf(chatId, messageId) != null;
+
+  int savedCountFor(String chatId) => store.savedItems.where((i) => i.chatId == chatId).length;
+
+  /// Saves [m] of the open chat into "Fayllar"; false when it was there.
+  bool saveToFiles(Message m) {
+    final chat = activeChat;
+    if (chat == null) return false;
+    return _save(chat.id, chat.name, m);
+  }
+
+  bool _save(String chatId, String chatTitle, Message m) {
+    if (isSaved(chatId, m.id)) return false;
+    store.addSaved(SavedItem(
+      chatId: chatId,
+      messageId: m.id,
+      kind: SavedKind.of(m),
+      chatTitle: chatTitle,
+      text: m.text.isEmpty && m.fileName == null ? (m.mediaLabel ?? '') : m.text,
+      fileName: m.fileName,
+      size: m.file?.size ?? m.info?.size ?? 0,
+      date: m.date,
+      savedAt: DateTime.now(),
+    ));
+    notifyListeners();
+    return true;
+  }
+
+  void removeFromFiles(String chatId, String messageId) {
+    store.removeSaved(chatId, messageId);
+    notifyListeners();
+  }
+
+  /// Files marked before "Fayllar" kept only saved items (favorites and
+  /// tags from the old all-chats list) become saved items once.
+  Future<void> adoptMarkedFiles() async {
+    for (final m in store.marks) {
+      if (isSaved(m.chatId, m.messageId)) continue;
+      final f = await source.getFound(m.chatId, m.messageId);
+      if (f != null) _save(f.chatId, f.chatTitle, f.message);
+    }
+  }
+
+  /// The name Focus shows for a file: the local alias, else Telegram's.
+  String? fileNameOf(String chatId, Message m) => store.fileName(chatId, m.id) ?? m.fileName;
+
+  /// Renames a file in Focus only (empty = back to Telegram's name).
+  void renameFile(String chatId, String messageId, String name) {
+    store.setFileName(chatId, messageId, name);
+    notifyListeners();
+  }
+
+  /// "Chatga o‘tish" from the files list.
+  void jumpToChat(String chatId) {
+    if (source.chatById(chatId) == null) return;
+    module = Module.chats;
+    collectionsOpen = false;
+    openChat(chatId);
+  }
+
   void showTasksForChat(String chatId) {
     taskChatFilter = chatId;
     openModule(Module.tasks);

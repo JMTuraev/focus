@@ -28,6 +28,7 @@ dependencies:
   file_selector: ^1.1.0
   desktop_drop: ^0.8.4
   emoji_picker_flutter: ^4.4.0
+  windows_taskbar: ^1.1.2
 
 dev_dependencies:
   flutter_test:
@@ -39,3 +40,11 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/badge/
+  # Twemoji (Mozilla's COLR build, v0.7.0): emoji like Telegram's, not
+  # Windows' Segoe UI Emoji. Graphics CC BY 4.0, see assets/fonts/README.md.
+  fonts:
+    - family: Twemoji
+      fonts:
+        - asset: assets/fonts/TwemojiMozilla.ttf

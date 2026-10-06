@@ -188,6 +188,9 @@ class Tap extends StatelessWidget {
 }
 
 /// Floating snack bar that never gets wider than the window.
+///
+/// Snack bars with an action must pass `persist: false`: since Flutter 3.38
+/// they stay until dismissed by default, and Focus toasts always time out.
 void showToast(BuildContext context, SnackBar Function(double width) build) {
   final width = math.min(560.0, MediaQuery.sizeOf(context).width - 32);
   ScaffoldMessenger.of(context)

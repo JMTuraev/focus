@@ -28,13 +28,26 @@ void main() {
     final a = await LocalStore.openDb(db, legacy: json);
     expect(a.collections.map((c) => c.id), kDefaultCollections.map((c) => c.id));
 
-    final created = a.addCollection('  Yetkazib beruvchilar ', 'truck');
+    final created = a.addCollection('  Yetkazib beruvchilar ', 'truck', colorKey: 'orange');
     a.setCollection('42', created.id);
     a.setCollection('43', 'oila');
     a.setSeen('42', 3);
     a.setSeen('44', 2);
     a.setSeen('44', 0);
-    a.updateCollection('ish', label: 'Ish joyi', iconKey: 'bolt');
+    a.updateCollection('ish', label: 'Ish joyi', iconKey: 'bolt', colorKey: 'green');
+    a.setFileName('42', '7', '  Shartnoma 2026.pdf ');
+    a.setFileName('42', '8', 'x');
+    a.setFileName('42', '8', '');
+    a.setMark(FileMark(chatId: '42', messageId: '7', kind: 'documents', favorite: true, tags: const ['Shartnoma', 'muhim'], updatedAt: DateTime(2026, 10, 4)));
+    a.setMark(FileMark(chatId: '42', messageId: '9', kind: 'photos', tags: const ['shartnoma'], updatedAt: DateTime(2026, 10, 5)));
+    a.setMark(FileMark(chatId: '42', messageId: '10', kind: 'documents', favorite: true, updatedAt: DateTime(2026, 10, 3)));
+    a.setMark(FileMark(chatId: '42', messageId: '10', kind: 'documents', updatedAt: DateTime(2026, 10, 3)));
+    a.addSaved(SavedItem(chatId: '42', messageId: '7', kind: SavedKind.documents, chatTitle: 'Dilshod', fileName: 'a.pdf', size: 10, date: DateTime(2026, 10, 1), savedAt: DateTime(2026, 10, 4)));
+    a.addSaved(SavedItem(chatId: '43', messageId: '3', kind: SavedKind.text, chatTitle: 'Oila', text: 'Kalit qo‘shnida', savedAt: DateTime(2026, 10, 2)));
+    a.addSaved(SavedItem(chatId: '44', messageId: '1', kind: SavedKind.photos, chatTitle: 'X', savedAt: DateTime(2026, 10, 2)));
+    a.setMark(FileMark(chatId: '44', messageId: '1', kind: 'photos', favorite: true, updatedAt: DateTime(2026, 10, 2)));
+    a.setFileName('44', '1', 'rasm');
+    a.removeSaved('44', '1');
     a.moveCollection(a.collections.length - 1, 0);
     a.deleteCollection('oila');
     await a.flush();
@@ -43,6 +56,23 @@ void main() {
     db = openDb();
     final b = await LocalStore.openDb(db, legacy: json);
     expect(b.collections.first.label, 'Yetkazib beruvchilar');
+    expect(b.collections.first.colorKey, 'orange');
+    expect(b.fileName('42', '7'), 'Shartnoma 2026.pdf');
+    expect(b.fileName('42', '8'), isNull, reason: 'cleared with an empty name');
+    final mark = b.markOf('42', '7')!;
+    expect(mark.favorite, isTrue);
+    expect(mark.tags, ['Shartnoma', 'muhim']);
+    expect(b.markOf('42', '10'), isNull, reason: 'an empty mark is deleted');
+    expect(b.marks.map((m) => m.messageId), ['9', '7'], reason: 'newest change first');
+    expect(b.tagCounts, [('Shartnoma', 2), ('muhim', 1)], reason: 'tags match without case');
+    expect(b.savedItems.map((i) => i.key), ['43:3', '42:7'], reason: 'newest message first (date, else saved time)');
+    final doc = b.savedOf('42', '7')!;
+    expect((doc.kind, doc.fileName, doc.size, doc.date), (SavedKind.documents, 'a.pdf', 10, DateTime(2026, 10, 1)));
+    expect(b.savedOf('43', '3')!.text, 'Kalit qo‘shnida');
+    expect(b.savedOf('44', '1'), isNull);
+    expect(b.markOf('44', '1'), isNull, reason: 'removing takes the marks too');
+    expect(b.fileName('44', '1'), isNull, reason: 'and the Focus-only name');
+    expect(b.collectionById('ish')!.colorKey, 'green');
     expect(b.collections.first.iconKey, 'truck');
     expect(b.collectionById('ish')!.label, 'Ish joyi');
     expect(b.collectionById('oila'), isNull);
@@ -124,6 +154,35 @@ void main() {
     final s = await LocalStore.openDb(db, legacy: json);
     expect(s.collections.length, kDefaultCollections.length);
     expect((await db.select(db.notes).get()).single.title, 'Eski eslatma');
+    await db.close();
+  });
+
+  test('a v4 database (collections without color) is upgraded to v5', () async {
+    final probe = AppDatabase.memory();
+    final create = <String>[
+      for (final t in ['tasks', 'events', 'notes', 'chat_collections', 'seen_counts', 'key_values'])
+        (await probe.customSelect("SELECT sql FROM sqlite_master WHERE name = '$t'").getSingle()).read<String>('sql'),
+    ];
+    await probe.close();
+    final raw = sqlite3.open(dbFile.path);
+    for (final s in create) {
+      raw.execute(s);
+    }
+    raw
+      ..execute('CREATE TABLE collections (id TEXT NOT NULL, label TEXT NOT NULL, '
+          "icon TEXT NOT NULL DEFAULT 'folder', position INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (id))")
+      ..execute("INSERT INTO collections (id, label, icon, position) VALUES ('ish', 'Ish', 'work', 0)")
+      ..execute("INSERT INTO key_values (key, value) VALUES ('localStateImported', '1')")
+      ..execute('PRAGMA user_version = 4');
+    raw.close();
+
+    final db = openDb();
+    final s = await LocalStore.openDb(db, legacy: json);
+    expect(s.collections.map((c) => c.id), ['ish']);
+    expect(s.collections.single.colorKey, '');
+    s.updateCollection('ish', label: 'Ish', iconKey: 'work', colorKey: 'red');
+    await s.flush();
+    expect((await db.select(db.collections).get()).single.color, 'red');
     await db.close();
   });
 }

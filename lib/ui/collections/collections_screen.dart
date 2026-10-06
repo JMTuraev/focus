@@ -149,7 +149,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                 active: _type == t,
                 onTap: () => setState(() => _type = t),
               ),
-            if (shown.isNotEmpty) _BulkAssignButton(state: s, chats: shown, label: _type?.label.toLowerCase()),
+            if (shown.isNotEmpty) BulkAssignButton(state: s, chats: shown, label: _type?.label.toLowerCase()),
           ],
         ),
       ],
@@ -184,47 +184,6 @@ class _TabChip extends StatelessWidget {
   }
 }
 
-/// "Barchasini to‘plamga…": moves every chat of the current tab at once.
-class _BulkAssignButton extends StatelessWidget {
-  const _BulkAssignButton({required this.state, required this.chats, this.label});
-
-  final AppState state;
-  final List<Chat> chats;
-  final String? label;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.fc;
-    final t = context.s.notes;
-    return MenuAnchor(
-      style: MenuStyle(backgroundColor: WidgetStatePropertyAll(c.panel)),
-      menuChildren: [
-        for (final col in state.collections)
-          MenuItemButton(
-            leadingIcon: Icon(col.icon, size: 18, color: c.icon),
-            onPressed: () {
-              final n = chats.length;
-              state.assignAll(List.of(chats), col.id);
-              showToast(
-                  context,
-                  (w) => SnackBar(
-                      width: w < 480 ? w : 480, content: Text(t.movedToCollection(n, col.label))));
-            },
-            child: Text(col.label, style: TextStyle(color: c.text, fontSize: 14)),
-          ),
-      ],
-      builder: (context, controller, _) => TextButton.icon(
-        onPressed: () => controller.isOpen ? controller.close() : controller.open(),
-        icon: Icon(Icons.drive_file_move_outline, size: 18, color: c.accentText),
-        label: Text(
-          label == null ? t.moveAll(chats.length) : t.moveAllOfType(label!, chats.length),
-          style: TextStyle(color: c.accentText, fontWeight: FontWeight.w600),
-        ),
-      ),
-    );
-  }
-}
-
 class _CollectionCard extends StatelessWidget {
   const _CollectionCard({required this.state, required this.collection});
 
@@ -251,8 +210,11 @@ class _CollectionCard extends StatelessWidget {
                 Container(
                   width: 38,
                   height: 38,
-                  decoration: BoxDecoration(color: c.accentSoft, borderRadius: BorderRadius.circular(10)),
-                  child: Icon(collection.icon, size: 20, color: c.accentText),
+                  decoration: BoxDecoration(
+                    color: c.collectionColor(collection.colorKey).withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(collection.icon, size: 20, color: c.collectionColor(collection.colorKey)),
                 ),
                 const SizedBox(width: 10),
                 Expanded(

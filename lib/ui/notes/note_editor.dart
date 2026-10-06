@@ -31,6 +31,7 @@ Future<void> deleteNoteWithUndo(BuildContext context, AppState state, Note n) as
   showToast(
     context,
     (w) => SnackBar(
+      persist: false,
       width: w < 480 ? w : 480,
       content: Text(t.noteDeleted(what), maxLines: 1, overflow: TextOverflow.ellipsis),
       action: SnackBarAction(label: t.undo, onPressed: () => state.notes.restore(n)),

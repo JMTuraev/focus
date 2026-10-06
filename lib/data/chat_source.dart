@@ -6,9 +6,60 @@ import '../db/database.dart';
 import 'local_store.dart';
 import 'models.dart';
 
+/// A message that just arrived from someone else (for Windows toasts).
+@immutable
+class IncomingMessage {
+  const IncomingMessage({
+    required this.chatId,
+    required this.chatTitle,
+    required this.kind,
+    required this.muted,
+    required this.preview,
+    this.sender,
+  });
+
+  final String chatId;
+  final String chatTitle;
+  final ChatKind kind;
+
+  /// Muted in Telegram (no toast).
+  final bool muted;
+
+  /// Text or a media label ("Rasm", "Fayl…").
+  final String preview;
+
+  /// Who wrote it, in groups.
+  final String? sender;
+}
+
+/// A saved message as loaded from its chat (with the file's download state).
+@immutable
+class FoundFile {
+  const FoundFile({required this.chatId, required this.chatTitle, required this.message});
+
+  final String chatId;
+  final String chatTitle;
+
+  /// The message that carries the file: name, size, download state, media.
+  final Message message;
+
+  String get key => '$chatId:${message.id}';
+}
+
 /// Where chats and messages come from: mock data or TDLib.
 /// Notifies listeners whenever chats or loaded messages change.
 abstract class ChatSource extends ChangeNotifier {
+  /// A found file's message with the current download state (progress,
+  /// local path). The default returns it unchanged.
+  Message refreshFound(FoundFile f) => f.message;
+
+  /// One message by id (saved items are stored as ids); null when the
+  /// message is gone. Never marks anything as read.
+  Future<FoundFile?> getFound(String chatId, String messageId);
+
+  /// New messages from others as they arrive (not history, not our own).
+  Stream<IncomingMessage> get incoming;
+
   /// Start downloading a file (photo, video, voice) by its TDLib file id.
   /// Progress and the local path show up in [MediaInfo] on later rebuilds.
   void download(int fileId, {int priority = 1});
@@ -42,10 +93,36 @@ abstract class ChatSource extends ChangeNotifier {
 
   Future<void> send(String chatId, String text);
 
+  /// What the user may do with [messageId] (edit, delete for self / all).
+  Future<MessageRights> rightsOf(String chatId, String messageId);
+
+  /// Replaces the text of an own text message (TDLib: editMessageText).
+  Future<void> editText(String chatId, String messageId, String text);
+
+  /// Deletes messages; [forAll] also removes them for the other side
+  /// (TDLib: deleteMessages with revoke).
+  Future<void> deleteMessages(String chatId, List<String> messageIds, {required bool forAll});
+
+  /// Pins or unpins [chatId] in Telegram's main chat list
+  /// (TDLib: toggleChatIsPinned). The new order arrives as a position update.
+  Future<void> setPinned(String chatId, bool pinned);
+
   /// Sends [files] to [chatId]. Images go as compressed photos when
   /// [compressImages] is set (grouped into albums), everything else as
   /// documents. [caption] goes with the first file.
   Future<void> sendFiles(String chatId, List<OutgoingFile> files, {String caption = '', bool compressImages = true});
+}
+
+/// What the user may do with a message (TDLib getMessageProperties).
+@immutable
+class MessageRights {
+  const MessageRights({this.canEdit = false, this.canDeleteForMe = false, this.canDeleteForAll = false});
+
+  final bool canEdit;
+  final bool canDeleteForMe;
+  final bool canDeleteForAll;
+
+  bool get canDelete => canDeleteForMe || canDeleteForAll;
 }
 
 /// What the app needs after login: chats plus Focus-only local data.

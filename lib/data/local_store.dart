@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:drift/drift.dart' show InsertMode, OrderingTerm, Value;
+import 'package:drift/drift.dart' show Expression, InsertMode, OrderingTerm, Value;
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -21,7 +21,10 @@ import 'models.dart';
 /// written to the database in order (see [flush]). Until phase 2 this lived
 /// in `local_state.json`; that file is imported once and kept as `.bak`.
 class LocalStore {
-  LocalStore._(this._db, this._defs, this._assigned, this._seen);
+  LocalStore._(this._db, this._defs, this._assigned, this._seen, [Map<String, String>? names])
+      : _fileNames = names ?? {},
+        _marks = {},
+        _saved = {};
 
   /// Not persisted (mock data and tests); starts with the default collections.
   LocalStore.memory() : this._(null, List.of(kDefaultCollections), {}, {});
@@ -30,6 +33,15 @@ class LocalStore {
   final List<Collection> _defs;
   final Map<String, String> _assigned;
   final Map<String, int> _seen;
+
+  /// Focus-only file names by "chatId:messageId".
+  final Map<String, String> _fileNames;
+
+  /// Favorites and tags by "chatId:messageId".
+  final Map<String, FileMark> _marks;
+
+  /// Saved items ("Fayllar") by "chatId:messageId".
+  final Map<String, SavedItem> _saved;
   Future<void> _writes = Future.value();
 
   static const _importedKey = 'localStateImported';
@@ -60,10 +72,22 @@ class LocalStore {
     await flush();
     final defs = [
       for (final r in await (db.select(db.collections)..orderBy([(t) => OrderingTerm.asc(t.position)])).get())
-        Collection(r.id, r.label, r.icon),
+        Collection(r.id, r.label, r.icon, r.color),
     ];
     final assigned = {for (final r in await db.select(db.chatCollections).get()) r.chatId: r.collectionId};
     final seen = {for (final r in await db.select(db.seenCounts).get()) r.chatId: r.count};
+    final names = {for (final r in await db.select(db.fileNames).get()) '${r.chatId}:${r.messageId}': r.name};
+    final marks = {
+      for (final r in await db.select(db.fileMarks).get())
+        '${r.chatId}:${r.messageId}': FileMark(
+          chatId: r.chatId,
+          messageId: r.messageId,
+          kind: r.kind,
+          favorite: r.favorite,
+          tags: _decodeTags(r.tags),
+          updatedAt: r.updatedAt,
+        ),
+    };
     _defs
       ..clear()
       ..addAll(defs);
@@ -73,6 +97,143 @@ class LocalStore {
     _seen
       ..clear()
       ..addAll(seen);
+    _fileNames
+      ..clear()
+      ..addAll(names);
+    final saved = {
+      for (final r in await db.select(db.savedItems).get())
+        '${r.chatId}:${r.messageId}': SavedItem(
+          chatId: r.chatId,
+          messageId: r.messageId,
+          kind: SavedKind.values.asNameMap()[r.kind] ?? SavedKind.text,
+          chatTitle: r.chatTitle,
+          text: r.body,
+          fileName: r.fileName,
+          size: r.size,
+          date: r.date,
+          savedAt: r.savedAt,
+        ),
+    };
+    _marks
+      ..clear()
+      ..addAll(marks);
+    _saved
+      ..clear()
+      ..addAll(saved);
+  }
+
+  // ---- saved items ("Fayllar") ----
+
+  /// Newest message first.
+  List<SavedItem> get savedItems => _saved.values.toList()..sort((a, b) => b.when.compareTo(a.when));
+
+  SavedItem? savedOf(String chatId, String messageId) => _saved['$chatId:$messageId'];
+
+  void addSaved(SavedItem item) {
+    _saved[item.key] = item;
+    _write((db) => db.into(db.savedItems).insert(
+        SavedItemsCompanion.insert(
+          chatId: item.chatId,
+          messageId: item.messageId,
+          kind: item.kind.name,
+          chatTitle: item.chatTitle,
+          body: Value(item.text),
+          fileName: Value(item.fileName),
+          size: Value(item.size),
+          date: Value(item.date),
+          savedAt: item.savedAt,
+        ),
+        mode: InsertMode.insertOrReplace));
+  }
+
+  /// Takes an item out of "Fayllar" with its marks and Focus-only name.
+  void removeSaved(String chatId, String messageId) {
+    if (_saved.remove('$chatId:$messageId') == null) return;
+    _write((db) => (db.delete(db.savedItems)
+          ..where((t) => Expression.and([t.chatId.equals(chatId), t.messageId.equals(messageId)])))
+        .go());
+    final mark = _marks['$chatId:$messageId'];
+    if (mark != null) {
+      setMark(FileMark(chatId: chatId, messageId: messageId, kind: mark.kind, updatedAt: DateTime.now()));
+    }
+    setFileName(chatId, messageId, '');
+  }
+
+  static List<String> _decodeTags(String json) {
+    try {
+      return [for (final t in jsonDecode(json) as List) '$t'];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  // ---- file marks (favorites, tags) ----
+
+  FileMark? markOf(String chatId, String messageId) => _marks['$chatId:$messageId'];
+
+  /// Every mark, newest change first.
+  List<FileMark> get marks => _marks.values.toList()..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+
+  /// Tags in use with how many files carry each, most used first.
+  List<(String, int)> get tagCounts {
+    final counts = <String, int>{};
+    final shown = <String, String>{};
+    for (final m in _marks.values) {
+      for (final t in m.tags) {
+        final k = t.toLowerCase();
+        counts[k] = (counts[k] ?? 0) + 1;
+        shown.putIfAbsent(k, () => t);
+      }
+    }
+    final list = [for (final e in counts.entries) (shown[e.key]!, e.value)];
+    list.sort((a, b) => b.$2 != a.$2 ? b.$2.compareTo(a.$2) : a.$1.toLowerCase().compareTo(b.$1.toLowerCase()));
+    return list;
+  }
+
+  /// Writes [mark]; an empty one (no favorite, no tags) is deleted.
+  void setMark(FileMark mark) {
+    final key = '${mark.chatId}:${mark.messageId}';
+    if (mark.isEmpty) {
+      if (_marks.remove(key) == null) return;
+      _write((db) => (db.delete(db.fileMarks)
+            ..where((t) => Expression.and([t.chatId.equals(mark.chatId), t.messageId.equals(mark.messageId)])))
+          .go());
+      return;
+    }
+    _marks[key] = mark;
+    _write((db) => db.into(db.fileMarks).insert(
+        FileMarksCompanion.insert(
+          chatId: mark.chatId,
+          messageId: mark.messageId,
+          kind: mark.kind,
+          favorite: Value(mark.favorite),
+          tags: Value(jsonEncode(mark.tags)),
+          updatedAt: mark.updatedAt,
+        ),
+        mode: InsertMode.insertOrReplace));
+  }
+
+  // ---- file names ----
+
+  /// The name Focus shows for a file, or null to use Telegram's.
+  String? fileName(String chatId, String messageId) => _fileNames['$chatId:$messageId'];
+
+  /// Renames a file in Focus only; an empty [name] goes back to Telegram's.
+  void setFileName(String chatId, String messageId, String name) {
+    final key = '$chatId:$messageId';
+    final n = name.trim();
+    if (n.isEmpty) {
+      if (_fileNames.remove(key) == null) return;
+      _write((db) => (db.delete(db.fileNames)
+            ..where((t) => Expression.and([t.chatId.equals(chatId), t.messageId.equals(messageId)])))
+          .go());
+      return;
+    }
+    if (_fileNames[key] == n) return;
+    _fileNames[key] = n;
+    _write((db) => db.into(db.fileNames).insert(
+        FileNamesCompanion.insert(chatId: chatId, messageId: messageId, name: n),
+        mode: InsertMode.insertOrReplace));
   }
 
   /// First start on the database: take collections, assignments and seen
@@ -101,7 +262,12 @@ class LocalStore {
           db.collections,
           [
             for (var i = 0; i < defs.length; i++)
-              CollectionsCompanion.insert(id: defs[i].id, label: defs[i].label, icon: Value(defs[i].iconKey), position: Value(i)),
+              CollectionsCompanion.insert(
+                  id: defs[i].id,
+                  label: defs[i].label,
+                  icon: Value(defs[i].iconKey),
+                  color: Value(defs[i].colorKey),
+                  position: Value(i)),
           ],
           mode: InsertMode.insertOrReplace,
         );
@@ -148,23 +314,22 @@ class LocalStore {
     return null;
   }
 
-  Collection addCollection(String label, String iconKey) {
-    final c = Collection('c${DateTime.now().microsecondsSinceEpoch}', label.trim(), iconKey);
+  Collection addCollection(String label, String iconKey, {String colorKey = ''}) {
+    final c = Collection('c${DateTime.now().microsecondsSinceEpoch}', label.trim(), iconKey, colorKey);
     _defs.add(c);
     final position = _defs.length - 1;
-    _write((db) => db.into(db.collections).insert(
-          CollectionsCompanion.insert(id: c.id, label: c.label, icon: Value(c.iconKey), position: Value(position)),
-        ));
+    _write((db) => db.into(db.collections).insert(CollectionsCompanion.insert(
+        id: c.id, label: c.label, icon: Value(c.iconKey), color: Value(c.colorKey), position: Value(position))));
     return c;
   }
 
-  void updateCollection(String id, {required String label, required String iconKey}) {
+  void updateCollection(String id, {required String label, required String iconKey, String colorKey = ''}) {
     final i = _defs.indexWhere((c) => c.id == id);
     if (i < 0) return;
-    _defs[i] = Collection(id, label.trim(), iconKey);
+    _defs[i] = Collection(id, label.trim(), iconKey, colorKey);
     final c = _defs[i];
     _write((db) => (db.update(db.collections)..where((t) => t.id.equals(id)))
-        .write(CollectionsCompanion(label: Value(c.label), icon: Value(c.iconKey))));
+        .write(CollectionsCompanion(label: Value(c.label), icon: Value(c.iconKey), color: Value(c.colorKey))));
   }
 
   /// Removes a collection; its chats become unsorted.

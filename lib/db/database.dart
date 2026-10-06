@@ -144,6 +144,9 @@ class Collections extends Table {
   TextColumn get icon => text().withDefault(const Constant('folder'))();
   IntColumn get position => integer().withDefault(const Constant(0))();
 
+  /// One of `kCollectionColorKeys`; '' = accent.
+  TextColumn get color => text().withDefault(const Constant(''))();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -168,6 +171,49 @@ class SeenCounts extends Table {
   Set<Column> get primaryKey => {chatId};
 }
 
+/// Focus-only display names for files in messages ("rename in the app"):
+/// the file in Telegram keeps its name, only Focus shows this one.
+class FileNames extends Table {
+  TextColumn get chatId => text()();
+  TextColumn get messageId => text()();
+  TextColumn get name => text()();
+
+  @override
+  Set<Column> get primaryKey => {chatId, messageId};
+}
+
+/// Focus-only marks on files: favorite and the user's own tags (JSON list).
+/// [kind] is the `SavedKind` name.
+@DataClassName('FileMarkRow')
+class FileMarks extends Table {
+  TextColumn get chatId => text()();
+  TextColumn get messageId => text()();
+  TextColumn get kind => text()();
+  BoolColumn get favorite => boolean().withDefault(const Constant(false))();
+  TextColumn get tags => text().withDefault(const Constant('[]'))();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {chatId, messageId};
+}
+
+/// Messages saved into "Fayllar", with a snapshot for the list.
+@DataClassName('SavedItemRow')
+class SavedItems extends Table {
+  TextColumn get chatId => text()();
+  TextColumn get messageId => text()();
+  TextColumn get kind => text()();
+  TextColumn get chatTitle => text()();
+  TextColumn get body => text().withDefault(const Constant(''))();
+  TextColumn get fileName => text().nullable()();
+  IntColumn get size => integer().withDefault(const Constant(0))();
+  DateTimeColumn get date => dateTime().nullable()();
+  DateTimeColumn get savedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {chatId, messageId};
+}
+
 /// Small flags, e.g. that local_state.json was imported.
 @DataClassName('KeyValueRow')
 class KeyValues extends Table {
@@ -181,7 +227,7 @@ class KeyValues extends Table {
 /// Focus' own local database (`fokus.sqlite` in the app support folder).
 /// Telegram data stays in TDLib; this holds tasks, calendar events, notes,
 /// collections and the Focus-only "seen" counters.
-@DriftDatabase(tables: [Tasks, Events, Notes, Collections, ChatCollections, SeenCounts, KeyValues])
+@DriftDatabase(tables: [Tasks, Events, Notes, Collections, ChatCollections, SeenCounts, KeyValues, FileNames, FileMarks, SavedItems])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
@@ -196,7 +242,7 @@ class AppDatabase extends _$AppDatabase {
   factory AppDatabase.memory() => AppDatabase(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -213,6 +259,14 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(seenCounts);
             await m.createTable(keyValues);
           }
+          // v5: collection color (createTable above already has it).
+          if (from >= 4 && from < 5) await m.addColumn(collections, collections.color);
+          // v6: Focus-only file names.
+          if (from < 6) await m.createTable(fileNames);
+          // v7: favorites and tags on files.
+          if (from < 7) await m.createTable(fileMarks);
+          // v8: messages saved into "Fayllar".
+          if (from < 8) await m.createTable(savedItems);
         },
       );
 }

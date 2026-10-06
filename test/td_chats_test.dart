@@ -6,6 +6,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fokus/data/local_store.dart';
+import 'package:fokus/data/chat_source.dart';
 import 'package:fokus/data/models.dart';
 import 'package:fokus/state/app_state.dart';
 import 'package:fokus/tdlib/td_auth.dart';
@@ -308,6 +309,183 @@ void main() {
     });
     expect(source.chats.single.photo, r'C:\tdlib\files\photo.jpg');
     expect(td.sent('downloadFile').length, 1);
+  });
+
+  test('unsupported and newer content types get a readable text', () async {
+    final (td, source) = await started(setup: (td) {
+      td.handlers['getChatHistory'] = (_) => {
+            'messages': [
+              {...text(1, 5, ''), 'content': {'@type': 'messageUnsupported'}},
+              {...text(1, 6, ''), 'content': {'@type': 'messageAnimatedEmoji', 'emoji': '🔥'}},
+              {...text(1, 7, ''), 'content': {'@type': 'messagePaidMedia', 'caption': {'@type': 'formattedText', 'text': 'x'}}},
+              {...text(1, 8, ''), 'content': {'@type': 'messageVideoChatStarted', 'group_call_id': 1}},
+            ],
+          };
+    });
+    td.push({'@type': 'updateNewChat', 'chat': privateChat(1, 'Dilshod', order: 10)});
+    await source.open('1');
+    final msgs = {for (final m in source.messagesOf('1')) m.id: m};
+    expect(msgs['5']!.text, contains('Telegram'));
+    expect(msgs['5']!.media, isNull);
+    expect(msgs['6']!.text, '🔥');
+    expect(msgs['7']!.mediaLabel, 'Pullik media');
+    expect(msgs['8']!.service, isTrue);
+  });
+
+  test('fresh incoming messages are announced for toasts; own and old ones are not', () async {
+    final (td, source) = await started(setup: (td) {
+      td.handlers['getChatHistory'] = (_) => {'messages': []};
+    });
+    final got = <IncomingMessage>[];
+    source.incoming.listen(got.add);
+    td.push({'@type': 'updateNewChat', 'chat': privateChat(1, 'Dilshod', order: 10)});
+    await source.open('1');
+    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+    td.push({'@type': 'updateNewMessage', 'message': {...text(1, 11, 'Salom'), 'date': now}});
+    td.push({'@type': 'updateNewMessage', 'message': {...text(1, 12, 'men', out: true), 'date': now}});
+    td.push({'@type': 'updateNewMessage', 'message': {...text(1, 13, 'eski'), 'date': now - 3600}});
+    await Future<void>.delayed(Duration.zero);
+    expect(got.map((m) => m.preview), ['Salom']);
+
+    // Freshness follows Telegram's clock (option unix_time), not the PC's:
+    // with the server an hour ahead, a message stamped an hour ahead is fresh
+    // and one stamped "now" by the PC is stale.
+    td.push({'@type': 'updateOption', 'name': 'unix_time', 'value': {'@type': 'optionValueInteger', 'value': '${now + 3600}'}});
+    td.push({'@type': 'updateNewMessage', 'message': {...text(1, 14, 'server vaqti'), 'date': now + 3600}});
+    td.push({'@type': 'updateNewMessage', 'message': {...text(1, 15, 'pc vaqti'), 'date': now}});
+    await Future<void>.delayed(Duration.zero);
+    expect(got.map((m) => m.preview), ['Salom', 'server vaqti']);
+    expect(got.first.chatTitle, 'Dilshod');
+    expect(got.first.chatId, '1');
+    expect(got.first.kind, ChatKind.private);
+    expect(got.first.muted, isFalse);
+  });
+
+  test('typing and other chat actions show as the status until cancelled', () async {
+    final (td, source) = await started();
+    td.push({'@type': 'updateNewChat', 'chat': privateChat(1, 'Dilshod', order: 10)});
+    td.push({'@type': 'updateNewChat', 'chat': groupChat(2, 'Jamoa', order: 9)});
+    td.push({'@type': 'updateUser', 'user': user(7, 'Sardor')});
+
+    TdObject action(int chat, int from, String type) => {
+          '@type': 'updateChatAction',
+          'chat_id': chat,
+          'message_thread_id': 0,
+          'sender_id': {'@type': 'messageSenderUser', 'user_id': from},
+          'action': {'@type': type},
+        };
+    td.push(action(1, 1, 'chatActionTyping'));
+    expect(source.chatById('1')!.typing, 'yozmoqda…');
+    td.push(action(1, 1, 'chatActionRecordingVoiceNote'));
+    expect(source.chatById('1')!.typing, 'ovozli xabar yozmoqda…');
+    td.push(action(1, 1, 'chatActionCancel'));
+    expect(source.chatById('1')!.typing, '');
+
+    // Groups name who is typing; our own actions are ignored.
+    td.push(action(2, 7, 'chatActionTyping'));
+    expect(source.chatById('2')!.typing, 'Sardor yozmoqda…');
+    td.push(action(2, me, 'chatActionTyping'));
+    expect(source.chatById('2')!.typing, 'Sardor yozmoqda…');
+    source.dispose();
+  });
+
+  test('a saved file is loaded by id with getMessage and follows downloads', () async {
+    final doc = {
+      ...text(1, 21, ''),
+      'content': {
+        '@type': 'messageDocument',
+        'document': {
+          '@type': 'document',
+          'file_name': 'hisobot.pdf',
+          'document': {'@type': 'file', 'id': 77, 'size': 2048, 'local': {'@type': 'localFile', 'path': '', 'is_downloading_active': false, 'downloaded_size': 0}, 'remote': {'@type': 'remoteFile', 'uploaded_size': 2048}},
+        },
+        'caption': {'@type': 'formattedText', 'text': ''},
+      },
+    };
+    final (td, source) = await started(setup: (td) {
+      td.handlers['getMessage'] = (r) => r['message_id'] == 21 ? doc : throw TdError(404, 'Not Found');
+    });
+    td.push({'@type': 'updateNewChat', 'chat': privateChat(1, 'Dilshod', order: 10, last: text(1, 5, 'salom'))});
+
+    final f = (await source.getFound('1', '21'))!;
+    final req = td.sent('getMessage').single;
+    expect(req['chat_id'], 1);
+    expect(req['message_id'], 21);
+    expect(f.message.fileName, 'hisobot.pdf');
+    expect(f.chatTitle, 'Dilshod');
+    expect(await source.getFound('1', '99'), isNull, reason: 'a deleted message is skipped');
+
+    // refreshFound rebuilds the message with the current download state.
+    td.push({
+      '@type': 'updateFile',
+      'file': {'@type': 'file', 'id': 77, 'size': 2048, 'local': {'@type': 'localFile', 'path': 'C:/x/hisobot.pdf', 'is_downloading_active': false, 'is_downloading_completed': true, 'downloaded_size': 2048}, 'remote': {'@type': 'remoteFile', 'uploaded_size': 2048}},
+    });
+    expect(source.refreshFound(f).file!.path, 'C:/x/hisobot.pdf');
+    expect(source.chatById('1')!.lastAt, isNotNull);
+  });
+
+  test('message rights, editing and deleting', () async {
+    final (td, source) = await started(setup: (td) {
+      td.handlers['getChatHistory'] = (r) => r['from_message_id'] == 0
+          ? {
+              'messages': [text(1, 31, 'Salom', out: true), text(1, 30, 'Qalaysiz')],
+            }
+          : {'messages': []};
+      td.handlers['getMessageProperties'] = (r) => {
+            '@type': 'messageProperties',
+            'can_be_edited': r['message_id'] == 31,
+            'can_be_deleted_only_for_self': true,
+            'can_be_deleted_for_all_users': r['message_id'] == 31,
+          };
+      td.handlers['editMessageText'] = (r) => {
+            ...text(1, 31, ((r['input_message_content'] as TdObject)['text'] as TdObject)['text'] as String, out: true),
+            'edit_date': 1,
+          };
+    });
+    td.push({'@type': 'updateNewChat', 'chat': privateChat(1, 'Dilshod', order: 10)});
+    await source.open('1');
+
+    final own = await source.rightsOf('1', '31');
+    expect((own.canEdit, own.canDeleteForMe, own.canDeleteForAll), (true, true, true));
+    final theirs = await source.rightsOf('1', '30');
+    expect((theirs.canEdit, theirs.canDelete), (false, true));
+
+    await source.editText('1', '31', '  Salom, Dilshod  ');
+    final req = td.sent('editMessageText').single;
+    expect((req['chat_id'], req['message_id']), (1, 31));
+    expect(((req['input_message_content'] as TdObject)['text'] as TdObject)['text'], 'Salom, Dilshod');
+    final edited = source.messagesOf('1').firstWhere((m) => m.id == '31');
+    expect((edited.text, edited.edited), ('Salom, Dilshod', true));
+
+    // An edit made elsewhere arrives as updates.
+    td.push({'@type': 'updateMessageEdited', 'chat_id': 1, 'message_id': 30, 'edit_date': 5});
+    expect(source.messagesOf('1').firstWhere((m) => m.id == '30').edited, isTrue);
+
+    await source.deleteMessages('1', ['30'], forAll: false);
+    final del = td.sent('deleteMessages').single;
+    expect((del['chat_id'], del['revoke']), (1, false));
+    expect(del['message_ids'], [30]);
+    expect(source.messagesOf('1').map((m) => m.id), ['31']);
+  });
+
+  test('pinning sends toggleChatIsPinned for the main list', () async {
+    final (td, source) = await started();
+    td.push({'@type': 'updateNewChat', 'chat': privateChat(1, 'Dilshod', order: 10)});
+    await source.setPinned('1', true);
+    final req = td.sent('toggleChatIsPinned').single;
+    expect(req['chat_id'], 1);
+    expect(req['is_pinned'], isTrue);
+    expect((req['chat_list'] as TdObject)['@type'], 'chatListMain');
+
+    // The pin itself comes back from TDLib as a position update.
+    expect(source.chatById('1')!.pinned, isFalse);
+    td.push({
+      '@type': 'updateChatPosition',
+      'chat_id': 1,
+      'position': {'@type': 'chatPosition', 'list': {'@type': 'chatListMain'}, 'order': '99', 'is_pinned': true},
+    });
+    expect(source.chatById('1')!.pinned, isTrue);
   });
 
   test('pinned chats, and where the composer is shown', () async {

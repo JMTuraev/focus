@@ -159,6 +159,9 @@ class ReminderService {
 class FakeNotifier implements Notifier {
   final scheduledById = <int, PlannedReminder>{};
   final shown = <String>[];
+
+  /// Payloads of [shown], in order.
+  final shownPayloads = <String>[];
   final _taps = StreamController<String>.broadcast();
   String? launch;
 
@@ -178,6 +181,7 @@ class FakeNotifier implements Notifier {
   @override
   Future<void> show({required int id, required String title, required String body, String payload = ''}) async {
     shown.add('$title: $body');
+    shownPayloads.add(payload);
   }
 
   @override

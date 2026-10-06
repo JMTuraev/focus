@@ -8,7 +8,9 @@ import '../backup/backup_service.dart';
 import '../calendar/event_store.dart';
 import '../data/chat_source.dart';
 import '../notes/note_store.dart';
+import '../reminders/message_notifier.dart';
 import '../reminders/notifier.dart';
+import '../reminders/taskbar_badge.dart';
 import '../reminders/reminder_service.dart';
 import '../state/app_state.dart';
 import '../state/settings.dart';
@@ -34,11 +36,16 @@ class AuthGate extends StatefulWidget {
   State<AuthGate> createState() => _AuthGateState();
 }
 
-class _AuthGateState extends State<AuthGate> {
+class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver, WindowListener {
   ChatSession? _session;
   AppState? _state;
   ReminderService? _reminders;
+  MessageNotifier? _messages;
+  TaskbarBadge? _badge;
   BackupService? _backup;
+
+  /// Focused window (desktop: resumed = focused, inactive = behind others).
+  bool _windowActive = true;
   StreamSubscription<String>? _taps;
   bool _opening = false;
   bool _launchHandled = false;
@@ -47,12 +54,34 @@ class _AuthGateState extends State<AuthGate> {
   void initState() {
     super.initState();
     widget.auth.state.addListener(_onAuth);
+    WidgetsBinding.instance.addObserver(this);
+    windowManager.addListener(this);
     _taps = widget.notifier?.taps.listen(_openFromNotification);
     _onAuth();
   }
 
+  // Window focus comes from both the Flutter lifecycle and window_manager,
+  // whichever the platform reports; toasts are skipped for the open chat
+  // only while the window is focused.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _windowActive = true;
+    if (state == AppLifecycleState.inactive || state == AppLifecycleState.hidden) _windowActive = false;
+  }
+
+  @override
+  void onWindowFocus() => _windowActive = true;
+
+  @override
+  void onWindowBlur() => _windowActive = false;
+
+  @override
+  void onWindowMinimize() => _windowActive = false;
+
   @override
   void dispose() {
+    windowManager.removeListener(this);
+    WidgetsBinding.instance.removeObserver(this);
     widget.auth.state.removeListener(_onAuth);
     _taps?.cancel();
     _closeSession();
@@ -79,12 +108,20 @@ class _AuthGateState extends State<AuthGate> {
             notes: NoteStore(session.db),
             initialChatId: session.initialChatId,
           );
+          _badge = TaskbarBadge(_state!)..start();
           _backup = BackupService(db: session.db, transport: session.backupTransport, keys: session.backupKeys);
           _backup!.init().then((_) => _backup?.startAuto());
           final n = widget.notifier;
           if (n != null) {
             _reminders = ReminderService(notifier: n, events: _state!.events, tasks: _state!.tasks, settings: widget.settings)
               ..start();
+            _messages = MessageNotifier(
+              notifier: n,
+              source: session.source,
+              settings: widget.settings,
+              windowActive: () => _windowActive,
+              activeChatId: () => _state?.activeChatId,
+            )..start();
           }
         });
         _handleLaunch();
@@ -99,6 +136,10 @@ class _AuthGateState extends State<AuthGate> {
   void _closeSession() {
     _reminders?.dispose();
     _reminders = null;
+    _messages?.dispose();
+    _messages = null;
+    _badge?.dispose();
+    _badge = null;
     _backup?.dispose();
     _backup = null;
     _state?.dispose();
@@ -116,7 +157,7 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   /// "event:ID" opens the calendar on that meeting's week, "task:ID" the
-  /// tasks board; the window comes to the front.
+  /// tasks board, "chat:ID" that chat; the window comes to the front.
   Future<void> _openFromNotification(String payload) async {
     // Not awaited: navigation must not wait for the window (and the window
     // plugin is not there in tests).
@@ -135,6 +176,9 @@ class _AuthGateState extends State<AuthGate> {
         state.showCalendarAt(e?.start ?? DateTime.now());
       case 'task':
         state.openModule(Module.tasks);
+      case 'chat':
+        state.openModule(Module.chats);
+        if (state.source.chatById('$id') != null) state.openChat('$id');
     }
   }
 

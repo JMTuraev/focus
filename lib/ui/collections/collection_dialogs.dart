@@ -4,6 +4,7 @@ import '../../data/models.dart';
 import '../../l10n/l10n.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
+import '../common.dart';
 
 /// Create a collection, or rename / change the icon of [existing].
 /// Returns the created or edited collection, or null if cancelled.
@@ -27,6 +28,7 @@ class _CollectionEditor extends StatefulWidget {
 class _CollectionEditorState extends State<_CollectionEditor> {
   late final _name = TextEditingController(text: widget.existing?.label ?? '');
   late String _icon = widget.existing?.iconKey ?? 'folder';
+  late String _color = widget.existing?.colorKey ?? '';
   String? _error;
 
   @override
@@ -49,10 +51,10 @@ class _CollectionEditorState extends State<_CollectionEditor> {
     }
     final existing = widget.existing;
     if (existing == null) {
-      Navigator.pop(context, widget.state.createCollection(name, _icon));
+      Navigator.pop(context, widget.state.createCollection(name, _icon, colorKey: _color));
     } else {
-      widget.state.updateCollection(existing.id, label: name, iconKey: _icon);
-      Navigator.pop(context, Collection(existing.id, name, _icon));
+      widget.state.updateCollection(existing.id, label: name, iconKey: _icon, colorKey: _color);
+      Navigator.pop(context, Collection(existing.id, name, _icon, _color));
     }
   }
 
@@ -62,6 +64,7 @@ class _CollectionEditorState extends State<_CollectionEditor> {
     final s = context.s;
     OutlineInputBorder border(Color color, [double w = 1]) =>
         OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: color, width: w));
+    final tint = c.collectionColor(_color);
     return AlertDialog(
       backgroundColor: c.panel,
       title: Text(
@@ -96,6 +99,37 @@ class _CollectionEditorState extends State<_CollectionEditor> {
               ),
             ),
             const SizedBox(height: 8),
+            Text(s.notes.color, style: TextStyle(color: c.text2, fontSize: 13, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (var i = 0; i < kCollectionColorKeys.length; i++)
+                  Tooltip(
+                    message: s.notes.collectionColorLabels[i],
+                    waitDuration: const Duration(seconds: 1),
+                    child: InkWell(
+                      onTap: () => setState(() => _color = kCollectionColorKeys[i]),
+                      customBorder: const CircleBorder(),
+                      child: Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: c.collectionColors[i],
+                          border: Border.all(
+                              color: _color == kCollectionColorKeys[i] ? c.text : Colors.transparent, width: 2.5),
+                        ),
+                        child: _color == kCollectionColorKeys[i]
+                            ? const Icon(Icons.check, size: 16, color: Colors.white)
+                            : null,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 14),
             Text(s.notes.icon, style: TextStyle(color: c.text2, fontSize: 13, fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             Wrap(
@@ -113,11 +147,11 @@ class _CollectionEditorState extends State<_CollectionEditor> {
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          color: _icon == e.key ? c.accentSoft : Colors.transparent,
+                          color: _icon == e.key ? tint.withValues(alpha: 0.16) : Colors.transparent,
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: _icon == e.key ? c.accent : c.chipBorder),
+                          border: Border.all(color: _icon == e.key ? tint : c.chipBorder),
                         ),
-                        child: Icon(e.value, size: 20, color: _icon == e.key ? c.accentText : c.icon),
+                        child: Icon(e.value, size: 20, color: _icon == e.key ? tint : c.icon),
                       ),
                     ),
                   ),
@@ -174,7 +208,8 @@ Future<void> confirmDeleteCollection(BuildContext context, AppState state, Colle
   if (ok == true) state.deleteCollection(col.id);
 }
 
-/// Context menu for a chat: move it to a collection or back to unsorted.
+/// Context menu for a chat: pin it in Telegram, move it to a collection or
+/// back to unsorted.
 Future<void> showAssignMenu(BuildContext context, AppState state, Chat chat, Offset globalPosition) async {
   final c = context.fc;
   final t = context.s.notes;
@@ -185,6 +220,19 @@ Future<void> showAssignMenu(BuildContext context, AppState state, Chat chat, Off
     color: c.panel,
     position: RelativeRect.fromRect(globalPosition & const Size(1, 1), Offset.zero & overlay.size),
     items: [
+      PopupMenuItem<String>(
+        value: '+pin',
+        height: 38,
+        child: Row(
+          children: [
+            Icon(chat.pinned ? Icons.push_pin : Icons.push_pin_outlined, size: 18, color: c.icon),
+            const SizedBox(width: 10),
+            Text(chat.pinned ? context.s.chats.unpinChat : context.s.chats.pinChat,
+                style: TextStyle(color: c.text, fontSize: 14)),
+          ],
+        ),
+      ),
+      const PopupMenuDivider(),
       PopupMenuItem<String>(
         enabled: false,
         height: 32,
@@ -197,7 +245,7 @@ Future<void> showAssignMenu(BuildContext context, AppState state, Chat chat, Off
           height: 38,
           child: Row(
             children: [
-              Icon(col.icon, size: 18, color: c.icon),
+              Icon(col.icon, size: 18, color: c.collectionColor(col.colorKey)),
               const SizedBox(width: 10),
               Expanded(child: Text(col.label, style: TextStyle(color: c.text, fontSize: 14))),
               if (col.id == current) Icon(Icons.check, size: 18, color: c.accentText),
@@ -231,6 +279,17 @@ Future<void> showAssignMenu(BuildContext context, AppState state, Chat chat, Off
     ],
   );
   if (choice == null) return;
+  if (choice == '+pin') {
+    try {
+      await state.togglePinned(chat);
+    } catch (e) {
+      if (!context.mounted) return;
+      final t = context.s.chats;
+      final text = '$e'.contains('PINNED_DIALOGS_TOO_MUCH') ? t.pinLimit : t.pinFailed;
+      showToast(context, (w) => SnackBar(width: w < 480 ? w : 480, content: Text(text)));
+    }
+    return;
+  }
   if (choice == '+new') {
     if (!context.mounted) return;
     final created = await showCollectionEditor(context, state);
@@ -238,4 +297,46 @@ Future<void> showAssignMenu(BuildContext context, AppState state, Chat chat, Off
     return;
   }
   state.moveToCollection(chat.id, choice);
+}
+
+/// "Barchasini to‘plamga…": moves every chat in [chats] at once; [label]
+/// names the chat type when the list is filtered by one.
+class BulkAssignButton extends StatelessWidget {
+  const BulkAssignButton({super.key, required this.state, required this.chats, this.label});
+
+  final AppState state;
+  final List<Chat> chats;
+  final String? label;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.fc;
+    final t = context.s.notes;
+    return MenuAnchor(
+      style: MenuStyle(backgroundColor: WidgetStatePropertyAll(c.panel)),
+      menuChildren: [
+        for (final col in state.collections)
+          MenuItemButton(
+            leadingIcon: Icon(col.icon, size: 18, color: c.collectionColor(col.colorKey)),
+            onPressed: () {
+              final n = chats.length;
+              state.assignAll(List.of(chats), col.id);
+              showToast(
+                  context,
+                  (w) => SnackBar(
+                      width: w < 480 ? w : 480, content: Text(t.movedToCollection(n, col.label))));
+            },
+            child: Text(col.label, style: TextStyle(color: c.text, fontSize: 14)),
+          ),
+      ],
+      builder: (context, controller, _) => TextButton.icon(
+        onPressed: () => controller.isOpen ? controller.close() : controller.open(),
+        icon: Icon(Icons.drive_file_move_outline, size: 18, color: c.accentText),
+        label: Text(
+          label == null ? t.moveAll(chats.length) : t.moveAllOfType(label!, chats.length),
+          style: TextStyle(color: c.accentText, fontWeight: FontWeight.w600),
+        ),
+      ),
+    );
+  }
 }

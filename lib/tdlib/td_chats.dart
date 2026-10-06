@@ -24,6 +24,10 @@ class TdChatSource extends ChatSource {
 
   final TdApi td;
   late final StreamSubscription<TdObject> _sub;
+  final _incoming = StreamController<IncomingMessage>.broadcast();
+
+  @override
+  Stream<IncomingMessage> get incoming => _incoming.stream;
 
   int _myId = 0;
   bool _loading = true;
@@ -42,6 +46,21 @@ class TdChatSource extends ChatSource {
   final _userRequests = <int>{};
   /// Parsed meetings by "chatId:messageId" (message ids are unique per chat).
   final _meetings = <String, Meeting?>{};
+
+  /// Raw messages of loaded saved items, so that [refreshFound] can
+  /// rebuild them with the current download state.
+  final _found = <String, TdObject>{};
+
+  /// Who is typing (or recording, uploading) where: chat → sender → action.
+  final _actions = <int, Map<int, ({String type, DateTime at})>>{};
+  Timer? _actionSweep;
+
+  /// Telegram clients drop a chat action this long after the last update.
+  static const _actionTtl = Duration(seconds: 6);
+
+  /// Telegram's clock minus this PC's clock (TDLib option `unix_time`), so
+  /// that message freshness does not depend on the PC clock being right.
+  Duration _serverOffset = Duration.zero;
   List<Chat>? _sorted;
 
   /// Language [_sorted] and [_meetings] were built in; both hold UI texts.
@@ -85,6 +104,8 @@ class TdChatSource extends ChatSource {
   void dispose() {
     _disposed = true;
     _sub.cancel();
+    _actionSweep?.cancel();
+    _incoming.close();
     super.dispose();
   }
 
@@ -135,6 +156,15 @@ class TdChatSource extends ChatSource {
         final user = _users[u['user_id'] as int];
         if (user == null) return;
         user['status'] = u['status'];
+      case 'updateOption':
+        if (u['name'] == 'unix_time') {
+          final v = int.tryParse('${(u['value'] as TdObject?)?['value']}');
+          if (v != null) _serverOffset = DateTime.fromMillisecondsSinceEpoch(v * 1000).difference(DateTime.now());
+        }
+        return;
+      case 'updateChatAction':
+        if ((u['message_thread_id'] as int? ?? 0) != 0) return;
+        _onChatAction(chatId!, u['sender_id'] as TdObject, (u['action'] as TdObject)['@type'] as String);
       case 'updateBasicGroup':
         final g = u['basic_group'] as TdObject;
         _basicGroups[g['id'] as int] = g;
@@ -144,6 +174,7 @@ class TdChatSource extends ChatSource {
       case 'updateNewMessage':
         final m = u['message'] as TdObject;
         _insert(m['chat_id'] as int, m);
+        _announce(m);
       case 'updateMessageSendSucceeded' || 'updateMessageSendFailed':
         final m = u['message'] as TdObject;
         _replace(m['chat_id'] as int, u['old_message_id'] as int, m);
@@ -152,6 +183,10 @@ class TdChatSource extends ChatSource {
         final m = _find(chatId!, u['message_id'] as int);
         if (m == null) return;
         m['content'] = u['new_content'];
+      case 'updateMessageEdited':
+        final m = _find(chatId!, u['message_id'] as int);
+        if (m == null) return;
+        m['edit_date'] = u['edit_date'];
       case 'updateDeleteMessages':
         if (u['is_permanent'] != true) return;
         final ids = (u['message_ids'] as List).cast<int>().toSet();
@@ -206,6 +241,85 @@ class TdChatSource extends ChatSource {
     if (list.any((x) => x['id'] == m['id'])) return;
     list.add(Map<String, dynamic>.of(m));
     list.sort((a, b) => (a['id'] as int).compareTo(b['id'] as int));
+  }
+
+  // ------------------------------------------------------------ chat actions
+
+  void _onChatAction(int chatId, TdObject sender, String type) {
+    final isChat = sender['@type'] == 'messageSenderChat';
+    final senderId = (isChat ? sender['chat_id'] : sender['user_id']) as int;
+    if (!isChat && senderId == _myId) return;
+    final map = _actions.putIfAbsent(chatId, () => {});
+    if (type == 'chatActionCancel') {
+      map.remove(senderId);
+      if (map.isEmpty) _actions.remove(chatId);
+    } else {
+      map[senderId] = (type: type, at: DateTime.now());
+    }
+    if (_actions.isNotEmpty) {
+      _actionSweep ??= Timer.periodic(const Duration(seconds: 2), (_) => _sweepActions());
+    }
+  }
+
+  /// Drops actions nobody cancelled (the other client went away).
+  void _sweepActions() {
+    final cutoff = DateTime.now().subtract(_actionTtl);
+    var dropped = false;
+    for (final chat in _actions.keys.toList()) {
+      final map = _actions[chat]!;
+      final before = map.length;
+      map.removeWhere((_, a) => a.at.isBefore(cutoff));
+      if (map.isEmpty) _actions.remove(chat);
+      if (map.length != before) dropped = true;
+    }
+    if (_actions.isEmpty) {
+      _actionSweep?.cancel();
+      _actionSweep = null;
+    }
+    if (dropped) _changed();
+  }
+
+  /// "yozmoqda…" for the chat header and list; in groups with the names.
+  String _typingText(int chatId, ChatKind kind) {
+    final map = _actions[chatId];
+    if (map == null || map.isEmpty) return '';
+    final t = S.current.chats;
+    final label = switch (map.values.first.type) {
+      'chatActionRecordingVoiceNote' || 'chatActionUploadingVoiceNote' => t.actionVoice,
+      'chatActionRecordingVideo' || 'chatActionRecordingVideoNote' || 'chatActionUploadingVideoNote' => t.actionVideo,
+      'chatActionUploadingPhoto' || 'chatActionUploadingVideo' || 'chatActionUploadingDocument' => t.actionFile,
+      'chatActionChoosingSticker' => t.actionSticker,
+      _ => t.actionTyping,
+    };
+    if (kind != ChatKind.group) return label;
+    final names = [
+      for (final id in map.keys.take(2))
+        (_users[id]?['first_name'] as String?) ?? (_chats[id]?['title'] as String?) ?? '',
+    ].where((n) => n.isNotEmpty).toList();
+    return names.isEmpty ? label : '${names.join(', ')} $label';
+  }
+
+  /// Messages older than this when they arrive (catch-up after being
+  /// offline) get no toast: Telegram already showed them on the phone.
+  static const _freshFor = Duration(minutes: 2);
+
+  /// Emits [incoming] for a message from someone else that just arrived.
+  void _announce(TdObject m) {
+    if (m['is_outgoing'] == true || m['sending_state'] != null) return;
+    final chat = _chats[m['chat_id'] as int];
+    if (chat == null) return;
+    final date = DateTime.fromMillisecondsSinceEpoch((m['date'] as int) * 1000);
+    if (DateTime.now().add(_serverOffset).difference(date) > _freshFor) return;
+    final kind = _kind(chat);
+    final muteFor = ((chat['notification_settings'] as TdObject?)?['mute_for'] as int?) ?? 0;
+    _incoming.add(IncomingMessage(
+      chatId: '${chat['id']}',
+      chatTitle: kind == ChatKind.saved ? S.current.chats.savedMessages : (chat['title'] as String? ?? ''),
+      kind: kind,
+      muted: muteFor > 0,
+      preview: _contentText(m['content'] as TdObject),
+      sender: kind == ChatKind.group ? _senderName(m, full: true) : null,
+    ));
   }
 
   void _replace(int chatId, int oldId, TdObject m) {
@@ -313,6 +427,8 @@ class TdChatSource extends ChatSource {
       muted: muteFor > 0,
       phone: phone.isEmpty ? '' : formatPhone(phone),
       about: _about[id] ?? '',
+      typing: _typingText(id, kind),
+      lastAt: date,
       photo: _photo(c['photo'] as TdObject?),
       kind: kind,
       pinned: _mainPinned(c),
@@ -516,6 +632,28 @@ class TdChatSource extends ChatSource {
     'messageChatSetMessageAutoDeleteTime',
     'messageScreenshotTaken',
     'messageCustomServiceAction',
+    'messageVideoChatScheduled',
+    'messageVideoChatStarted',
+    'messageVideoChatEnded',
+    'messageInviteVideoChatParticipants',
+    'messageChatBoost',
+    'messageChatSetTheme',
+    'messageChatSetBackground',
+    'messageForumTopicCreated',
+    'messageForumTopicEdited',
+    'messageForumTopicIsClosedToggled',
+    'messageForumTopicIsHiddenToggled',
+    'messagePaymentSuccessful',
+    'messageGiftedPremium',
+    'messagePremiumGiftCode',
+    'messageGift',
+    'messageUpgradedGift',
+    'messageProximityAlertTriggered',
+    'messageWebAppDataSent',
+    'messageBotWriteAccessAllowed',
+    'messageChatShared',
+    'messageUsersShared',
+    'messageSuggestProfilePhoto',
   };
 
   static bool _isService(String type) => _serviceTypes.contains(type);
@@ -556,7 +694,13 @@ class TdChatSource extends ChatSource {
       'messagePoll' => t.poll(_formatted((content['poll'] as TdObject?)?['question'])),
       'messageCall' => t.callMessage,
       'messageDice' => (content['emoji'] as String?) ?? '🎲',
+      'messageAnimatedEmoji' => (content['emoji'] as String?) ?? '',
       'messageStory' => t.story,
+      'messagePaidMedia' => withCaption(t.paidMedia),
+      'messageInvoice' => ((content['product_info'] as TdObject?)?['title'] as String?) ?? t.invoice,
+      'messageGiveaway' || 'messageGiveawayWinners' || 'messageGiveawayCompleted' || 'messageGiveawayPrizeStars' =>
+        t.giveaway,
+      'messageUnsupported' => t.unsupportedMessage,
       'messageChatAddMembers' => t.joinedGroup,
       'messageChatJoinByLink' || 'messageChatJoinByRequest' => t.joinedGroup,
       'messageChatDeleteMember' => t.leftGroup,
@@ -570,9 +714,22 @@ class TdChatSource extends ChatSource {
       'messageChatSetMessageAutoDeleteTime' => t.setAutoDelete,
       'messageScreenshotTaken' => t.tookScreenshot,
       'messageCustomServiceAction' => (content['text'] as String?) ?? '',
-      _ => t.message,
+      'messageVideoChatScheduled' || 'messageVideoChatStarted' => t.videoChatStarted,
+      'messageVideoChatEnded' => t.videoChatEnded,
+      'messageChatBoost' => t.boostedChat,
+      'messageForumTopicCreated' || 'messageForumTopicEdited' => t.topicChanged,
+      _ => _unknown(content['@type'] as String),
     };
   }
+
+  /// Debug builds log content types Focus does not name yet (type only,
+  /// never the message itself).
+  static String _unknown(String type) {
+    if (kDebugMode && _loggedTypes.add(type)) debugPrint('message content not handled: $type');
+    return S.current.chats.message;
+  }
+
+  static final _loggedTypes = <String>{};
 
   static MediaKind? _mediaKind(String type) => switch (type) {
         'messagePhoto' => MediaKind.photo,
@@ -585,7 +742,8 @@ class TdChatSource extends ChatSource {
         'messageContact' => MediaKind.contact,
         'messagePoll' => MediaKind.poll,
         'messageCall' => MediaKind.call,
-        'messageText' || 'messageDocument' || 'messageAudio' => null,
+        // Plain text bubbles: the text is the label (emoji, unsupported notice).
+        'messageText' || 'messageDocument' || 'messageAudio' || 'messageAnimatedEmoji' || 'messageUnsupported' => null,
         _ => MediaKind.other,
       };
 
@@ -628,6 +786,7 @@ class TdChatSource extends ChatSource {
     final text = switch (type) {
       'messageText' => _formatted(content['text']),
       'messageDocument' || 'messageAudio' => _caption(content),
+      'messageAnimatedEmoji' || 'messageUnsupported' => _contentText(content),
       _ => media == null ? '' : _caption(content),
     };
     final inGroup = kind == ChatKind.group && !out;
@@ -651,6 +810,7 @@ class TdChatSource extends ChatSource {
       pending: sending == 'messageSendingStatePending',
       failed: sending == 'messageSendingStateFailed',
       read: out && id <= readUpTo,
+      edited: ((m['edit_date'] as int?) ?? 0) > 0,
       entities: text.isEmpty ? const [] : entitiesOf(formatted),
       info: _mediaInfo(content),
       senderId: sender?.id,
@@ -975,6 +1135,99 @@ class TdChatSource extends ChatSource {
       },
     });
   }
+
+  /// A raw TDLib message as a [FoundFile]; fetches its chat if needed.
+  Future<FoundFile?> _foundOf(TdObject m) async {
+    final cid = m['chat_id'] as int;
+    var chat = _chats[cid];
+    if (chat == null) {
+      // A chat outside the loaded list: fetch it once (also fills _chats).
+      try {
+        chat = Map<String, dynamic>.of(await td.query({'@type': 'getChat', 'chat_id': cid}));
+        _chats[cid] = chat;
+      } catch (_) {
+        return null;
+      }
+    }
+    final f = FoundFile(chatId: '$cid', chatTitle: _titleOf(chat), message: _toMessage(m, chat, _kind(chat)));
+    _found[f.key] = m;
+    return f;
+  }
+
+  @override
+  Future<FoundFile?> getFound(String chatId, String messageId) async {
+    final cached = _found['$chatId:$messageId'];
+    if (cached != null) return _foundOf(cached);
+    try {
+      // getMessage only reads (td_api.tl of the pinned commit).
+      final m = await td.query({'@type': 'getMessage', 'chat_id': int.parse(chatId), 'message_id': int.parse(messageId)});
+      return _foundOf(m);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _titleOf(TdObject chat) =>
+      _kind(chat) == ChatKind.saved ? S.current.chats.savedMessages : (chat['title'] as String? ?? '');
+
+  @override
+  Message refreshFound(FoundFile f) {
+    final raw = _found[f.key];
+    final chat = _chats[int.parse(f.chatId)];
+    if (raw == null || chat == null) return f.message;
+    return _toMessage(raw, chat, _kind(chat));
+  }
+
+  @override
+  Future<MessageRights> rightsOf(String chatId, String messageId) async {
+    final p = await td.query({
+      '@type': 'getMessageProperties',
+      'chat_id': int.parse(chatId),
+      'message_id': int.parse(messageId),
+    });
+    return MessageRights(
+      canEdit: p['can_be_edited'] == true,
+      canDeleteForMe: p['can_be_deleted_only_for_self'] == true,
+      canDeleteForAll: p['can_be_deleted_for_all_users'] == true,
+    );
+  }
+
+  @override
+  Future<void> editText(String chatId, String messageId, String text) async {
+    final id = int.parse(chatId);
+    final m = await td.query({
+      '@type': 'editMessageText',
+      'chat_id': id,
+      'message_id': int.parse(messageId),
+      'input_message_content': {
+        '@type': 'inputMessageText',
+        'text': {'@type': 'formattedText', 'text': text.trim()},
+      },
+    });
+    // The edited message comes back at once; updates follow as well.
+    if (m['@type'] == 'message') {
+      _meetings.remove('$chatId:$messageId');
+      _replace(id, int.parse(messageId), m);
+      _changed();
+    }
+  }
+
+  @override
+  Future<void> deleteMessages(String chatId, List<String> messageIds, {required bool forAll}) async {
+    final id = int.parse(chatId);
+    final ids = [for (final m in messageIds) int.parse(m)];
+    await td.query({'@type': 'deleteMessages', 'chat_id': id, 'message_ids': ids, 'revoke': forAll});
+    _messages[id]?.removeWhere((m) => ids.contains(m['id']));
+    _changed();
+  }
+
+  @override
+  Future<void> setPinned(String chatId, bool pinned) => td.query({
+        '@type': 'toggleChatIsPinned',
+        'chat_list': {'@type': _mainList},
+        'chat_id': int.parse(chatId),
+        'is_pinned': pinned,
+      });
 
   @override
   Future<void> sendFiles(String chatId, List<OutgoingFile> files, {String caption = '', bool compressImages = true}) async {

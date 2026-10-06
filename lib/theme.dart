@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'data/models.dart';
+
 /// Focus palette, light and dark (Telegram "Night"-like) variants.
 ///
 /// Read colors in widgets with `final c = context.fc;`.
@@ -38,6 +40,7 @@ class FokusColors extends ThemeExtension<FokusColors> {
     required this.datePill,
     required this.meetingBg,
     required this.qaBg,
+    required this.popover,
     required this.qaHover,
     required this.qaBorder,
     required this.qaFg,
@@ -50,6 +53,7 @@ class FokusColors extends ThemeExtension<FokusColors> {
     required this.danger,
     required this.senderNames,
     required this.noteColors,
+    required this.collectionColors,
   });
 
   /// Brand color, the same in both modes (logo).
@@ -83,6 +87,9 @@ class FokusColors extends ThemeExtension<FokusColors> {
   final Color datePill;
   final Color meetingBg;
   final Color qaBg;
+
+  /// Popovers and floating panels: stands out from cards and background.
+  final Color popover;
   final Color qaHover;
   final Color qaBorder;
   final Color qaFg;
@@ -103,6 +110,15 @@ class FokusColors extends ThemeExtension<FokusColors> {
 
   /// Note backgrounds in [NoteColor] order (first = no color).
   final List<Color> noteColors;
+
+  /// Collection icon colors in [kCollectionColorKeys] order (first = accent).
+  final List<Color> collectionColors;
+
+  /// The icon color of a collection; unknown keys fall back to the accent.
+  Color collectionColor(String key) {
+    final i = kCollectionColorKeys.indexOf(key);
+    return collectionColors[i < 0 ? 0 : i];
+  }
 
   static const light = FokusColors(
     accent: Color(0xFF3390EC),
@@ -133,6 +149,7 @@ class FokusColors extends ThemeExtension<FokusColors> {
     datePill: Color(0x6B283C1E),
     meetingBg: Color(0xF0FFFFFF),
     qaBg: Color(0xFFF3F8FE),
+    popover: Colors.white,
     qaHover: Color(0xFFE1EDFB),
     qaBorder: Color(0xFFCFE0F3),
     qaFg: Color(0xFF1E5FA6),
@@ -160,6 +177,16 @@ class FokusColors extends ThemeExtension<FokusColors> {
       Color(0xFFECE2F8), // purple
       Color(0xFFFBE0EA), // pink
       Color(0xFFFDE6D2), // orange
+    ],
+    collectionColors: [
+      Color(0xFF3390EC), // accent
+      Color(0xFF34A853), // green
+      Color(0xFF1BA4A8), // teal
+      Color(0xFFEF8F2A), // orange
+      Color(0xFFE0453E), // red
+      Color(0xFF8A5CD6), // purple
+      Color(0xFFD9479A), // pink
+      Color(0xFF7A8794), // grey
     ],
   );
 
@@ -192,6 +219,7 @@ class FokusColors extends ThemeExtension<FokusColors> {
     datePill: Color(0x991E2C3A),
     meetingBg: Color(0xF0182533),
     qaBg: Color(0xFF1B2B3B),
+    popover: Color(0xFF26323F),
     qaHover: Color(0xFF223649),
     qaBorder: Color(0xFF2A4560),
     qaFg: Color(0xFF7FB8F0),
@@ -219,6 +247,16 @@ class FokusColors extends ThemeExtension<FokusColors> {
       Color(0xFF33294A),
       Color(0xFF41252F),
       Color(0xFF412F20),
+    ],
+    collectionColors: [
+      Color(0xFF5FAFF5),
+      Color(0xFF5BC77A),
+      Color(0xFF4CC7CB),
+      Color(0xFFF5A94F),
+      Color(0xFFF0675F),
+      Color(0xFFAB86EE),
+      Color(0xFFF06AB9),
+      Color(0xFF9AA6B2),
     ],
   );
 
@@ -259,6 +297,7 @@ class FokusColors extends ThemeExtension<FokusColors> {
       datePill: l(datePill, o.datePill),
       meetingBg: l(meetingBg, o.meetingBg),
       qaBg: l(qaBg, o.qaBg),
+      popover: l(popover, o.popover),
       qaHover: l(qaHover, o.qaHover),
       qaBorder: l(qaBorder, o.qaBorder),
       qaFg: l(qaFg, o.qaFg),
@@ -271,6 +310,7 @@ class FokusColors extends ThemeExtension<FokusColors> {
       danger: l(danger, o.danger),
       senderNames: [for (var i = 0; i < senderNames.length; i++) l(senderNames[i], o.senderNames[i])],
       noteColors: [for (var i = 0; i < noteColors.length; i++) l(noteColors[i], o.noteColors[i])],
+      collectionColors: [for (var i = 0; i < collectionColors.length; i++) l(collectionColors[i], o.collectionColors[i])],
     );
   }
 }
@@ -279,12 +319,18 @@ extension FokusColorsX on BuildContext {
   FokusColors get fc => Theme.of(this).extension<FokusColors>()!;
 }
 
+/// Font fallback for emoji everywhere (messages, composer, lists).
+const kEmojiFallback = ['Twemoji', 'Segoe UI Emoji'];
+
 ThemeData buildTheme(Brightness brightness) {
   final c = brightness == Brightness.dark ? FokusColors.dark : FokusColors.light;
   return ThemeData(
     useMaterial3: true,
     brightness: brightness,
     fontFamily: 'Segoe UI',
+    // Emoji are not in Segoe UI: they come from the bundled Twemoji, and
+    // newer ones it lacks from Windows' Segoe UI Emoji.
+    fontFamilyFallback: kEmojiFallback,
     scaffoldBackgroundColor: c.bg,
     splashFactory: NoSplash.splashFactory,
     colorScheme: ColorScheme.fromSeed(

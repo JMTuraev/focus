@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../backup/backup_service.dart';
 import '../config.dart';
@@ -145,6 +146,39 @@ class _SettingsDialog extends StatelessWidget {
                   ],
                 ),
               ],
+              label(t.messagesSection),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                value: available && settings.messageNotifications,
+                onChanged: available ? settings.setMessageNotifications : null,
+                activeThumbColor: Colors.white,
+                activeTrackColor: c.accentStrong,
+                title: Text(t.messagesTitle, style: TextStyle(color: c.text, fontSize: 14.5)),
+                subtitle: Text(
+                  available ? t.messagesOn : t.remindersUnavailable,
+                  style: TextStyle(color: c.text2, fontSize: 12.5),
+                ),
+              ),
+              if (available && settings.messageNotifications) ...[
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  value: settings.notifyChannels,
+                  onChanged: settings.setNotifyChannels,
+                  activeThumbColor: Colors.white,
+                  activeTrackColor: c.accentStrong,
+                  title: Text(t.messagesChannels, style: TextStyle(color: c.text, fontSize: 14)),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  value: settings.notifyShowText,
+                  onChanged: settings.setNotifyShowText,
+                  activeThumbColor: Colors.white,
+                  activeTrackColor: c.accentStrong,
+                  title: Text(t.messagesShowText, style: TextStyle(color: c.text, fontSize: 14)),
+                ),
+              ],
               if (backup != null) ...[
                 label(t.backupSection),
                 ListTile(
@@ -173,6 +207,13 @@ class _SettingsDialog extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text('Focus ${AppConfig.version}', style: TextStyle(color: c.text2, fontSize: 12)),
+              const SizedBox(height: 2),
+              // Twemoji graphics: CC BY 4.0 asks for credit and a license link.
+              InkWell(
+                onTap: () => launchUrl(Uri.parse('https://creativecommons.org/licenses/by/4.0/')),
+                child: Text(t.emojiCredit,
+                    style: TextStyle(color: c.text2, fontSize: 12, decoration: TextDecoration.underline)),
+              ),
             ],
           ),
         ),

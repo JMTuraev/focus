@@ -29,8 +29,6 @@ class AppStrings {
     required this.logout,
     required this.logoutTip,
     // placeholders
-    required this.filesSubtitle,
-    required this.statsSubtitle,
     required this.comingSoon,
     // logout dialog
     required this.logoutQuestion,
@@ -50,12 +48,20 @@ class AppStrings {
     required this.testNotification,
     required this.testNotificationBody,
     required this.testNotificationSent,
+    required this.messagesSection,
+    required this.messagesTitle,
+    required this.messagesOn,
+    required this.messagesChannels,
+    required this.messagesShowText,
+    required this.newMessageHidden,
+    required this.unreadChatsTooltip,
     required this.backupSection,
     required this.backupTile,
     required this.backupNotSet,
     required this.backupNotYet,
     required this.backupLast,
     required this.about,
+    required this.emojiCredit,
     required this.supportSubtitle,
     // donations
     required this.donateIntro,
@@ -107,8 +113,6 @@ class AppStrings {
   final String logout;
   final String logoutTip;
 
-  final String filesSubtitle;
-  final String statsSubtitle;
 
   /// Badge on screens that are not built yet.
   final String comingSoon;
@@ -132,6 +136,18 @@ class AppStrings {
   final String testNotification;
   final String testNotificationBody;
   final String testNotificationSent;
+  /// Settings section about toasts for new Telegram messages.
+  final String messagesSection;
+  final String messagesTitle;
+  final String messagesOn;
+  final String messagesChannels;
+  final String messagesShowText;
+
+  /// Toast body when the text is hidden by the setting.
+  final String newMessageHidden;
+
+  /// Tooltip of the red taskbar badge.
+  final String Function(int n) unreadChatsTooltip;
   final String backupSection;
   final String backupTile;
   final String backupNotSet;
@@ -140,6 +156,9 @@ class AppStrings {
   /// "Oxirgi: Bugun, 14:30".
   final String Function(String when) backupLast;
   final String about;
+
+  /// Attribution required by the Twemoji graphics license (CC BY 4.0).
+  final String emojiCredit;
   final String supportSubtitle;
 
   final String donateIntro;
@@ -188,8 +207,6 @@ final appUz = AppStrings(
   settings: 'Sozlamalar',
   logout: 'Chiqish',
   logoutTip: 'Akkauntdan chiqish',
-  filesSubtitle: 'AI bo‘limlari va «AI’dan so‘rang»',
-  statsSubtitle: 'Kunlik chatlar, javob vaqti, grafiklar',
   comingSoon: 'Tez orada',
   logoutQuestion: 'Akkauntdan chiqasizmi?',
   logoutBody: 'Focus’dagi Telegram sessiyasi yopiladi. Telefoningizdagi Telegram ishlashda davom etadi.',
@@ -207,12 +224,20 @@ final appUz = AppStrings(
   testNotification: 'Sinab ko‘rish',
   testNotificationBody: 'Bildirishnomalar ishlayapti.',
   testNotificationSent: 'Sinov bildirishnomasi yuborildi',
+  messagesSection: 'Yangi xabarlar',
+  messagesTitle: 'Yangi xabar bildirishnomalari',
+  messagesOn: 'Telegramdagi kabi: Focus oynasi faol bo‘lmasa yoki boshqa chat ochiq bo‘lsa chiqadi. Ovozsiz chatlar chiqmaydi.',
+  messagesChannels: 'Kanallardan ham',
+  messagesShowText: 'Xabar matnini ko‘rsatish',
+  newMessageHidden: 'Yangi xabar',
+  unreadChatsTooltip: (n) => '$n ta o‘qilmagan chat',
   backupSection: 'Zaxira nusxa',
   backupTile: 'Shifrlangan zaxira (Saved Messages)',
   backupNotSet: 'Sozlanmagan',
   backupNotYet: 'Hali saqlanmagan',
   backupLast: (w) => 'Oxirgi: $w',
   about: 'Focus haqida',
+  emojiCredit: 'Emoji: Twemoji © Twitter, Inc. va boshqalar, CC BY 4.0 litsenziyasi',
   supportSubtitle: 'Donat va boshqa yo‘llar bilan yordam',
   donateIntro: 'Focus bepul, reklamasiz va serversiz ishlaydi: ma’lumotlaringiz faqat kompyuteringizda va '
       'Telegram’ingizda turadi. Donatlar yangi imkoniyatlar ustida ishlashga vaqt ajratishga yordam beradi.',
@@ -257,8 +282,6 @@ final appRu = AppStrings(
   settings: 'Настройки',
   logout: 'Выйти',
   logoutTip: 'Выйти из аккаунта',
-  filesSubtitle: 'Разделы с ИИ и «Спросить ИИ»',
-  statsSubtitle: 'Чаты по дням, время ответа, графики',
   comingSoon: 'Скоро',
   logoutQuestion: 'Выйти из аккаунта?',
   logoutBody: 'Сессия Telegram в Focus будет закрыта. Telegram на вашем телефоне продолжит работать.',
@@ -277,12 +300,20 @@ final appRu = AppStrings(
   testNotification: 'Проверить',
   testNotificationBody: 'Уведомления работают.',
   testNotificationSent: 'Тестовое уведомление отправлено',
+  messagesSection: 'Новые сообщения',
+  messagesTitle: 'Уведомления о новых сообщениях',
+  messagesOn: 'Как в Telegram: показываются, когда окно Focus не активно или открыт другой чат. Чаты без звука не беспокоят.',
+  messagesChannels: 'И из каналов',
+  messagesShowText: 'Показывать текст сообщения',
+  newMessageHidden: 'Новое сообщение',
+  unreadChatsTooltip: (n) => ruPlural(n, '$n непрочитанный чат', '$n непрочитанных чата', '$n непрочитанных чатов'),
   backupSection: 'Резервная копия',
   backupTile: 'Зашифрованная копия (Избранное)',
   backupNotSet: 'Не настроено',
   backupNotYet: 'Ещё не сохранялась',
   backupLast: (w) => 'Последняя: $w',
   about: 'О Focus',
+  emojiCredit: 'Эмодзи: Twemoji © Twitter, Inc. и другие, лицензия CC BY 4.0',
   supportSubtitle: 'Пожертвования и другие способы помочь',
   donateIntro: 'Focus бесплатный, без рекламы и без серверов: ваши данные хранятся только на вашем компьютере '
       'и в вашем Telegram. Пожертвования помогают находить время для новых функций.',
@@ -327,8 +358,6 @@ final appEn = AppStrings(
   settings: 'Settings',
   logout: 'Log out',
   logoutTip: 'Log out of the account',
-  filesSubtitle: 'AI sections and “Ask AI”',
-  statsSubtitle: 'Chats per day, reply time, charts',
   comingSoon: 'Coming soon',
   logoutQuestion: 'Log out of your account?',
   logoutBody: 'The Telegram session in Focus will be closed. Telegram on your phone keeps working.',
@@ -346,12 +375,20 @@ final appEn = AppStrings(
   testNotification: 'Test',
   testNotificationBody: 'Notifications are working.',
   testNotificationSent: 'Test notification sent',
+  messagesSection: 'New messages',
+  messagesTitle: 'New message notifications',
+  messagesOn: 'Like Telegram: shown when the Focus window is not active or another chat is open. Muted chats stay quiet.',
+  messagesChannels: 'Channels too',
+  messagesShowText: 'Show the message text',
+  newMessageHidden: 'New message',
+  unreadChatsTooltip: (n) => '$n unread ${enPlural(n, 'chat', 'chats')}',
   backupSection: 'Backup',
   backupTile: 'Encrypted backup (Saved Messages)',
   backupNotSet: 'Not set up',
   backupNotYet: 'Not backed up yet',
   backupLast: (w) => 'Last: $w',
   about: 'About Focus',
+  emojiCredit: 'Emoji: Twemoji © Twitter, Inc. and others, CC BY 4.0 license',
   supportSubtitle: 'Donations and other ways to help',
   donateIntro: 'Focus is free, ad-free and serverless: your data stays only on your computer and in your '
       'Telegram. Donations help free up time for new features.',

@@ -6,7 +6,9 @@ import 'areas/backup.dart';
 import 'areas/calendar.dart';
 import 'areas/chats.dart';
 import 'areas/common.dart';
+import 'areas/files.dart';
 import 'areas/notes.dart';
+import 'areas/stats.dart';
 import 'areas/tasks.dart';
 
 export 'areas/app.dart';
@@ -15,7 +17,9 @@ export 'areas/backup.dart';
 export 'areas/calendar.dart';
 export 'areas/chats.dart';
 export 'areas/common.dart';
+export 'areas/files.dart';
 export 'areas/notes.dart';
+export 'areas/stats.dart';
 export 'areas/tasks.dart';
 
 /// Languages of the UI. Uzbek (Latin) is the default.
@@ -50,6 +54,8 @@ class S {
     required this.calendar,
     required this.notes,
     required this.backup,
+    required this.files,
+    required this.stats,
   });
 
   final AppLanguage language;
@@ -61,6 +67,8 @@ class S {
   final CalendarStrings calendar;
   final NoteStrings notes;
   final BackupStrings backup;
+  final FilesStrings files;
+  final StatsStrings stats;
 
   static final uz = S._(
     AppLanguage.uz,
@@ -72,6 +80,8 @@ class S {
     calendar: calendarUz,
     notes: notesUz,
     backup: backupUz,
+    files: filesUz,
+    stats: statsUz,
   );
   static final ru = S._(
     AppLanguage.ru,
@@ -83,6 +93,8 @@ class S {
     calendar: calendarRu,
     notes: notesRu,
     backup: backupRu,
+    files: filesRu,
+    stats: statsRu,
   );
   static final en = S._(
     AppLanguage.en,
@@ -94,6 +106,8 @@ class S {
     calendar: calendarEn,
     notes: notesEn,
     backup: backupEn,
+    files: filesEn,
+    stats: statsEn,
   );
 
   static S of(AppLanguage l) => switch (l) {

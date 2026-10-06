@@ -3,14 +3,9 @@ import '../l10n.dart' show enPlural, ruPlural;
 /// Chat list, chat view, info panel, media, files, message previews.
 class ChatStrings {
   ChatStrings({
-    required this.filterWaiting,
-    required this.filterUnread,
-    required this.filterAll,
-    required this.allTab,
     required this.allChats,
     required this.loadingChats,
     required this.noChatsInFilter,
-    required this.addCollection,
     required this.pinned,
     required this.hideMuted,
     required this.clearFilter,
@@ -21,6 +16,27 @@ class ChatStrings {
     required this.typeBots,
     required this.fileSendFailed,
     required this.messageSendFailed,
+    required this.actionTyping,
+    required this.actionVoice,
+    required this.actionVideo,
+    required this.actionFile,
+    required this.actionSticker,
+    required this.copyMessage,
+    required this.copied,
+    required this.editMessage,
+    required this.deleteMessage,
+    required this.editing,
+    required this.cancelEdit,
+    required this.edited,
+    required this.deleteTitle,
+    required this.deleteForBoth,
+    required this.deleteForAll,
+    required this.editFailed,
+    required this.deleteFailed,
+    required this.pinChat,
+    required this.unpinChat,
+    required this.pinLimit,
+    required this.pinFailed,
     required this.addedToCalendar,
     required this.openCalendar,
     required this.callsOnPhone,
@@ -41,6 +57,11 @@ class ChatStrings {
     required this.toTask,
     required this.toCalendar,
     required this.toNote,
+    required this.toFiles,
+    required this.savedToFiles,
+    required this.alreadyInFiles,
+    required this.openFiles,
+    required this.saveToFiles,
     required this.meetingFound,
     required this.messageHint,
     required this.attachFile,
@@ -80,8 +101,6 @@ class ChatStrings {
     required this.phone,
     required this.about,
     required this.collection,
-    required this.removedFromCollection,
-    required this.movedToCollection,
     required this.newCollection,
     required this.fromThisChat,
     required this.tasks,
@@ -118,6 +137,14 @@ class ChatStrings {
     required this.callMessage,
     required this.story,
     required this.message,
+    required this.unsupportedMessage,
+    required this.paidMedia,
+    required this.invoice,
+    required this.giveaway,
+    required this.videoChatStarted,
+    required this.videoChatEnded,
+    required this.boostedChat,
+    required this.topicChanged,
     required this.joinedGroup,
     required this.leftGroup,
     required this.changedGroupTitle,
@@ -132,18 +159,11 @@ class ChatStrings {
   });
 
   // ---- chat list
-  final String filterWaiting;
-  final String filterUnread;
-  final String filterAll;
-
-  /// Tab of the built-in "all chats" collection.
-  final String allTab;
 
   /// Header above the list when no collection is picked.
   final String allChats;
   final String loadingChats;
   final String noChatsInFilter;
-  final String addCollection;
 
   /// Tooltip of the pin icon of a pinned chat.
   final String pinned;
@@ -162,6 +182,41 @@ class ChatStrings {
   // ---- chat view
   final String fileSendFailed;
   final String messageSendFailed;
+
+  /// What the other side is doing (TDLib chat actions), shown as the status.
+  final String actionTyping;
+  final String actionVoice;
+  final String actionVideo;
+  final String actionFile;
+  final String actionSticker;
+
+  /// Message context menu, editing and deleting.
+  final String copyMessage;
+  final String copied;
+  final String editMessage;
+  final String deleteMessage;
+
+  /// Bar above the composer while a message is edited.
+  final String editing;
+  final String cancelEdit;
+
+  /// Next to the time of an edited message.
+  final String edited;
+  final String deleteTitle;
+
+  /// Checkbox in a private chat: also delete for [name].
+  final String Function(String name) deleteForBoth;
+
+  /// Checkbox in groups: delete for everyone.
+  final String deleteForAll;
+  final String editFailed;
+  final String deleteFailed;
+
+  /// Chat context menu: pin / unpin in Telegram; errors of that call.
+  final String pinChat;
+  final String unpinChat;
+  final String pinLimit;
+  final String pinFailed;
 
   /// Toast after a detected meeting was added; the value is the meeting label.
   final String Function(String meeting) addedToCalendar;
@@ -192,6 +247,15 @@ class ChatStrings {
   final String toTask;
   final String toCalendar;
   final String toNote;
+
+  /// "Fayllarga": saves the message into the "Fayllar" module.
+  final String toFiles;
+  final String Function(String what) savedToFiles;
+  final String alreadyInFiles;
+  final String openFiles;
+
+  /// File context menu entry.
+  final String saveToFiles;
 
   /// Prefix before a detected meeting under a message.
   final String meetingFound;
@@ -253,8 +317,6 @@ class ChatStrings {
 
   /// Section title: the chat's collection.
   final String collection;
-  final String Function(String chat, String collection) removedFromCollection;
-  final String Function(String chat, String collection) movedToCollection;
 
   /// Chip that creates a collection.
   final String newCollection;
@@ -315,6 +377,18 @@ class ChatStrings {
   /// Any message of an unknown type.
   final String message;
 
+  /// A message type this TDLib build cannot show (messageUnsupported).
+  final String unsupportedMessage;
+  final String paidMedia;
+  final String invoice;
+  final String giveaway;
+
+  /// Service messages of video chats, boosts and forum topics.
+  final String videoChatStarted;
+  final String videoChatEnded;
+  final String boostedChat;
+  final String topicChanged;
+
   /// Service messages; the sender's name comes before them.
   final String joinedGroup;
   final String leftGroup;
@@ -330,14 +404,9 @@ class ChatStrings {
 }
 
 final chatsUz = ChatStrings(
-  filterWaiting: 'Javob kutmoqda',
-  filterUnread: 'O‘qilmagan',
-  filterAll: 'Hammasi',
-  allTab: 'Hammasi',
   allChats: 'Barcha chatlar',
   loadingChats: 'Chatlar yuklanmoqda…',
   noChatsInFilter: 'Bu filtrda chat yo‘q',
-  addCollection: 'To‘plam qo‘shish',
   pinned: 'Qadalgan',
   hideMuted: 'Ovozsizlarni yashirish',
   clearFilter: 'Filtrni tozalash',
@@ -348,6 +417,27 @@ final chatsUz = ChatStrings(
   typeBots: 'Botlar',
   fileSendFailed: 'Fayl yuborilmadi. Internet aloqasini tekshirib, qayta urinib ko‘ring.',
   messageSendFailed: 'Xabar yuborilmadi. Internet aloqasini tekshirib, qayta urinib ko‘ring.',
+  actionTyping: 'yozmoqda…',
+  actionVoice: 'ovozli xabar yozmoqda…',
+  actionVideo: 'video yozmoqda…',
+  actionFile: 'fayl yubormoqda…',
+  actionSticker: 'stiker tanlamoqda…',
+  copyMessage: 'Nusxalash',
+  copied: 'Nusxalandi',
+  editMessage: 'Tahrirlash',
+  deleteMessage: 'O‘chirish',
+  editing: 'Tahrirlash',
+  cancelEdit: 'Tahrirlashni bekor qilish (Esc)',
+  edited: 'tahrirlangan',
+  deleteTitle: 'Xabar o‘chirilsinmi?',
+  deleteForBoth: (name) => '$name uchun ham o‘chirish',
+  deleteForAll: 'Hamma uchun o‘chirish',
+  editFailed: 'Xabarni tahrirlab bo‘lmadi. Internet aloqasini tekshirib, qayta urinib ko‘ring.',
+  deleteFailed: 'Xabarni o‘chirib bo‘lmadi. Internet aloqasini tekshirib, qayta urinib ko‘ring.',
+  pinChat: 'Qadash',
+  unpinChat: 'Qadalganini yechish',
+  pinLimit: 'Telegramda qadash chegarasiga yetildi. Avval boshqa chatni yeching.',
+  pinFailed: 'Qadab bo‘lmadi. Internet aloqasini tekshirib, qayta urinib ko‘ring.',
   addedToCalendar: (m) => 'Kalendarga qo‘shildi: $m',
   openCalendar: 'Kalendarni ochish',
   callsOnPhone: 'Qo‘ng‘iroqlar telefon ilovasida qoladi',
@@ -368,6 +458,11 @@ final chatsUz = ChatStrings(
   toTask: 'Vazifa qilish',
   toCalendar: 'Kalendarga',
   toNote: 'Eslatmaga',
+  toFiles: 'Fayllarga',
+  savedToFiles: (w) => '«$w» Fayllarga saqlandi',
+  alreadyInFiles: 'Bu xabar Fayllarda bor',
+  openFiles: 'Fayllar',
+  saveToFiles: 'Fayllarga saqlash',
   meetingFound: 'Uchrashuv aniqlandi: ',
   messageHint: 'Xabar yozing…',
   attachFile: 'Fayl biriktirish',
@@ -408,8 +503,6 @@ final chatsUz = ChatStrings(
   phone: 'Telefon',
   about: 'Izoh',
   collection: 'To‘plam',
-  removedFromCollection: (chat, col) => '$chat «$col» to‘plamidan chiqarildi',
-  movedToCollection: (chat, col) => '$chat → $col to‘plamiga ko‘chirildi',
   newCollection: '+ Yangi',
   fromThisChat: 'Shu chatdan',
   tasks: 'Vazifalar',
@@ -446,6 +539,14 @@ final chatsUz = ChatStrings(
   callMessage: 'Qo‘ng‘iroq',
   story: 'Hikoya',
   message: 'Xabar',
+  unsupportedMessage: 'Bu xabar turi Focusda ko‘rsatilmaydi. Uni Telegramda oching.',
+  paidMedia: 'Pullik media',
+  invoice: 'To‘lov',
+  giveaway: 'Sovg‘a o‘yini',
+  videoChatStarted: 'video chatni boshladi',
+  videoChatEnded: 'video chat tugadi',
+  boostedChat: 'chatni kuchaytirdi',
+  topicChanged: 'mavzuni o‘zgartirdi',
   joinedGroup: 'guruhga qo‘shildi',
   leftGroup: 'guruhdan chiqdi',
   changedGroupTitle: (t) => 'guruh nomini «$t» ga o‘zgartirdi',
@@ -460,14 +561,9 @@ final chatsUz = ChatStrings(
 );
 
 final chatsRu = ChatStrings(
-  filterWaiting: 'Ждут ответа',
-  filterUnread: 'Непрочитанные',
-  filterAll: 'Все',
-  allTab: 'Все',
   allChats: 'Все чаты',
   loadingChats: 'Загрузка чатов…',
   noChatsInFilter: 'Нет чатов в этом фильтре',
-  addCollection: 'Добавить коллекцию',
   pinned: 'Закреплён',
   hideMuted: 'Скрыть чаты без звука',
   clearFilter: 'Сбросить фильтр',
@@ -478,6 +574,27 @@ final chatsRu = ChatStrings(
   typeBots: 'Боты',
   fileSendFailed: 'Не удалось отправить файл. Проверьте подключение к интернету и попробуйте снова.',
   messageSendFailed: 'Не удалось отправить сообщение. Проверьте подключение к интернету и попробуйте снова.',
+  actionTyping: 'печатает…',
+  actionVoice: 'записывает голосовое…',
+  actionVideo: 'записывает видео…',
+  actionFile: 'отправляет файл…',
+  actionSticker: 'выбирает стикер…',
+  copyMessage: 'Копировать',
+  copied: 'Скопировано',
+  editMessage: 'Изменить',
+  deleteMessage: 'Удалить',
+  editing: 'Редактирование',
+  cancelEdit: 'Отменить редактирование (Esc)',
+  edited: 'изменено',
+  deleteTitle: 'Удалить сообщение?',
+  deleteForBoth: (name) => 'Также удалить для $name',
+  deleteForAll: 'Удалить для всех',
+  editFailed: 'Не удалось изменить сообщение. Проверьте подключение к интернету и попробуйте снова.',
+  deleteFailed: 'Не удалось удалить сообщение. Проверьте подключение к интернету и попробуйте снова.',
+  pinChat: 'Закрепить',
+  unpinChat: 'Открепить',
+  pinLimit: 'Достигнут лимит закреплённых чатов в Telegram. Сначала открепите другой чат.',
+  pinFailed: 'Не удалось закрепить. Проверьте подключение к интернету и попробуйте снова.',
   addedToCalendar: (m) => 'Добавлено в календарь: $m',
   openCalendar: 'Открыть календарь',
   callsOnPhone: 'Звонки остаются в приложении на телефоне',
@@ -498,6 +615,11 @@ final chatsRu = ChatStrings(
   toTask: 'В задачи',
   toCalendar: 'В календарь',
   toNote: 'В заметки',
+  toFiles: 'В файлы',
+  savedToFiles: (w) => '«$w» сохранено в Файлы',
+  alreadyInFiles: 'Это сообщение уже в Файлах',
+  openFiles: 'Файлы',
+  saveToFiles: 'Сохранить в Файлы',
   meetingFound: 'Найдена встреча: ',
   messageHint: 'Написать сообщение…',
   attachFile: 'Прикрепить файл',
@@ -538,8 +660,6 @@ final chatsRu = ChatStrings(
   phone: 'Телефон',
   about: 'Описание',
   collection: 'Коллекция',
-  removedFromCollection: (chat, col) => 'Чат «$chat» убран из коллекции «$col»',
-  movedToCollection: (chat, col) => 'Чат «$chat» перемещён в коллекцию «$col»',
   newCollection: '+ Новая',
   fromThisChat: 'Из этого чата',
   tasks: 'Задачи',
@@ -576,6 +696,14 @@ final chatsRu = ChatStrings(
   callMessage: 'Звонок',
   story: 'История',
   message: 'Сообщение',
+  unsupportedMessage: 'Этот тип сообщения не отображается в Focus. Откройте его в Telegram.',
+  paidMedia: 'Платные медиа',
+  invoice: 'Счёт',
+  giveaway: 'Розыгрыш',
+  videoChatStarted: 'начал(а) видеочат',
+  videoChatEnded: 'видеочат завершён',
+  boostedChat: 'усилил(а) чат',
+  topicChanged: 'изменил(а) тему',
   joinedGroup: 'вступил(а) в группу',
   leftGroup: 'покинул(а) группу',
   changedGroupTitle: (t) => 'изменил(а) название группы на «$t»',
@@ -590,14 +718,9 @@ final chatsRu = ChatStrings(
 );
 
 final chatsEn = ChatStrings(
-  filterWaiting: 'Awaiting reply',
-  filterUnread: 'Unread',
-  filterAll: 'All',
-  allTab: 'All',
   allChats: 'All chats',
   loadingChats: 'Loading chats…',
   noChatsInFilter: 'No chats in this filter',
-  addCollection: 'Add collection',
   pinned: 'Pinned',
   hideMuted: 'Hide muted chats',
   clearFilter: 'Clear filter',
@@ -608,6 +731,27 @@ final chatsEn = ChatStrings(
   typeBots: 'Bots',
   fileSendFailed: 'Couldn’t send the file. Check your internet connection and try again.',
   messageSendFailed: 'Couldn’t send the message. Check your internet connection and try again.',
+  actionTyping: 'typing…',
+  actionVoice: 'recording a voice message…',
+  actionVideo: 'recording a video…',
+  actionFile: 'sending a file…',
+  actionSticker: 'choosing a sticker…',
+  copyMessage: 'Copy',
+  copied: 'Copied',
+  editMessage: 'Edit',
+  deleteMessage: 'Delete',
+  editing: 'Editing',
+  cancelEdit: 'Cancel editing (Esc)',
+  edited: 'edited',
+  deleteTitle: 'Delete the message?',
+  deleteForBoth: (name) => 'Also delete for $name',
+  deleteForAll: 'Delete for everyone',
+  editFailed: 'Couldn’t edit the message. Check your internet connection and try again.',
+  deleteFailed: 'Couldn’t delete the message. Check your internet connection and try again.',
+  pinChat: 'Pin',
+  unpinChat: 'Unpin',
+  pinLimit: 'Telegram’s pinned chat limit is reached. Unpin another chat first.',
+  pinFailed: 'Couldn’t pin the chat. Check your internet connection and try again.',
   addedToCalendar: (m) => 'Added to calendar: $m',
   openCalendar: 'Open calendar',
   callsOnPhone: 'Calls stay in the phone app',
@@ -628,6 +772,11 @@ final chatsEn = ChatStrings(
   toTask: 'Make task',
   toCalendar: 'To calendar',
   toNote: 'To notes',
+  toFiles: 'To Files',
+  savedToFiles: (w) => '“$w” saved to Files',
+  alreadyInFiles: 'This message is already in Files',
+  openFiles: 'Files',
+  saveToFiles: 'Save to Files',
   meetingFound: 'Meeting found: ',
   messageHint: 'Write a message…',
   attachFile: 'Attach file',
@@ -668,8 +817,6 @@ final chatsEn = ChatStrings(
   phone: 'Phone',
   about: 'About',
   collection: 'Collection',
-  removedFromCollection: (chat, col) => '“$chat” removed from “$col”',
-  movedToCollection: (chat, col) => '“$chat” moved to “$col”',
   newCollection: '+ New',
   fromThisChat: 'From this chat',
   tasks: 'Tasks',
@@ -706,6 +853,14 @@ final chatsEn = ChatStrings(
   callMessage: 'Call',
   story: 'Story',
   message: 'Message',
+  unsupportedMessage: 'Focus cannot show this kind of message. Open it in Telegram.',
+  paidMedia: 'Paid media',
+  invoice: 'Invoice',
+  giveaway: 'Giveaway',
+  videoChatStarted: 'started a video chat',
+  videoChatEnded: 'video chat ended',
+  boostedChat: 'boosted the chat',
+  topicChanged: 'changed the topic',
   joinedGroup: 'joined the group',
   leftGroup: 'left the group',
   changedGroupTitle: (t) => 'changed the group name to “$t”',

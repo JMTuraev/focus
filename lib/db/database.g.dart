@@ -1902,8 +1902,15 @@ class $CollectionsTable extends Collections
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(0));
+  static const VerificationMeta _colorMeta = const VerificationMeta('color');
   @override
-  List<GeneratedColumn> get $columns => [id, label, icon, position];
+  late final GeneratedColumn<String> color = GeneratedColumn<String>(
+      'color', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  @override
+  List<GeneratedColumn> get $columns => [id, label, icon, position, color];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1933,6 +1940,10 @@ class $CollectionsTable extends Collections
       context.handle(_positionMeta,
           position.isAcceptableOrUnknown(data['position']!, _positionMeta));
     }
+    if (data.containsKey('color')) {
+      context.handle(
+          _colorMeta, color.isAcceptableOrUnknown(data['color']!, _colorMeta));
+    }
     return context;
   }
 
@@ -1950,6 +1961,8 @@ class $CollectionsTable extends Collections
           .read(DriftSqlType.string, data['${effectivePrefix}icon'])!,
       position: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}position'])!,
+      color: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}color'])!,
     );
   }
 
@@ -1964,11 +1977,15 @@ class CollectionRow extends DataClass implements Insertable<CollectionRow> {
   final String label;
   final String icon;
   final int position;
+
+  /// One of `kCollectionColorKeys`; '' = accent.
+  final String color;
   const CollectionRow(
       {required this.id,
       required this.label,
       required this.icon,
-      required this.position});
+      required this.position,
+      required this.color});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -1976,6 +1993,7 @@ class CollectionRow extends DataClass implements Insertable<CollectionRow> {
     map['label'] = Variable<String>(label);
     map['icon'] = Variable<String>(icon);
     map['position'] = Variable<int>(position);
+    map['color'] = Variable<String>(color);
     return map;
   }
 
@@ -1985,6 +2003,7 @@ class CollectionRow extends DataClass implements Insertable<CollectionRow> {
       label: Value(label),
       icon: Value(icon),
       position: Value(position),
+      color: Value(color),
     );
   }
 
@@ -1996,6 +2015,7 @@ class CollectionRow extends DataClass implements Insertable<CollectionRow> {
       label: serializer.fromJson<String>(json['label']),
       icon: serializer.fromJson<String>(json['icon']),
       position: serializer.fromJson<int>(json['position']),
+      color: serializer.fromJson<String>(json['color']),
     );
   }
   @override
@@ -2006,16 +2026,22 @@ class CollectionRow extends DataClass implements Insertable<CollectionRow> {
       'label': serializer.toJson<String>(label),
       'icon': serializer.toJson<String>(icon),
       'position': serializer.toJson<int>(position),
+      'color': serializer.toJson<String>(color),
     };
   }
 
   CollectionRow copyWith(
-          {String? id, String? label, String? icon, int? position}) =>
+          {String? id,
+          String? label,
+          String? icon,
+          int? position,
+          String? color}) =>
       CollectionRow(
         id: id ?? this.id,
         label: label ?? this.label,
         icon: icon ?? this.icon,
         position: position ?? this.position,
+        color: color ?? this.color,
       );
   CollectionRow copyWithCompanion(CollectionsCompanion data) {
     return CollectionRow(
@@ -2023,6 +2049,7 @@ class CollectionRow extends DataClass implements Insertable<CollectionRow> {
       label: data.label.present ? data.label.value : this.label,
       icon: data.icon.present ? data.icon.value : this.icon,
       position: data.position.present ? data.position.value : this.position,
+      color: data.color.present ? data.color.value : this.color,
     );
   }
 
@@ -2032,13 +2059,14 @@ class CollectionRow extends DataClass implements Insertable<CollectionRow> {
           ..write('id: $id, ')
           ..write('label: $label, ')
           ..write('icon: $icon, ')
-          ..write('position: $position')
+          ..write('position: $position, ')
+          ..write('color: $color')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, label, icon, position);
+  int get hashCode => Object.hash(id, label, icon, position, color);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2046,7 +2074,8 @@ class CollectionRow extends DataClass implements Insertable<CollectionRow> {
           other.id == this.id &&
           other.label == this.label &&
           other.icon == this.icon &&
-          other.position == this.position);
+          other.position == this.position &&
+          other.color == this.color);
 }
 
 class CollectionsCompanion extends UpdateCompanion<CollectionRow> {
@@ -2054,12 +2083,14 @@ class CollectionsCompanion extends UpdateCompanion<CollectionRow> {
   final Value<String> label;
   final Value<String> icon;
   final Value<int> position;
+  final Value<String> color;
   final Value<int> rowid;
   const CollectionsCompanion({
     this.id = const Value.absent(),
     this.label = const Value.absent(),
     this.icon = const Value.absent(),
     this.position = const Value.absent(),
+    this.color = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   CollectionsCompanion.insert({
@@ -2067,6 +2098,7 @@ class CollectionsCompanion extends UpdateCompanion<CollectionRow> {
     required String label,
     this.icon = const Value.absent(),
     this.position = const Value.absent(),
+    this.color = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         label = Value(label);
@@ -2075,6 +2107,7 @@ class CollectionsCompanion extends UpdateCompanion<CollectionRow> {
     Expression<String>? label,
     Expression<String>? icon,
     Expression<int>? position,
+    Expression<String>? color,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2082,6 +2115,7 @@ class CollectionsCompanion extends UpdateCompanion<CollectionRow> {
       if (label != null) 'label': label,
       if (icon != null) 'icon': icon,
       if (position != null) 'position': position,
+      if (color != null) 'color': color,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2091,12 +2125,14 @@ class CollectionsCompanion extends UpdateCompanion<CollectionRow> {
       Value<String>? label,
       Value<String>? icon,
       Value<int>? position,
+      Value<String>? color,
       Value<int>? rowid}) {
     return CollectionsCompanion(
       id: id ?? this.id,
       label: label ?? this.label,
       icon: icon ?? this.icon,
       position: position ?? this.position,
+      color: color ?? this.color,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2116,6 +2152,9 @@ class CollectionsCompanion extends UpdateCompanion<CollectionRow> {
     if (position.present) {
       map['position'] = Variable<int>(position.value);
     }
+    if (color.present) {
+      map['color'] = Variable<String>(color.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2129,6 +2168,7 @@ class CollectionsCompanion extends UpdateCompanion<CollectionRow> {
           ..write('label: $label, ')
           ..write('icon: $icon, ')
           ..write('position: $position, ')
+          ..write('color: $color, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2712,6 +2752,1034 @@ class KeyValuesCompanion extends UpdateCompanion<KeyValueRow> {
   }
 }
 
+class $FileNamesTable extends FileNames
+    with TableInfo<$FileNamesTable, FileName> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $FileNamesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _chatIdMeta = const VerificationMeta('chatId');
+  @override
+  late final GeneratedColumn<String> chatId = GeneratedColumn<String>(
+      'chat_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _messageIdMeta =
+      const VerificationMeta('messageId');
+  @override
+  late final GeneratedColumn<String> messageId = GeneratedColumn<String>(
+      'message_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [chatId, messageId, name];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'file_names';
+  @override
+  VerificationContext validateIntegrity(Insertable<FileName> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('chat_id')) {
+      context.handle(_chatIdMeta,
+          chatId.isAcceptableOrUnknown(data['chat_id']!, _chatIdMeta));
+    } else if (isInserting) {
+      context.missing(_chatIdMeta);
+    }
+    if (data.containsKey('message_id')) {
+      context.handle(_messageIdMeta,
+          messageId.isAcceptableOrUnknown(data['message_id']!, _messageIdMeta));
+    } else if (isInserting) {
+      context.missing(_messageIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {chatId, messageId};
+  @override
+  FileName map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return FileName(
+      chatId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}chat_id'])!,
+      messageId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}message_id'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+    );
+  }
+
+  @override
+  $FileNamesTable createAlias(String alias) {
+    return $FileNamesTable(attachedDatabase, alias);
+  }
+}
+
+class FileName extends DataClass implements Insertable<FileName> {
+  final String chatId;
+  final String messageId;
+  final String name;
+  const FileName(
+      {required this.chatId, required this.messageId, required this.name});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['chat_id'] = Variable<String>(chatId);
+    map['message_id'] = Variable<String>(messageId);
+    map['name'] = Variable<String>(name);
+    return map;
+  }
+
+  FileNamesCompanion toCompanion(bool nullToAbsent) {
+    return FileNamesCompanion(
+      chatId: Value(chatId),
+      messageId: Value(messageId),
+      name: Value(name),
+    );
+  }
+
+  factory FileName.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return FileName(
+      chatId: serializer.fromJson<String>(json['chatId']),
+      messageId: serializer.fromJson<String>(json['messageId']),
+      name: serializer.fromJson<String>(json['name']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'chatId': serializer.toJson<String>(chatId),
+      'messageId': serializer.toJson<String>(messageId),
+      'name': serializer.toJson<String>(name),
+    };
+  }
+
+  FileName copyWith({String? chatId, String? messageId, String? name}) =>
+      FileName(
+        chatId: chatId ?? this.chatId,
+        messageId: messageId ?? this.messageId,
+        name: name ?? this.name,
+      );
+  FileName copyWithCompanion(FileNamesCompanion data) {
+    return FileName(
+      chatId: data.chatId.present ? data.chatId.value : this.chatId,
+      messageId: data.messageId.present ? data.messageId.value : this.messageId,
+      name: data.name.present ? data.name.value : this.name,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FileName(')
+          ..write('chatId: $chatId, ')
+          ..write('messageId: $messageId, ')
+          ..write('name: $name')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(chatId, messageId, name);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is FileName &&
+          other.chatId == this.chatId &&
+          other.messageId == this.messageId &&
+          other.name == this.name);
+}
+
+class FileNamesCompanion extends UpdateCompanion<FileName> {
+  final Value<String> chatId;
+  final Value<String> messageId;
+  final Value<String> name;
+  final Value<int> rowid;
+  const FileNamesCompanion({
+    this.chatId = const Value.absent(),
+    this.messageId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  FileNamesCompanion.insert({
+    required String chatId,
+    required String messageId,
+    required String name,
+    this.rowid = const Value.absent(),
+  })  : chatId = Value(chatId),
+        messageId = Value(messageId),
+        name = Value(name);
+  static Insertable<FileName> custom({
+    Expression<String>? chatId,
+    Expression<String>? messageId,
+    Expression<String>? name,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (chatId != null) 'chat_id': chatId,
+      if (messageId != null) 'message_id': messageId,
+      if (name != null) 'name': name,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  FileNamesCompanion copyWith(
+      {Value<String>? chatId,
+      Value<String>? messageId,
+      Value<String>? name,
+      Value<int>? rowid}) {
+    return FileNamesCompanion(
+      chatId: chatId ?? this.chatId,
+      messageId: messageId ?? this.messageId,
+      name: name ?? this.name,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (chatId.present) {
+      map['chat_id'] = Variable<String>(chatId.value);
+    }
+    if (messageId.present) {
+      map['message_id'] = Variable<String>(messageId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FileNamesCompanion(')
+          ..write('chatId: $chatId, ')
+          ..write('messageId: $messageId, ')
+          ..write('name: $name, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $FileMarksTable extends FileMarks
+    with TableInfo<$FileMarksTable, FileMarkRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $FileMarksTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _chatIdMeta = const VerificationMeta('chatId');
+  @override
+  late final GeneratedColumn<String> chatId = GeneratedColumn<String>(
+      'chat_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _messageIdMeta =
+      const VerificationMeta('messageId');
+  @override
+  late final GeneratedColumn<String> messageId = GeneratedColumn<String>(
+      'message_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+      'kind', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _favoriteMeta =
+      const VerificationMeta('favorite');
+  @override
+  late final GeneratedColumn<bool> favorite = GeneratedColumn<bool>(
+      'favorite', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("favorite" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _tagsMeta = const VerificationMeta('tags');
+  @override
+  late final GeneratedColumn<String> tags = GeneratedColumn<String>(
+      'tags', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('[]'));
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [chatId, messageId, kind, favorite, tags, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'file_marks';
+  @override
+  VerificationContext validateIntegrity(Insertable<FileMarkRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('chat_id')) {
+      context.handle(_chatIdMeta,
+          chatId.isAcceptableOrUnknown(data['chat_id']!, _chatIdMeta));
+    } else if (isInserting) {
+      context.missing(_chatIdMeta);
+    }
+    if (data.containsKey('message_id')) {
+      context.handle(_messageIdMeta,
+          messageId.isAcceptableOrUnknown(data['message_id']!, _messageIdMeta));
+    } else if (isInserting) {
+      context.missing(_messageIdMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+          _kindMeta, kind.isAcceptableOrUnknown(data['kind']!, _kindMeta));
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('favorite')) {
+      context.handle(_favoriteMeta,
+          favorite.isAcceptableOrUnknown(data['favorite']!, _favoriteMeta));
+    }
+    if (data.containsKey('tags')) {
+      context.handle(
+          _tagsMeta, tags.isAcceptableOrUnknown(data['tags']!, _tagsMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {chatId, messageId};
+  @override
+  FileMarkRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return FileMarkRow(
+      chatId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}chat_id'])!,
+      messageId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}message_id'])!,
+      kind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}kind'])!,
+      favorite: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}favorite'])!,
+      tags: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}tags'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $FileMarksTable createAlias(String alias) {
+    return $FileMarksTable(attachedDatabase, alias);
+  }
+}
+
+class FileMarkRow extends DataClass implements Insertable<FileMarkRow> {
+  final String chatId;
+  final String messageId;
+  final String kind;
+  final bool favorite;
+  final String tags;
+  final DateTime updatedAt;
+  const FileMarkRow(
+      {required this.chatId,
+      required this.messageId,
+      required this.kind,
+      required this.favorite,
+      required this.tags,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['chat_id'] = Variable<String>(chatId);
+    map['message_id'] = Variable<String>(messageId);
+    map['kind'] = Variable<String>(kind);
+    map['favorite'] = Variable<bool>(favorite);
+    map['tags'] = Variable<String>(tags);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  FileMarksCompanion toCompanion(bool nullToAbsent) {
+    return FileMarksCompanion(
+      chatId: Value(chatId),
+      messageId: Value(messageId),
+      kind: Value(kind),
+      favorite: Value(favorite),
+      tags: Value(tags),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory FileMarkRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return FileMarkRow(
+      chatId: serializer.fromJson<String>(json['chatId']),
+      messageId: serializer.fromJson<String>(json['messageId']),
+      kind: serializer.fromJson<String>(json['kind']),
+      favorite: serializer.fromJson<bool>(json['favorite']),
+      tags: serializer.fromJson<String>(json['tags']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'chatId': serializer.toJson<String>(chatId),
+      'messageId': serializer.toJson<String>(messageId),
+      'kind': serializer.toJson<String>(kind),
+      'favorite': serializer.toJson<bool>(favorite),
+      'tags': serializer.toJson<String>(tags),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  FileMarkRow copyWith(
+          {String? chatId,
+          String? messageId,
+          String? kind,
+          bool? favorite,
+          String? tags,
+          DateTime? updatedAt}) =>
+      FileMarkRow(
+        chatId: chatId ?? this.chatId,
+        messageId: messageId ?? this.messageId,
+        kind: kind ?? this.kind,
+        favorite: favorite ?? this.favorite,
+        tags: tags ?? this.tags,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  FileMarkRow copyWithCompanion(FileMarksCompanion data) {
+    return FileMarkRow(
+      chatId: data.chatId.present ? data.chatId.value : this.chatId,
+      messageId: data.messageId.present ? data.messageId.value : this.messageId,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      favorite: data.favorite.present ? data.favorite.value : this.favorite,
+      tags: data.tags.present ? data.tags.value : this.tags,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FileMarkRow(')
+          ..write('chatId: $chatId, ')
+          ..write('messageId: $messageId, ')
+          ..write('kind: $kind, ')
+          ..write('favorite: $favorite, ')
+          ..write('tags: $tags, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(chatId, messageId, kind, favorite, tags, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is FileMarkRow &&
+          other.chatId == this.chatId &&
+          other.messageId == this.messageId &&
+          other.kind == this.kind &&
+          other.favorite == this.favorite &&
+          other.tags == this.tags &&
+          other.updatedAt == this.updatedAt);
+}
+
+class FileMarksCompanion extends UpdateCompanion<FileMarkRow> {
+  final Value<String> chatId;
+  final Value<String> messageId;
+  final Value<String> kind;
+  final Value<bool> favorite;
+  final Value<String> tags;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const FileMarksCompanion({
+    this.chatId = const Value.absent(),
+    this.messageId = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.favorite = const Value.absent(),
+    this.tags = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  FileMarksCompanion.insert({
+    required String chatId,
+    required String messageId,
+    required String kind,
+    this.favorite = const Value.absent(),
+    this.tags = const Value.absent(),
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  })  : chatId = Value(chatId),
+        messageId = Value(messageId),
+        kind = Value(kind),
+        updatedAt = Value(updatedAt);
+  static Insertable<FileMarkRow> custom({
+    Expression<String>? chatId,
+    Expression<String>? messageId,
+    Expression<String>? kind,
+    Expression<bool>? favorite,
+    Expression<String>? tags,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (chatId != null) 'chat_id': chatId,
+      if (messageId != null) 'message_id': messageId,
+      if (kind != null) 'kind': kind,
+      if (favorite != null) 'favorite': favorite,
+      if (tags != null) 'tags': tags,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  FileMarksCompanion copyWith(
+      {Value<String>? chatId,
+      Value<String>? messageId,
+      Value<String>? kind,
+      Value<bool>? favorite,
+      Value<String>? tags,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return FileMarksCompanion(
+      chatId: chatId ?? this.chatId,
+      messageId: messageId ?? this.messageId,
+      kind: kind ?? this.kind,
+      favorite: favorite ?? this.favorite,
+      tags: tags ?? this.tags,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (chatId.present) {
+      map['chat_id'] = Variable<String>(chatId.value);
+    }
+    if (messageId.present) {
+      map['message_id'] = Variable<String>(messageId.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (favorite.present) {
+      map['favorite'] = Variable<bool>(favorite.value);
+    }
+    if (tags.present) {
+      map['tags'] = Variable<String>(tags.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FileMarksCompanion(')
+          ..write('chatId: $chatId, ')
+          ..write('messageId: $messageId, ')
+          ..write('kind: $kind, ')
+          ..write('favorite: $favorite, ')
+          ..write('tags: $tags, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SavedItemsTable extends SavedItems
+    with TableInfo<$SavedItemsTable, SavedItemRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SavedItemsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _chatIdMeta = const VerificationMeta('chatId');
+  @override
+  late final GeneratedColumn<String> chatId = GeneratedColumn<String>(
+      'chat_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _messageIdMeta =
+      const VerificationMeta('messageId');
+  @override
+  late final GeneratedColumn<String> messageId = GeneratedColumn<String>(
+      'message_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+      'kind', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _chatTitleMeta =
+      const VerificationMeta('chatTitle');
+  @override
+  late final GeneratedColumn<String> chatTitle = GeneratedColumn<String>(
+      'chat_title', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  @override
+  late final GeneratedColumn<String> body = GeneratedColumn<String>(
+      'body', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _fileNameMeta =
+      const VerificationMeta('fileName');
+  @override
+  late final GeneratedColumn<String> fileName = GeneratedColumn<String>(
+      'file_name', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _sizeMeta = const VerificationMeta('size');
+  @override
+  late final GeneratedColumn<int> size = GeneratedColumn<int>(
+      'size', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  @override
+  late final GeneratedColumn<DateTime> date = GeneratedColumn<DateTime>(
+      'date', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _savedAtMeta =
+      const VerificationMeta('savedAt');
+  @override
+  late final GeneratedColumn<DateTime> savedAt = GeneratedColumn<DateTime>(
+      'saved_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [chatId, messageId, kind, chatTitle, body, fileName, size, date, savedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'saved_items';
+  @override
+  VerificationContext validateIntegrity(Insertable<SavedItemRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('chat_id')) {
+      context.handle(_chatIdMeta,
+          chatId.isAcceptableOrUnknown(data['chat_id']!, _chatIdMeta));
+    } else if (isInserting) {
+      context.missing(_chatIdMeta);
+    }
+    if (data.containsKey('message_id')) {
+      context.handle(_messageIdMeta,
+          messageId.isAcceptableOrUnknown(data['message_id']!, _messageIdMeta));
+    } else if (isInserting) {
+      context.missing(_messageIdMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+          _kindMeta, kind.isAcceptableOrUnknown(data['kind']!, _kindMeta));
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('chat_title')) {
+      context.handle(_chatTitleMeta,
+          chatTitle.isAcceptableOrUnknown(data['chat_title']!, _chatTitleMeta));
+    } else if (isInserting) {
+      context.missing(_chatTitleMeta);
+    }
+    if (data.containsKey('body')) {
+      context.handle(
+          _bodyMeta, body.isAcceptableOrUnknown(data['body']!, _bodyMeta));
+    }
+    if (data.containsKey('file_name')) {
+      context.handle(_fileNameMeta,
+          fileName.isAcceptableOrUnknown(data['file_name']!, _fileNameMeta));
+    }
+    if (data.containsKey('size')) {
+      context.handle(
+          _sizeMeta, size.isAcceptableOrUnknown(data['size']!, _sizeMeta));
+    }
+    if (data.containsKey('date')) {
+      context.handle(
+          _dateMeta, date.isAcceptableOrUnknown(data['date']!, _dateMeta));
+    }
+    if (data.containsKey('saved_at')) {
+      context.handle(_savedAtMeta,
+          savedAt.isAcceptableOrUnknown(data['saved_at']!, _savedAtMeta));
+    } else if (isInserting) {
+      context.missing(_savedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {chatId, messageId};
+  @override
+  SavedItemRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SavedItemRow(
+      chatId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}chat_id'])!,
+      messageId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}message_id'])!,
+      kind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}kind'])!,
+      chatTitle: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}chat_title'])!,
+      body: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}body'])!,
+      fileName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}file_name']),
+      size: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}size'])!,
+      date: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}date']),
+      savedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}saved_at'])!,
+    );
+  }
+
+  @override
+  $SavedItemsTable createAlias(String alias) {
+    return $SavedItemsTable(attachedDatabase, alias);
+  }
+}
+
+class SavedItemRow extends DataClass implements Insertable<SavedItemRow> {
+  final String chatId;
+  final String messageId;
+  final String kind;
+  final String chatTitle;
+  final String body;
+  final String? fileName;
+  final int size;
+  final DateTime? date;
+  final DateTime savedAt;
+  const SavedItemRow(
+      {required this.chatId,
+      required this.messageId,
+      required this.kind,
+      required this.chatTitle,
+      required this.body,
+      this.fileName,
+      required this.size,
+      this.date,
+      required this.savedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['chat_id'] = Variable<String>(chatId);
+    map['message_id'] = Variable<String>(messageId);
+    map['kind'] = Variable<String>(kind);
+    map['chat_title'] = Variable<String>(chatTitle);
+    map['body'] = Variable<String>(body);
+    if (!nullToAbsent || fileName != null) {
+      map['file_name'] = Variable<String>(fileName);
+    }
+    map['size'] = Variable<int>(size);
+    if (!nullToAbsent || date != null) {
+      map['date'] = Variable<DateTime>(date);
+    }
+    map['saved_at'] = Variable<DateTime>(savedAt);
+    return map;
+  }
+
+  SavedItemsCompanion toCompanion(bool nullToAbsent) {
+    return SavedItemsCompanion(
+      chatId: Value(chatId),
+      messageId: Value(messageId),
+      kind: Value(kind),
+      chatTitle: Value(chatTitle),
+      body: Value(body),
+      fileName: fileName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fileName),
+      size: Value(size),
+      date: date == null && nullToAbsent ? const Value.absent() : Value(date),
+      savedAt: Value(savedAt),
+    );
+  }
+
+  factory SavedItemRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SavedItemRow(
+      chatId: serializer.fromJson<String>(json['chatId']),
+      messageId: serializer.fromJson<String>(json['messageId']),
+      kind: serializer.fromJson<String>(json['kind']),
+      chatTitle: serializer.fromJson<String>(json['chatTitle']),
+      body: serializer.fromJson<String>(json['body']),
+      fileName: serializer.fromJson<String?>(json['fileName']),
+      size: serializer.fromJson<int>(json['size']),
+      date: serializer.fromJson<DateTime?>(json['date']),
+      savedAt: serializer.fromJson<DateTime>(json['savedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'chatId': serializer.toJson<String>(chatId),
+      'messageId': serializer.toJson<String>(messageId),
+      'kind': serializer.toJson<String>(kind),
+      'chatTitle': serializer.toJson<String>(chatTitle),
+      'body': serializer.toJson<String>(body),
+      'fileName': serializer.toJson<String?>(fileName),
+      'size': serializer.toJson<int>(size),
+      'date': serializer.toJson<DateTime?>(date),
+      'savedAt': serializer.toJson<DateTime>(savedAt),
+    };
+  }
+
+  SavedItemRow copyWith(
+          {String? chatId,
+          String? messageId,
+          String? kind,
+          String? chatTitle,
+          String? body,
+          Value<String?> fileName = const Value.absent(),
+          int? size,
+          Value<DateTime?> date = const Value.absent(),
+          DateTime? savedAt}) =>
+      SavedItemRow(
+        chatId: chatId ?? this.chatId,
+        messageId: messageId ?? this.messageId,
+        kind: kind ?? this.kind,
+        chatTitle: chatTitle ?? this.chatTitle,
+        body: body ?? this.body,
+        fileName: fileName.present ? fileName.value : this.fileName,
+        size: size ?? this.size,
+        date: date.present ? date.value : this.date,
+        savedAt: savedAt ?? this.savedAt,
+      );
+  SavedItemRow copyWithCompanion(SavedItemsCompanion data) {
+    return SavedItemRow(
+      chatId: data.chatId.present ? data.chatId.value : this.chatId,
+      messageId: data.messageId.present ? data.messageId.value : this.messageId,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      chatTitle: data.chatTitle.present ? data.chatTitle.value : this.chatTitle,
+      body: data.body.present ? data.body.value : this.body,
+      fileName: data.fileName.present ? data.fileName.value : this.fileName,
+      size: data.size.present ? data.size.value : this.size,
+      date: data.date.present ? data.date.value : this.date,
+      savedAt: data.savedAt.present ? data.savedAt.value : this.savedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SavedItemRow(')
+          ..write('chatId: $chatId, ')
+          ..write('messageId: $messageId, ')
+          ..write('kind: $kind, ')
+          ..write('chatTitle: $chatTitle, ')
+          ..write('body: $body, ')
+          ..write('fileName: $fileName, ')
+          ..write('size: $size, ')
+          ..write('date: $date, ')
+          ..write('savedAt: $savedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      chatId, messageId, kind, chatTitle, body, fileName, size, date, savedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SavedItemRow &&
+          other.chatId == this.chatId &&
+          other.messageId == this.messageId &&
+          other.kind == this.kind &&
+          other.chatTitle == this.chatTitle &&
+          other.body == this.body &&
+          other.fileName == this.fileName &&
+          other.size == this.size &&
+          other.date == this.date &&
+          other.savedAt == this.savedAt);
+}
+
+class SavedItemsCompanion extends UpdateCompanion<SavedItemRow> {
+  final Value<String> chatId;
+  final Value<String> messageId;
+  final Value<String> kind;
+  final Value<String> chatTitle;
+  final Value<String> body;
+  final Value<String?> fileName;
+  final Value<int> size;
+  final Value<DateTime?> date;
+  final Value<DateTime> savedAt;
+  final Value<int> rowid;
+  const SavedItemsCompanion({
+    this.chatId = const Value.absent(),
+    this.messageId = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.chatTitle = const Value.absent(),
+    this.body = const Value.absent(),
+    this.fileName = const Value.absent(),
+    this.size = const Value.absent(),
+    this.date = const Value.absent(),
+    this.savedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SavedItemsCompanion.insert({
+    required String chatId,
+    required String messageId,
+    required String kind,
+    required String chatTitle,
+    this.body = const Value.absent(),
+    this.fileName = const Value.absent(),
+    this.size = const Value.absent(),
+    this.date = const Value.absent(),
+    required DateTime savedAt,
+    this.rowid = const Value.absent(),
+  })  : chatId = Value(chatId),
+        messageId = Value(messageId),
+        kind = Value(kind),
+        chatTitle = Value(chatTitle),
+        savedAt = Value(savedAt);
+  static Insertable<SavedItemRow> custom({
+    Expression<String>? chatId,
+    Expression<String>? messageId,
+    Expression<String>? kind,
+    Expression<String>? chatTitle,
+    Expression<String>? body,
+    Expression<String>? fileName,
+    Expression<int>? size,
+    Expression<DateTime>? date,
+    Expression<DateTime>? savedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (chatId != null) 'chat_id': chatId,
+      if (messageId != null) 'message_id': messageId,
+      if (kind != null) 'kind': kind,
+      if (chatTitle != null) 'chat_title': chatTitle,
+      if (body != null) 'body': body,
+      if (fileName != null) 'file_name': fileName,
+      if (size != null) 'size': size,
+      if (date != null) 'date': date,
+      if (savedAt != null) 'saved_at': savedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SavedItemsCompanion copyWith(
+      {Value<String>? chatId,
+      Value<String>? messageId,
+      Value<String>? kind,
+      Value<String>? chatTitle,
+      Value<String>? body,
+      Value<String?>? fileName,
+      Value<int>? size,
+      Value<DateTime?>? date,
+      Value<DateTime>? savedAt,
+      Value<int>? rowid}) {
+    return SavedItemsCompanion(
+      chatId: chatId ?? this.chatId,
+      messageId: messageId ?? this.messageId,
+      kind: kind ?? this.kind,
+      chatTitle: chatTitle ?? this.chatTitle,
+      body: body ?? this.body,
+      fileName: fileName ?? this.fileName,
+      size: size ?? this.size,
+      date: date ?? this.date,
+      savedAt: savedAt ?? this.savedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (chatId.present) {
+      map['chat_id'] = Variable<String>(chatId.value);
+    }
+    if (messageId.present) {
+      map['message_id'] = Variable<String>(messageId.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (chatTitle.present) {
+      map['chat_title'] = Variable<String>(chatTitle.value);
+    }
+    if (body.present) {
+      map['body'] = Variable<String>(body.value);
+    }
+    if (fileName.present) {
+      map['file_name'] = Variable<String>(fileName.value);
+    }
+    if (size.present) {
+      map['size'] = Variable<int>(size.value);
+    }
+    if (date.present) {
+      map['date'] = Variable<DateTime>(date.value);
+    }
+    if (savedAt.present) {
+      map['saved_at'] = Variable<DateTime>(savedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SavedItemsCompanion(')
+          ..write('chatId: $chatId, ')
+          ..write('messageId: $messageId, ')
+          ..write('kind: $kind, ')
+          ..write('chatTitle: $chatTitle, ')
+          ..write('body: $body, ')
+          ..write('fileName: $fileName, ')
+          ..write('size: $size, ')
+          ..write('date: $date, ')
+          ..write('savedAt: $savedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2723,6 +3791,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $ChatCollectionsTable(this);
   late final $SeenCountsTable seenCounts = $SeenCountsTable(this);
   late final $KeyValuesTable keyValues = $KeyValuesTable(this);
+  late final $FileNamesTable fileNames = $FileNamesTable(this);
+  late final $FileMarksTable fileMarks = $FileMarksTable(this);
+  late final $SavedItemsTable savedItems = $SavedItemsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2734,7 +3805,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         collections,
         chatCollections,
         seenCounts,
-        keyValues
+        keyValues,
+        fileNames,
+        fileMarks,
+        savedItems
       ];
 }
 
@@ -3586,6 +4660,7 @@ typedef $$CollectionsTableCreateCompanionBuilder = CollectionsCompanion
   required String label,
   Value<String> icon,
   Value<int> position,
+  Value<String> color,
   Value<int> rowid,
 });
 typedef $$CollectionsTableUpdateCompanionBuilder = CollectionsCompanion
@@ -3594,6 +4669,7 @@ typedef $$CollectionsTableUpdateCompanionBuilder = CollectionsCompanion
   Value<String> label,
   Value<String> icon,
   Value<int> position,
+  Value<String> color,
   Value<int> rowid,
 });
 
@@ -3617,6 +4693,9 @@ class $$CollectionsTableFilterComposer
 
   ColumnFilters<int> get position => $composableBuilder(
       column: $table.position, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get color => $composableBuilder(
+      column: $table.color, builder: (column) => ColumnFilters(column));
 }
 
 class $$CollectionsTableOrderingComposer
@@ -3639,6 +4718,9 @@ class $$CollectionsTableOrderingComposer
 
   ColumnOrderings<int> get position => $composableBuilder(
       column: $table.position, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get color => $composableBuilder(
+      column: $table.color, builder: (column) => ColumnOrderings(column));
 }
 
 class $$CollectionsTableAnnotationComposer
@@ -3661,6 +4743,9 @@ class $$CollectionsTableAnnotationComposer
 
   GeneratedColumn<int> get position =>
       $composableBuilder(column: $table.position, builder: (column) => column);
+
+  GeneratedColumn<String> get color =>
+      $composableBuilder(column: $table.color, builder: (column) => column);
 }
 
 class $$CollectionsTableTableManager extends RootTableManager<
@@ -3693,6 +4778,7 @@ class $$CollectionsTableTableManager extends RootTableManager<
             Value<String> label = const Value.absent(),
             Value<String> icon = const Value.absent(),
             Value<int> position = const Value.absent(),
+            Value<String> color = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               CollectionsCompanion(
@@ -3700,6 +4786,7 @@ class $$CollectionsTableTableManager extends RootTableManager<
             label: label,
             icon: icon,
             position: position,
+            color: color,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -3707,6 +4794,7 @@ class $$CollectionsTableTableManager extends RootTableManager<
             required String label,
             Value<String> icon = const Value.absent(),
             Value<int> position = const Value.absent(),
+            Value<String> color = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               CollectionsCompanion.insert(
@@ -3714,6 +4802,7 @@ class $$CollectionsTableTableManager extends RootTableManager<
             label: label,
             icon: icon,
             position: position,
+            color: color,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -4114,6 +5203,552 @@ typedef $$KeyValuesTableProcessedTableManager = ProcessedTableManager<
     (KeyValueRow, BaseReferences<_$AppDatabase, $KeyValuesTable, KeyValueRow>),
     KeyValueRow,
     PrefetchHooks Function()>;
+typedef $$FileNamesTableCreateCompanionBuilder = FileNamesCompanion Function({
+  required String chatId,
+  required String messageId,
+  required String name,
+  Value<int> rowid,
+});
+typedef $$FileNamesTableUpdateCompanionBuilder = FileNamesCompanion Function({
+  Value<String> chatId,
+  Value<String> messageId,
+  Value<String> name,
+  Value<int> rowid,
+});
+
+class $$FileNamesTableFilterComposer
+    extends Composer<_$AppDatabase, $FileNamesTable> {
+  $$FileNamesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get chatId => $composableBuilder(
+      column: $table.chatId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get messageId => $composableBuilder(
+      column: $table.messageId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnFilters(column));
+}
+
+class $$FileNamesTableOrderingComposer
+    extends Composer<_$AppDatabase, $FileNamesTable> {
+  $$FileNamesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get chatId => $composableBuilder(
+      column: $table.chatId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get messageId => $composableBuilder(
+      column: $table.messageId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnOrderings(column));
+}
+
+class $$FileNamesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $FileNamesTable> {
+  $$FileNamesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get chatId =>
+      $composableBuilder(column: $table.chatId, builder: (column) => column);
+
+  GeneratedColumn<String> get messageId =>
+      $composableBuilder(column: $table.messageId, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+}
+
+class $$FileNamesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $FileNamesTable,
+    FileName,
+    $$FileNamesTableFilterComposer,
+    $$FileNamesTableOrderingComposer,
+    $$FileNamesTableAnnotationComposer,
+    $$FileNamesTableCreateCompanionBuilder,
+    $$FileNamesTableUpdateCompanionBuilder,
+    (FileName, BaseReferences<_$AppDatabase, $FileNamesTable, FileName>),
+    FileName,
+    PrefetchHooks Function()> {
+  $$FileNamesTableTableManager(_$AppDatabase db, $FileNamesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$FileNamesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$FileNamesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$FileNamesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> chatId = const Value.absent(),
+            Value<String> messageId = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              FileNamesCompanion(
+            chatId: chatId,
+            messageId: messageId,
+            name: name,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String chatId,
+            required String messageId,
+            required String name,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              FileNamesCompanion.insert(
+            chatId: chatId,
+            messageId: messageId,
+            name: name,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$FileNamesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $FileNamesTable,
+    FileName,
+    $$FileNamesTableFilterComposer,
+    $$FileNamesTableOrderingComposer,
+    $$FileNamesTableAnnotationComposer,
+    $$FileNamesTableCreateCompanionBuilder,
+    $$FileNamesTableUpdateCompanionBuilder,
+    (FileName, BaseReferences<_$AppDatabase, $FileNamesTable, FileName>),
+    FileName,
+    PrefetchHooks Function()>;
+typedef $$FileMarksTableCreateCompanionBuilder = FileMarksCompanion Function({
+  required String chatId,
+  required String messageId,
+  required String kind,
+  Value<bool> favorite,
+  Value<String> tags,
+  required DateTime updatedAt,
+  Value<int> rowid,
+});
+typedef $$FileMarksTableUpdateCompanionBuilder = FileMarksCompanion Function({
+  Value<String> chatId,
+  Value<String> messageId,
+  Value<String> kind,
+  Value<bool> favorite,
+  Value<String> tags,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$FileMarksTableFilterComposer
+    extends Composer<_$AppDatabase, $FileMarksTable> {
+  $$FileMarksTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get chatId => $composableBuilder(
+      column: $table.chatId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get messageId => $composableBuilder(
+      column: $table.messageId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get favorite => $composableBuilder(
+      column: $table.favorite, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get tags => $composableBuilder(
+      column: $table.tags, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$FileMarksTableOrderingComposer
+    extends Composer<_$AppDatabase, $FileMarksTable> {
+  $$FileMarksTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get chatId => $composableBuilder(
+      column: $table.chatId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get messageId => $composableBuilder(
+      column: $table.messageId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get favorite => $composableBuilder(
+      column: $table.favorite, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get tags => $composableBuilder(
+      column: $table.tags, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$FileMarksTableAnnotationComposer
+    extends Composer<_$AppDatabase, $FileMarksTable> {
+  $$FileMarksTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get chatId =>
+      $composableBuilder(column: $table.chatId, builder: (column) => column);
+
+  GeneratedColumn<String> get messageId =>
+      $composableBuilder(column: $table.messageId, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<bool> get favorite =>
+      $composableBuilder(column: $table.favorite, builder: (column) => column);
+
+  GeneratedColumn<String> get tags =>
+      $composableBuilder(column: $table.tags, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$FileMarksTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $FileMarksTable,
+    FileMarkRow,
+    $$FileMarksTableFilterComposer,
+    $$FileMarksTableOrderingComposer,
+    $$FileMarksTableAnnotationComposer,
+    $$FileMarksTableCreateCompanionBuilder,
+    $$FileMarksTableUpdateCompanionBuilder,
+    (FileMarkRow, BaseReferences<_$AppDatabase, $FileMarksTable, FileMarkRow>),
+    FileMarkRow,
+    PrefetchHooks Function()> {
+  $$FileMarksTableTableManager(_$AppDatabase db, $FileMarksTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$FileMarksTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$FileMarksTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$FileMarksTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> chatId = const Value.absent(),
+            Value<String> messageId = const Value.absent(),
+            Value<String> kind = const Value.absent(),
+            Value<bool> favorite = const Value.absent(),
+            Value<String> tags = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              FileMarksCompanion(
+            chatId: chatId,
+            messageId: messageId,
+            kind: kind,
+            favorite: favorite,
+            tags: tags,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String chatId,
+            required String messageId,
+            required String kind,
+            Value<bool> favorite = const Value.absent(),
+            Value<String> tags = const Value.absent(),
+            required DateTime updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              FileMarksCompanion.insert(
+            chatId: chatId,
+            messageId: messageId,
+            kind: kind,
+            favorite: favorite,
+            tags: tags,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$FileMarksTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $FileMarksTable,
+    FileMarkRow,
+    $$FileMarksTableFilterComposer,
+    $$FileMarksTableOrderingComposer,
+    $$FileMarksTableAnnotationComposer,
+    $$FileMarksTableCreateCompanionBuilder,
+    $$FileMarksTableUpdateCompanionBuilder,
+    (FileMarkRow, BaseReferences<_$AppDatabase, $FileMarksTable, FileMarkRow>),
+    FileMarkRow,
+    PrefetchHooks Function()>;
+typedef $$SavedItemsTableCreateCompanionBuilder = SavedItemsCompanion Function({
+  required String chatId,
+  required String messageId,
+  required String kind,
+  required String chatTitle,
+  Value<String> body,
+  Value<String?> fileName,
+  Value<int> size,
+  Value<DateTime?> date,
+  required DateTime savedAt,
+  Value<int> rowid,
+});
+typedef $$SavedItemsTableUpdateCompanionBuilder = SavedItemsCompanion Function({
+  Value<String> chatId,
+  Value<String> messageId,
+  Value<String> kind,
+  Value<String> chatTitle,
+  Value<String> body,
+  Value<String?> fileName,
+  Value<int> size,
+  Value<DateTime?> date,
+  Value<DateTime> savedAt,
+  Value<int> rowid,
+});
+
+class $$SavedItemsTableFilterComposer
+    extends Composer<_$AppDatabase, $SavedItemsTable> {
+  $$SavedItemsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get chatId => $composableBuilder(
+      column: $table.chatId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get messageId => $composableBuilder(
+      column: $table.messageId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get chatTitle => $composableBuilder(
+      column: $table.chatTitle, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get body => $composableBuilder(
+      column: $table.body, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get fileName => $composableBuilder(
+      column: $table.fileName, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get size => $composableBuilder(
+      column: $table.size, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get date => $composableBuilder(
+      column: $table.date, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get savedAt => $composableBuilder(
+      column: $table.savedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$SavedItemsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SavedItemsTable> {
+  $$SavedItemsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get chatId => $composableBuilder(
+      column: $table.chatId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get messageId => $composableBuilder(
+      column: $table.messageId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get chatTitle => $composableBuilder(
+      column: $table.chatTitle, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get body => $composableBuilder(
+      column: $table.body, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get fileName => $composableBuilder(
+      column: $table.fileName, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get size => $composableBuilder(
+      column: $table.size, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get date => $composableBuilder(
+      column: $table.date, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get savedAt => $composableBuilder(
+      column: $table.savedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$SavedItemsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SavedItemsTable> {
+  $$SavedItemsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get chatId =>
+      $composableBuilder(column: $table.chatId, builder: (column) => column);
+
+  GeneratedColumn<String> get messageId =>
+      $composableBuilder(column: $table.messageId, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get chatTitle =>
+      $composableBuilder(column: $table.chatTitle, builder: (column) => column);
+
+  GeneratedColumn<String> get body =>
+      $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumn<String> get fileName =>
+      $composableBuilder(column: $table.fileName, builder: (column) => column);
+
+  GeneratedColumn<int> get size =>
+      $composableBuilder(column: $table.size, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get savedAt =>
+      $composableBuilder(column: $table.savedAt, builder: (column) => column);
+}
+
+class $$SavedItemsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $SavedItemsTable,
+    SavedItemRow,
+    $$SavedItemsTableFilterComposer,
+    $$SavedItemsTableOrderingComposer,
+    $$SavedItemsTableAnnotationComposer,
+    $$SavedItemsTableCreateCompanionBuilder,
+    $$SavedItemsTableUpdateCompanionBuilder,
+    (
+      SavedItemRow,
+      BaseReferences<_$AppDatabase, $SavedItemsTable, SavedItemRow>
+    ),
+    SavedItemRow,
+    PrefetchHooks Function()> {
+  $$SavedItemsTableTableManager(_$AppDatabase db, $SavedItemsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SavedItemsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SavedItemsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SavedItemsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> chatId = const Value.absent(),
+            Value<String> messageId = const Value.absent(),
+            Value<String> kind = const Value.absent(),
+            Value<String> chatTitle = const Value.absent(),
+            Value<String> body = const Value.absent(),
+            Value<String?> fileName = const Value.absent(),
+            Value<int> size = const Value.absent(),
+            Value<DateTime?> date = const Value.absent(),
+            Value<DateTime> savedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SavedItemsCompanion(
+            chatId: chatId,
+            messageId: messageId,
+            kind: kind,
+            chatTitle: chatTitle,
+            body: body,
+            fileName: fileName,
+            size: size,
+            date: date,
+            savedAt: savedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String chatId,
+            required String messageId,
+            required String kind,
+            required String chatTitle,
+            Value<String> body = const Value.absent(),
+            Value<String?> fileName = const Value.absent(),
+            Value<int> size = const Value.absent(),
+            Value<DateTime?> date = const Value.absent(),
+            required DateTime savedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SavedItemsCompanion.insert(
+            chatId: chatId,
+            messageId: messageId,
+            kind: kind,
+            chatTitle: chatTitle,
+            body: body,
+            fileName: fileName,
+            size: size,
+            date: date,
+            savedAt: savedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$SavedItemsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $SavedItemsTable,
+    SavedItemRow,
+    $$SavedItemsTableFilterComposer,
+    $$SavedItemsTableOrderingComposer,
+    $$SavedItemsTableAnnotationComposer,
+    $$SavedItemsTableCreateCompanionBuilder,
+    $$SavedItemsTableUpdateCompanionBuilder,
+    (
+      SavedItemRow,
+      BaseReferences<_$AppDatabase, $SavedItemsTable, SavedItemRow>
+    ),
+    SavedItemRow,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -4132,4 +5767,10 @@ class $AppDatabaseManager {
       $$SeenCountsTableTableManager(_db, _db.seenCounts);
   $$KeyValuesTableTableManager get keyValues =>
       $$KeyValuesTableTableManager(_db, _db.keyValues);
+  $$FileNamesTableTableManager get fileNames =>
+      $$FileNamesTableTableManager(_db, _db.fileNames);
+  $$FileMarksTableTableManager get fileMarks =>
+      $$FileMarksTableTableManager(_db, _db.fileMarks);
+  $$SavedItemsTableTableManager get savedItems =>
+      $$SavedItemsTableTableManager(_db, _db.savedItems);
 }

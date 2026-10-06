@@ -22,6 +22,7 @@ class ChatList extends StatelessWidget {
     final t = context.s.chats;
     final chats = state.visibleChats;
     final col = state.collectionById(state.collection);
+    final inCollection = !state.collectionsOpen && state.collection != kAllCollection.id && col != null;
     return Container(
       width: width,
       decoration: BoxDecoration(
@@ -33,80 +34,118 @@ class ChatList extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
-            child: _SearchField(onChanged: state.setQuery),
+            child: _PaneSwitch(state: state),
           ),
-          _CollectionTabs(state: state),
-          const SizedBox(height: 6),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            // scaleDown keeps the three chips on one line if fonts or text
-            // scaling make them wider than the column.
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
+          if (state.collectionsOpen)
+            Expanded(child: _CollectionList(state: state))
+          else ...[
+            if (!inCollection)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 6, 12, 2),
+                child: _SearchField(onChanged: state.setQuery),
+              ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(inCollection ? 8 : 16, inCollection ? 6 : 10, 16, 4),
               child: Row(
                 children: [
-                  _FilterChip(
-                    label: t.filterWaiting,
-                    count: state.waitingCount,
-                    active: state.filter == ChatFilter.waiting,
-                    activeColor: c.waitingStrong,
-                    dot: state.filter != ChatFilter.waiting,
-                    onTap: () => state.setFilter(ChatFilter.waiting),
-                  ),
+                  if (inCollection)
+                    // "‹ Ish": one click back to the list of collections.
+                    Expanded(
+                      child: Tooltip(
+                        message: context.s.notes.collectionsTitle,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          onTap: state.openCollectionList,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+                            child: Row(
+                              children: [
+                                Icon(Icons.chevron_left, size: 18, color: c.text2),
+                                Icon(col.icon, size: 15, color: c.collectionColor(col.colorKey)),
+                                const SizedBox(width: 5),
+                                Expanded(
+                                  child: Text(col.label,
+                                      maxLines: 1, overflow: TextOverflow.ellipsis, style: meta.copyWith(color: c.text)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    Expanded(child: Text(t.allChats, maxLines: 1, overflow: TextOverflow.ellipsis, style: meta)),
+                  Text(context.s.common.chatsCount(chats.length), style: meta),
                   const SizedBox(width: 4),
-                  _FilterChip(
-                    label: t.filterUnread,
-                    count: state.unreadChatCount,
-                    active: state.filter == ChatFilter.unread,
-                    onTap: () => state.setFilter(ChatFilter.unread),
-                  ),
-                  const SizedBox(width: 4),
-                  _FilterChip(
-                    label: t.filterAll,
-                    active: state.filter == ChatFilter.all,
-                    onTap: () => state.setFilter(ChatFilter.all),
-                  ),
+                  _TypeFilterButton(state: state),
                 ],
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(col == null || col.id == kAllCollection.id ? t.allChats : col.label,
-                      maxLines: 1, overflow: TextOverflow.ellipsis, style: meta),
-                ),
-                Text(context.s.common.chatsCount(chats.length), style: meta),
-                const SizedBox(width: 4),
-                _TypeFilterButton(state: state),
-              ],
+            Expanded(
+              child: chats.isEmpty
+                  ? Center(
+                      child: state.loadingChats
+                          ? Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(strokeWidth: 2.4, color: c.accent)),
+                                const SizedBox(height: 12),
+                                Text(t.loadingChats, style: TextStyle(color: c.text2)),
+                              ],
+                            )
+                          : Text(t.noChatsInFilter, style: TextStyle(color: c.text2)),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(6, 0, 6, 8),
+                      itemCount: chats.length,
+                      itemBuilder: (_, i) => _ChatTile(state: state, chat: chats[i]),
+                    ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// "Chatlar | To‘plamlar" above the chat list. "Chatlar" shows every chat;
+/// "To‘plamlar" shows the list of collections, then the chats of the one
+/// that is picked.
+class _PaneSwitch extends StatelessWidget {
+  const _PaneSwitch({required this.state});
+
+  final AppState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.fc;
+    final allSide = !state.collectionsOpen && state.collection == kAllCollection.id;
+    final inCollections = state.collections.fold(0, (n, col) => n + state.badgeFor(col.id));
+    return Container(
+      height: 34,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(color: c.bg, borderRadius: BorderRadius.circular(10)),
+      child: Row(
+        children: [
+          Expanded(
+            child: _PaneButton(
+              label: context.s.app.chats,
+              badge: state.badgeFor(kAllCollection.id),
+              active: allSide,
+              onTap: () => state.pickCollection(kAllCollection.id),
             ),
           ),
+          const SizedBox(width: 3),
           Expanded(
-            child: chats.isEmpty
-                ? Center(
-                    child: state.loadingChats
-                        ? Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(strokeWidth: 2.4, color: c.accent)),
-                              const SizedBox(height: 12),
-                              Text(t.loadingChats, style: TextStyle(color: c.text2)),
-                            ],
-                          )
-                        : Text(t.noChatsInFilter, style: TextStyle(color: c.text2)),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(6, 0, 6, 8),
-                    itemCount: chats.length,
-                    itemBuilder: (_, i) => _ChatTile(state: state, chat: chats[i]),
-                  ),
+            child: _PaneButton(
+              label: context.s.notes.collectionsTitle,
+              badge: inCollections,
+              active: !allSide,
+              onTap: state.openCollectionList,
+            ),
           ),
         ],
       ),
@@ -114,45 +153,120 @@ class ChatList extends StatelessWidget {
   }
 }
 
-/// Collections as Telegram-like folder tabs: click to filter, right click
-/// to edit or delete, + to add.
-class _CollectionTabs extends StatelessWidget {
-  const _CollectionTabs({required this.state});
+class _PaneButton extends StatelessWidget {
+  const _PaneButton({required this.label, required this.badge, required this.active, required this.onTap});
+
+  final String label;
+  final int badge;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.fc;
+    final fg = active ? c.text : c.text2;
+    return Tap(
+      onTap: onTap,
+      radius: 8,
+      color: active ? c.panel : Colors.transparent,
+      hover: active ? c.panel : c.hover,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Flexible(
+            child: Text(label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: fg)),
+          ),
+          if (badge > 0) ...[const SizedBox(width: 6), _SmallBadge(badge, strong: active)],
+        ],
+      ),
+    );
+  }
+}
+
+class _SmallBadge extends StatelessWidget {
+  const _SmallBadge(this.count, {this.strong = false});
+
+  final int count;
+  final bool strong;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.fc;
+    return Container(
+      constraints: const BoxConstraints(minWidth: 18),
+      height: 18,
+      padding: const EdgeInsets.symmetric(horizontal: 5),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(color: strong ? c.accentStrong : c.muted, borderRadius: BorderRadius.circular(9)),
+      child: Text(
+        count > 99 ? '99+' : '$count',
+        style: const TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+}
+
+/// The "To‘plamlar" side: one row per collection (icon, name, chat count,
+/// unread badge; right click edits or deletes; long press drags to reorder)
+/// and "+ Yangi to‘plam".
+class _CollectionList extends StatelessWidget {
+  const _CollectionList({required this.state});
 
   final AppState state;
 
   @override
   Widget build(BuildContext context) {
     final c = context.fc;
-    return Container(
-      height: 38,
-      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: c.border))),
-      // A Row, not a lazy ListView: all tabs exist, so any can be scrolled to.
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 6),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (final col in [kAllCollection, ...state.collections])
-              _CollectionTab(
-                label: col.id == kAllCollection.id ? context.s.chats.allTab : col.label,
-                badge: state.badgeFor(col.id),
-                active: state.collection == col.id,
-                onTap: () => state.pickCollection(col.id),
-                onMenu: col.id == kAllCollection.id ? null : (pos) => _menu(context, col, pos),
-              ),
-            Tooltip(
-              message: context.s.chats.addCollection,
-              child: IconButton(
-                onPressed: () => showCollectionEditor(context, state),
-                visualDensity: VisualDensity.compact,
-                icon: Icon(Icons.add, size: 18, color: c.text2),
+    final t = context.s.notes;
+    final cols = state.collections;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(6, 2, 6, 8),
+      children: [
+        ReorderableListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          buildDefaultDragHandles: false,
+          onReorder: (from, to) => state.moveCollection(from, to > from ? to - 1 : to),
+          proxyDecorator: (child, _, __) => Material(
+            color: c.panel,
+            borderRadius: BorderRadius.circular(10),
+            elevation: 3,
+            child: child,
+          ),
+          itemCount: cols.length,
+          itemBuilder: (_, i) => ReorderableDragStartListener(
+            key: ValueKey(cols[i].id),
+            index: i,
+            child: _CollectionRow(
+              collection: cols[i],
+              count: state.countIn(cols[i].id),
+              badge: state.badgeFor(cols[i].id),
+              onTap: () => state.pickCollection(cols[i].id),
+              onMenu: (pos) => _menu(context, cols[i], pos),
+            ),
+          ),
+        ),
+        Tap(
+          onTap: () => showCollectionEditor(context, state),
+          hover: c.hover,
+          child: SizedBox(
+            height: 44,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Row(
+                children: [
+                  SizedBox(width: 36, child: Icon(Icons.add, size: 20, color: c.accentText)),
+                  const SizedBox(width: 10),
+                  Text(t.newCollection, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: c.accentText)),
+                ],
               ),
             ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 
@@ -167,7 +281,9 @@ class _CollectionTabs extends StatelessWidget {
         PopupMenuItem(
             value: 'edit', height: 38, child: Text(context.s.common.edit, style: TextStyle(color: c.text, fontSize: 14))),
         PopupMenuItem(
-            value: 'delete', height: 38, child: Text(context.s.common.delete, style: TextStyle(color: c.danger, fontSize: 14))),
+            value: 'delete',
+            height: 38,
+            child: Text(context.s.common.delete, style: TextStyle(color: c.danger, fontSize: 14))),
       ],
     );
     if (!context.mounted) return;
@@ -180,53 +296,95 @@ class _CollectionTabs extends StatelessWidget {
   }
 }
 
-class _CollectionTab extends StatelessWidget {
-  const _CollectionTab(
-      {required this.label, required this.badge, required this.active, required this.onTap, this.onMenu});
+/// A collection in the list. Hovering shows the "⋯" menu (edit, delete);
+/// right click opens the same menu; drag the row to reorder.
+class _CollectionRow extends StatefulWidget {
+  const _CollectionRow({
+    required this.collection,
+    required this.count,
+    required this.badge,
+    required this.onTap,
+    required this.onMenu,
+  });
 
-  final String label;
+  final Collection collection;
+  final int count;
   final int badge;
-  final bool active;
   final VoidCallback onTap;
-  final void Function(Offset globalPosition)? onMenu;
+  final void Function(Offset globalPosition) onMenu;
+
+  @override
+  State<_CollectionRow> createState() => _CollectionRowState();
+}
+
+class _CollectionRowState extends State<_CollectionRow> {
+  bool _hover = false;
 
   @override
   Widget build(BuildContext context) {
     final c = context.fc;
-    final fg = active ? c.accentText : c.text2;
-    final menu = onMenu;
-    return InkWell(
-      onTap: onTap,
-      onSecondaryTapDown: menu == null ? null : (d) => menu(d.globalPosition),
-      hoverColor: c.hover,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: active ? c.accent : Colors.transparent, width: 2.5)),
-        ),
-        alignment: Alignment.center,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(label, style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: fg)),
-            if (badge > 0) ...[
-              const SizedBox(width: 5),
-              Container(
-                constraints: const BoxConstraints(minWidth: 18),
-                height: 18,
-                padding: const EdgeInsets.symmetric(horizontal: 5),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: active ? c.accentStrong : c.muted,
-                  borderRadius: BorderRadius.circular(9),
-                ),
-                child: Text(
-                  badge > 99 ? '99+' : '$badge',
-                  style: const TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w700),
-                ),
+    final col = widget.collection;
+    final tint = c.collectionColor(col.colorKey);
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: GestureDetector(
+        onSecondaryTapDown: (d) => widget.onMenu(d.globalPosition),
+        child: Tap(
+          onTap: widget.onTap,
+          hover: c.hover,
+          child: SizedBox(
+            height: 56,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(10, 0, 4, 0),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(color: tint.withValues(alpha: 0.16), borderRadius: BorderRadius.circular(10)),
+                    child: Icon(col.icon, size: 19, color: tint),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(col.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, color: c.text)),
+                        const SizedBox(height: 2),
+                        Text(context.s.common.chatsCount(widget.count),
+                            maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, color: c.text2)),
+                      ],
+                    ),
+                  ),
+                  if (widget.badge > 0) ...[const SizedBox(width: 6), CountBadge(widget.badge)],
+                  if (_hover) ...[
+                    const SizedBox(width: 4),
+                    Tooltip(
+                      message: context.s.notes.actions,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(8),
+                        onTapDown: (d) => widget.onMenu(d.globalPosition),
+                        onTap: () {},
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: Icon(Icons.more_horiz, size: 20, color: c.text2),
+                        ),
+                      ),
+                    ),
+                  ],
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: Icon(Icons.chevron_right, size: 18, color: c.text2),
+                  ),
+                ],
               ),
-            ],
-          ],
+            ),
+          ),
         ),
       ),
     );
@@ -254,55 +412,6 @@ class _SearchField extends StatelessWidget {
           fillColor: c.bg,
           contentPadding: EdgeInsets.zero,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(19), borderSide: BorderSide.none),
-        ),
-      ),
-    );
-  }
-}
-
-class _FilterChip extends StatelessWidget {
-  const _FilterChip({
-    required this.label,
-    required this.active,
-    required this.onTap,
-    this.count,
-    this.activeColor,
-    this.dot = false,
-  });
-
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-  final int? count;
-
-  /// Defaults to the palette's accentStrong.
-  final Color? activeColor;
-  final bool dot;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.fc;
-    final on = activeColor ?? c.accentStrong;
-    final fg = active ? Colors.white : c.textSoft;
-    return Tap(
-      onTap: onTap,
-      radius: 15,
-      color: active ? on : c.panel,
-      hover: active ? on : c.hover,
-      border: Border.all(color: active ? on : c.chipBorder),
-      child: Container(
-        height: 30,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (dot) ...[const WaitingDot(), const SizedBox(width: 6)],
-            Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: fg)),
-            if (count != null) ...[
-              const SizedBox(width: 4),
-              Text('$count', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: fg)),
-            ],
-          ],
         ),
       ),
     );
@@ -358,10 +467,12 @@ class _ChatTile extends StatelessWidget {
                       Row(
                         children: [
                           Expanded(
-                            child: Text(state.lastOf(chat),
+                            child: Text(chat.typing.isNotEmpty ? chat.typing : state.lastOf(chat),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(fontSize: 13.5, color: sub)),
+                                style: TextStyle(
+                                    fontSize: 13.5,
+                                    color: chat.typing.isNotEmpty && !active ? c.accentText : sub)),
                           ),
                           if (waiting) ...[const SizedBox(width: 6), WaitingDot(ring: active)],
                           if (unread > 0) ...[

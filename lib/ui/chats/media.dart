@@ -39,8 +39,17 @@ class MessageMedia extends StatelessWidget {
   }
 }
 
-/// Size of a picture in the chat: as wide as allowed, at most 360 px high.
-Size _fit(MediaInfo info, double maxWidth, {double maxHeight = 360, double minWidth = 140}) {
+/// Size of a picture in the chat.
+///
+/// Without a caption the bubble takes the picture's shape: as wide as the
+/// picture allows, at most 360 px high. With a caption ([fill]) the picture
+/// spans the bubble like in Telegram Desktop, so a portrait photo under a
+/// long text is not left as a narrow strip: full width, at most 480 px high,
+/// cropped by `BoxFit.cover` when taller (the viewer shows it whole).
+@visibleForTesting
+Size fitMedia(MediaInfo info, double maxWidth, {bool fill = false, double minWidth = 140}) {
+  if (fill) return Size(maxWidth, math.min(maxWidth / info.aspect, 480));
+  const maxHeight = 360.0;
   var w = math.min(maxWidth, info.width > 0 ? info.width.toDouble() : maxWidth);
   w = math.max(w, math.min(minWidth, maxWidth));
   var h = w / info.aspect;
@@ -103,7 +112,7 @@ class _PhotoTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final info = message.info!;
-    final size = _fit(info, maxWidth);
+    final size = fitMedia(info, maxWidth, fill: message.text.isNotEmpty);
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: MouseRegion(
@@ -165,7 +174,7 @@ class _VideoTileState extends State<_VideoTile> {
   @override
   Widget build(BuildContext context) {
     final round = info.kind == MediaKind.videoNote;
-    final size = round ? const Size(220, 220) : _fit(info, widget.maxWidth);
+    final size = round ? const Size(220, 220) : fitMedia(info, widget.maxWidth, fill: widget.message.text.isNotEmpty);
     final loading = info.filePath == null && (_openWhenReady || info.downloading);
     final badge = info.kind == MediaKind.gif ? 'GIF' : _clock(info.duration);
     final preview = _Preview(info: info, state: widget.state, size: size);

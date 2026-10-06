@@ -23,6 +23,7 @@ Future<void> deleteTaskWithUndo(BuildContext context, AppState state, Task task)
   showToast(
     context,
     (w) => SnackBar(
+      persist: false,
       width: w < 480 ? w : 480,
       content: Text(S.current.tasks.deleted(task.title), maxLines: 1, overflow: TextOverflow.ellipsis),
       action: SnackBarAction(label: S.current.tasks.undo, onPressed: () => state.tasks.restore(task)),

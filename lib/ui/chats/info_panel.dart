@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../data/models.dart';
 import '../../l10n/l10n.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
@@ -21,7 +22,6 @@ class InfoPanel extends StatelessWidget {
     final c = context.fc;
     final chat = state.activeChat;
     if (chat == null) return SizedBox(width: width.isFinite ? width : null);
-    final current = state.collectionOf(chat);
     // Phone and bio/description are fetched once per chat when the panel shows.
     WidgetsBinding.instance.addPostFrameCallback((_) => state.loadDetails(chat.id));
     final t = context.s.chats;
@@ -62,55 +62,17 @@ class InfoPanel extends StatelessWidget {
               ),
             ),
           ),
-          Center(child: Text(chat.status, style: TextStyle(fontSize: 13, color: chat.online ? c.accentText : c.text2))),
+          Center(
+            child: Text(chat.typing.isNotEmpty ? chat.typing : chat.status,
+                style: TextStyle(fontSize: 13, color: chat.online || chat.typing.isNotEmpty ? c.accentText : c.text2)),
+          ),
+          const SizedBox(height: 10),
+          // The chat's collection as one badge; click to move it.
+          Center(child: _CollectionBadge(state: state, chat: chat)),
           const SizedBox(height: 12),
           if (chat.phone.isNotEmpty) _Row(icon: Icons.call_outlined, title: chat.phone, subtitle: t.phone),
           if (chat.about.isNotEmpty) _Row(icon: Icons.info_outline, title: chat.about, subtitle: t.about),
           const SizedBox(height: 8),
-          Container(height: 8, color: c.bg),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(t.collection, style: accentLabel),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final col in state.collections)
-                      _TagChip(
-                        label: col.label,
-                        active: current == col.id,
-                        onTap: () {
-                          // Tapping the current collection takes the chat out of it.
-                          final target = current == col.id ? '' : col.id;
-                          state.moveToCollection(chat.id, target);
-                          showToast(
-                            context,
-                            (w) => SnackBar(
-                              width: w < 480 ? w : 480,
-                              content: Text(target.isEmpty
-                                  ? t.removedFromCollection(chat.name, col.label)
-                                  : t.movedToCollection(chat.name, col.label)),
-                            ),
-                          );
-                        },
-                      ),
-                    _TagChip(
-                      label: t.newCollection,
-                      active: false,
-                      onTap: () async {
-                        final created = await showCollectionEditor(context, state);
-                        if (created != null) state.moveToCollection(chat.id, created.id);
-                      },
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
           Container(height: 8, color: c.bg),
           Padding(
             padding: const EdgeInsets.fromLTRB(18, 14, 18, 6),
@@ -134,7 +96,12 @@ class InfoPanel extends StatelessWidget {
             count: state.notes.countForChat(chat.id),
             onTap: () => state.showNotesForChat(chat.id),
           ),
-          _Link(icon: Icons.folder_outlined, label: t.files, onTap: () => state.openModule(Module.files)),
+          _Link(
+            icon: Icons.folder_outlined,
+            label: t.files,
+            count: state.savedCountFor(chat.id),
+            onTap: () => state.showFilesForChat(chat.id),
+          ),
           const SizedBox(height: 12),
         ],
       ),
@@ -174,26 +141,42 @@ class _Row extends StatelessWidget {
   }
 }
 
-class _TagChip extends StatelessWidget {
-  const _TagChip({required this.label, required this.active, required this.onTap});
+/// The collection the chat is in (icon and name in its color), or
+/// "+ To‘plamga" when unsorted. Click opens the move menu.
+class _CollectionBadge extends StatelessWidget {
+  const _CollectionBadge({required this.state, required this.chat});
 
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
+  final AppState state;
+  final Chat chat;
 
   @override
   Widget build(BuildContext context) {
     final c = context.fc;
-    return Tap(
-      onTap: onTap,
-      radius: 14,
-      color: active ? c.accentSoft : c.panel,
-      border: Border.all(color: active ? c.tagActiveBorder : c.chipBorder),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        child: Text(
-          label,
-          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: active ? c.qaFg : c.textSoft),
+    final col = state.collectionById(state.collectionOf(chat));
+    final tint = col == null ? c.text2 : c.collectionColor(col.colorKey);
+    return Tooltip(
+      message: context.s.chats.collection,
+      child: Tap(
+        onTap: null,
+        radius: 14,
+        color: col == null ? Colors.transparent : tint.withValues(alpha: 0.14),
+        border: Border.all(color: col == null ? c.chipBorder : tint.withValues(alpha: 0.5)),
+        child: GestureDetector(
+          onTapDown: (d) => showAssignMenu(context, state, chat, d.globalPosition),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(10, 5, 12, 5),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(col?.icon ?? Icons.add, size: 15, color: tint),
+                const SizedBox(width: 6),
+                Text(
+                  col?.label ?? context.s.notes.addToCollection,
+                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: col == null ? c.textSoft : tint),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

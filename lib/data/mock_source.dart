@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'models.dart';
 import 'chat_source.dart';
 import 'format.dart';
@@ -11,6 +13,29 @@ class MockChatSource extends ChatSource {
 
   final List<Chat> _chats;
   final Map<String, List<Message>> _sent = {};
+
+  /// Edited texts and deleted messages by "chatId:messageId".
+  final Map<String, String> _edits = {};
+  final Set<String> _deleted = {};
+  final _incoming = StreamController<IncomingMessage>.broadcast();
+
+  @override
+  Stream<IncomingMessage> get incoming => _incoming.stream;
+
+  /// Tests and demos: pretend [text] just arrived in [chatId].
+  void receive(String chatId, String text, {String? sender}) {
+    final chat = chatById(chatId);
+    if (chat == null) return;
+    final kind = chat.kind;
+    _incoming.add(IncomingMessage(
+      chatId: chatId,
+      chatTitle: chat.name,
+      kind: kind,
+      muted: chat.muted,
+      preview: text,
+      sender: kind == ChatKind.group ? sender : null,
+    ));
+  }
 
   @override
   List<Chat> get chats => _chats;
@@ -35,8 +60,14 @@ class MockChatSource extends ChatSource {
     // mock messages are "today", so relative days count from now.
     final now = DateTime.now();
     return [
-      for (final m in [...base, ...?_sent[chatId]])
-        if (m.out) m else _withMeeting(m, now),
+      for (final raw in [...base, ...?_sent[chatId]])
+        if (!_deleted.contains('$chatId:${raw.id}'))
+          if (_edits['$chatId:${raw.id}'] case final text?)
+            raw.withText(text)
+          else if (raw.out)
+            raw
+          else
+            _withMeeting(raw, now),
     ];
   }
 
@@ -72,6 +103,51 @@ class MockChatSource extends ChatSource {
     (_sent[chatId] ??= []).add(Message(id: '$chatId-s${now.microsecondsSinceEpoch}', text: t, time: time, out: true));
     final i = _chats.indexWhere((c) => c.id == chatId);
     if (i >= 0) _chats[i] = _chats[i].copyWith(last: '${S.current.chats.youPrefix}$t', time: time, waiting: false);
+    notifyListeners();
+  }
+
+  @override
+  Future<FoundFile?> getFound(String chatId, String messageId) async {
+    final chat = chatById(chatId);
+    if (chat == null) return null;
+    for (final m in [...(kMessages[chatId] ?? const <Message>[]), ...(_sent[chatId] ?? const <Message>[])]) {
+      if (m.id == messageId) return FoundFile(chatId: chatId, chatTitle: chat.name, message: m);
+    }
+    return null;
+  }
+
+  @override
+  Future<MessageRights> rightsOf(String chatId, String messageId) async {
+    final chat = chatById(chatId);
+    final m = messagesOf(chatId).where((x) => x.id == messageId).firstOrNull;
+    if (chat == null || m == null || m.service) return const MessageRights();
+    final plainText = m.fileName == null && m.info == null && m.media == null;
+    return MessageRights(
+      canEdit: m.out && plainText,
+      canDeleteForMe: true,
+      canDeleteForAll: m.out || chat.kind == ChatKind.private,
+    );
+  }
+
+  @override
+  Future<void> editText(String chatId, String messageId, String text) async {
+    _edits['$chatId:$messageId'] = text.trim();
+    notifyListeners();
+  }
+
+  @override
+  Future<void> deleteMessages(String chatId, List<String> messageIds, {required bool forAll}) async {
+    _deleted.addAll(messageIds.map((id) => '$chatId:$id'));
+    notifyListeners();
+  }
+
+  @override
+  Future<void> setPinned(String chatId, bool pinned) async {
+    final i = _chats.indexWhere((c) => c.id == chatId);
+    if (i < 0) return;
+    final chat = _chats.removeAt(i).copyWith(pinned: pinned);
+    // Pinned chats stay first, in the order they were pinned (newest on top).
+    _chats.insert(pinned ? 0 : _chats.indexWhere((c) => !c.pinned).clamp(0, _chats.length), chat);
     notifyListeners();
   }
 

@@ -29,24 +29,32 @@ const kCollectionIcons = <String, IconData>{
 };
 
 /// A user-defined group of chats (Focus-only, never sent to Telegram).
+/// Keys of the collection colors, in [FokusColors.collectionColors] order.
+/// '' is the default (accent blue).
+const kCollectionColorKeys = ['', 'green', 'teal', 'orange', 'red', 'purple', 'pink', 'grey'];
+
 class Collection {
-  const Collection(this.id, this._label, this.iconKey);
+  const Collection(this.id, this._label, this.iconKey, [this.colorKey = '']);
   final String id;
   final String _label;
   final String iconKey;
+
+  /// One of [kCollectionColorKeys]; '' = accent.
+  final String colorKey;
 
   /// The name; the virtual [kAllCollection] is named in the current language.
   String get label => id == kAllCollection.id ? S.current.notes.allCollection : _label;
 
   IconData get icon => kCollectionIcons[iconKey] ?? Icons.folder_outlined;
 
-  Map<String, String> toJson() => {'id': id, 'label': label, 'icon': iconKey};
+  Map<String, String> toJson() => {'id': id, 'label': label, 'icon': iconKey, 'color': colorKey};
 
-  static Collection fromJson(Map<String, dynamic> j) =>
-      Collection(j['id'] as String, j['label'] as String, (j['icon'] as String?) ?? 'folder');
+  static Collection fromJson(Map<String, dynamic> j) => Collection(
+      j['id'] as String, j['label'] as String, (j['icon'] as String?) ?? 'folder', (j['color'] as String?) ?? '');
 }
 
-/// The virtual "all chats" entry: the first tab above the chat list.
+/// The virtual "all chats" entry: the "Chatlar" side of the switch above
+/// the chat list.
 const kAllCollection = Collection('all', 'Hammasi', 'forum');
 
 /// Collections a new install starts with.
@@ -82,6 +90,8 @@ class Chat {
     this.kind = ChatKind.private,
     this.pinned = false,
     this.canSend = true,
+    this.typing = '',
+    this.lastAt,
   });
 
   final String id;
@@ -119,7 +129,15 @@ class Chat {
   /// us write; the composer is replaced by a read-only note.
   final bool canSend;
 
-  Chat copyWith({String? last, String? time, int? unread, bool? waiting, String? phone, String? about}) => Chat(
+  /// What the other side is doing right now ("yozmoqda…", in groups with the
+  /// name), or '' (from TDLib updateChatAction; shown instead of the status).
+  final String typing;
+
+  /// When the last message was sent (null in mock data).
+  final DateTime? lastAt;
+
+  Chat copyWith({String? last, String? time, int? unread, bool? waiting, String? phone, String? about, bool? pinned}) =>
+      Chat(
         id: id,
         name: name,
         initials: initials,
@@ -136,8 +154,10 @@ class Chat {
         about: about ?? this.about,
         photo: photo,
         kind: kind,
-        pinned: pinned,
+        pinned: pinned ?? this.pinned,
         canSend: canSend,
+        typing: typing,
+        lastAt: lastAt,
       );
 }
 
@@ -245,6 +265,7 @@ class Message {
     this.senderPhoto,
     this.meetingAt,
     this.file,
+    this.edited = false,
   });
 
   final String id;
@@ -262,6 +283,9 @@ class Message {
 
   /// When the detected meeting starts.
   final DateTime? meetingAt;
+
+  /// Edited after sending ("tahrirlangan" next to the time).
+  final bool edited;
 
   /// Send date (null in mock data: everything is "today").
   final DateTime? date;
@@ -320,6 +344,30 @@ class Message {
         senderColor: senderColor,
         senderPhoto: senderPhoto,
         file: file,
+        edited: edited,
+      );
+
+  /// The same message with new text (mock edits).
+  Message withText(String newText) => Message(
+        id: id,
+        text: newText,
+        time: time,
+        out: out,
+        from: from,
+        fileName: fileName,
+        fileMeta: fileMeta,
+        date: date,
+        media: media,
+        mediaLabel: mediaLabel,
+        service: service,
+        read: read,
+        info: info,
+        senderId: senderId,
+        senderInitials: senderInitials,
+        senderColor: senderColor,
+        senderPhoto: senderPhoto,
+        file: file,
+        edited: true,
       );
 }
 
@@ -348,6 +396,87 @@ class FileInfo {
   final double? uploadProgress;
 
   bool get downloaded => path != null;
+}
+
+/// What a saved item is; the tabs of the "Fayllar" module.
+enum SavedKind {
+  documents,
+  photos,
+  videos,
+  audio,
+  text;
+
+  static SavedKind of(Message m) => switch (m.info?.kind) {
+        MediaKind.photo => SavedKind.photos,
+        MediaKind.video || MediaKind.gif || MediaKind.videoNote => SavedKind.videos,
+        MediaKind.voice || MediaKind.audio => SavedKind.audio,
+        _ => m.fileName != null ? SavedKind.documents : SavedKind.text,
+      };
+
+  bool get isMedia => this == SavedKind.photos || this == SavedKind.videos;
+}
+
+/// A message the user saved from a chat into "Fayllar" (Focus-only). Keeps
+/// a snapshot (chat title, text, file name, size, date) so the list shows
+/// at once; the file itself is fetched from TDLib when opened.
+@immutable
+class SavedItem {
+  const SavedItem({
+    required this.chatId,
+    required this.messageId,
+    required this.kind,
+    required this.chatTitle,
+    this.text = '',
+    this.fileName,
+    this.size = 0,
+    this.date,
+    required this.savedAt,
+  });
+
+  final String chatId;
+  final String messageId;
+  final SavedKind kind;
+  final String chatTitle;
+
+  /// Message text or caption.
+  final String text;
+  final String? fileName;
+  final int size;
+
+  /// When the message was sent (null in mock data).
+  final DateTime? date;
+  final DateTime savedAt;
+
+  String get key => '$chatId:$messageId';
+
+  /// Date used for sorting and day groups.
+  DateTime get when => date ?? savedAt;
+}
+
+/// Favorite and tags the user put on a file in Focus (never in Telegram).
+@immutable
+class FileMark {
+  const FileMark({
+    required this.chatId,
+    required this.messageId,
+    required this.kind,
+    this.favorite = false,
+    this.tags = const [],
+    required this.updatedAt,
+  });
+
+  final String chatId;
+  final String messageId;
+
+  /// [SavedKind] name.
+  final String kind;
+  final bool favorite;
+  final List<String> tags;
+  final DateTime updatedAt;
+
+  bool get isEmpty => !favorite && tags.isEmpty;
+
+  bool hasTag(String tag) => tags.any((t) => t.toLowerCase() == tag.toLowerCase());
 }
 
 /// A file the user picked or dropped to send.

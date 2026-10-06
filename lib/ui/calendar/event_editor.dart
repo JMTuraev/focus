@@ -64,6 +64,7 @@ Future<void> deleteEventWithUndo(BuildContext context, AppState state, Event e) 
   showToast(
     context,
     (w) => SnackBar(
+      persist: false,
       width: w < 480 ? w : 480,
       content: Text(context.s.calendar.eventDeleted(e.title), maxLines: 1, overflow: TextOverflow.ellipsis),
       action: SnackBarAction(label: context.s.calendar.undo, onPressed: () => state.events.restore(e)),

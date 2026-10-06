@@ -5,6 +5,7 @@ import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../data/chat_source.dart';
 import '../../data/format.dart';
 import '../../data/models.dart';
 import '../../l10n/l10n.dart';
@@ -36,6 +37,9 @@ class ChatView extends StatefulWidget {
 class _ChatViewState extends State<ChatView> {
   final _input = TextEditingController();
   final _focus = FocusNode();
+
+  /// Own message being edited in the composer (null = writing a new one).
+  Message? _editing;
   bool _emojiOpen = false;
   bool _dragging = false;
 
@@ -75,6 +79,11 @@ class _ChatViewState extends State<ChatView> {
 
   Future<void> _send() async {
     final text = _input.text;
+    final editing = _editing;
+    if (editing != null) {
+      await _saveEdit(editing, text);
+      return;
+    }
     if (text.trim().isEmpty) return;
     _input.clear();
     _focus.requestFocus();
@@ -87,10 +96,159 @@ class _ChatViewState extends State<ChatView> {
     }
   }
 
+  // ---- editing and deleting ----
+
+  /// Right click on a message: copy, edit (own text, if Telegram allows),
+  /// delete. Rights come from TDLib (getMessageProperties).
+  Future<void> _messageMenu(Message m, Offset pos) async {
+    if (m.pending || m.service) return;
+    final chat = s.activeChat;
+    if (chat == null) return;
+    final t = context.s.chats;
+    final c = context.fc;
+    var rights = const MessageRights();
+    try {
+      rights = await s.source.rightsOf(chat.id, m.id);
+    } catch (_) {}
+    if (!mounted) return;
+    final plainText = m.fileName == null && m.info == null && m.media == null;
+    final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
+    PopupMenuItem<String> item(String value, IconData icon, String label, {Color? color}) => PopupMenuItem(
+          value: value,
+          height: 38,
+          child: Row(
+            children: [
+              Icon(icon, size: 18, color: color ?? c.icon),
+              const SizedBox(width: 10),
+              Text(label, style: TextStyle(color: color ?? c.text, fontSize: 14)),
+            ],
+          ),
+        );
+    final items = [
+      if (m.text.isNotEmpty) item('copy', Icons.copy_outlined, t.copyMessage),
+      if (rights.canEdit && plainText && chat.canSend) item('edit', Icons.edit_outlined, t.editMessage),
+      if (rights.canDelete) item('delete', Icons.delete_outline, t.deleteMessage, color: c.danger),
+    ];
+    if (items.isEmpty) return;
+    final choice = await showMenu<String>(
+      context: context,
+      color: c.panel,
+      position: RelativeRect.fromRect(pos & const Size(1, 1), Offset.zero & overlay.size),
+      items: items,
+    );
+    if (!mounted) return;
+    switch (choice) {
+      case 'copy':
+        await Clipboard.setData(ClipboardData(text: m.text));
+        if (mounted) _toast(t.copied);
+      case 'edit':
+        _startEdit(m);
+      case 'delete':
+        await _confirmDelete(chat, m, rights);
+    }
+  }
+
+  void _startEdit(Message m) {
+    setState(() {
+      _editing = m;
+      _emojiOpen = false;
+    });
+    _input.text = m.text;
+    _input.selection = TextSelection.collapsed(offset: m.text.length);
+    _focus.requestFocus();
+  }
+
+  void _cancelEdit() {
+    setState(() => _editing = null);
+    _input.clear();
+    _focus.requestFocus();
+  }
+
+  Future<void> _saveEdit(Message m, String text) async {
+    final chat = s.activeChat;
+    // Empty or unchanged: nothing to send, like Telegram Desktop.
+    if (chat == null || text.trim().isEmpty || text.trim() == m.text.trim()) {
+      _cancelEdit();
+      return;
+    }
+    setState(() => _editing = null);
+    _input.clear();
+    _focus.requestFocus();
+    try {
+      await s.source.editText(chat.id, m.id, text);
+    } catch (_) {
+      if (!mounted) return;
+      _startEdit(m);
+      _input.text = text;
+      _toast(context.s.chats.editFailed);
+    }
+  }
+
+  Future<void> _confirmDelete(Chat chat, Message m, MessageRights rights) async {
+    final t = context.s.chats;
+    final c = context.fc;
+    // Both possible: a checkbox (on by default, like Telegram); else fixed.
+    var forAll = rights.canDeleteForAll;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialog) => AlertDialog(
+          backgroundColor: c.panel,
+          title: Text(t.deleteTitle, style: TextStyle(color: c.text, fontSize: 18, fontWeight: FontWeight.w700)),
+          content: SizedBox(
+            width: 360,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (m.text.isNotEmpty)
+                  Text(m.text, maxLines: 3, overflow: TextOverflow.ellipsis, style: TextStyle(color: c.textSoft, fontSize: 14)),
+                if (rights.canDeleteForMe && rights.canDeleteForAll) ...[
+                  const SizedBox(height: 8),
+                  CheckboxListTile(
+                    value: forAll,
+                    onChanged: (v) => setDialog(() => forAll = v ?? false),
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    activeColor: c.accentStrong,
+                    title: Text(
+                      chat.kind == ChatKind.private ? t.deleteForBoth(chat.name) : t.deleteForAll,
+                      style: TextStyle(color: c.text, fontSize: 14),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              style: TextButton.styleFrom(foregroundColor: c.text2),
+              child: Text(context.s.common.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: FilledButton.styleFrom(backgroundColor: c.danger, foregroundColor: Colors.white),
+              child: Text(context.s.common.delete),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (ok != true || !mounted) return;
+    if (_editing?.id == m.id) _cancelEdit();
+    try {
+      await s.source.deleteMessages(chat.id, [m.id], forAll: forAll);
+    } catch (_) {
+      if (mounted) _toast(t.deleteFailed);
+    }
+  }
+
   void _toast(String text, {String? action, Module? goTo, VoidCallback? onAction}) {
     showToast(
       context,
       (width) => SnackBar(
+        persist: false,
         width: width,
         duration: const Duration(seconds: 4),
         content: Text(text, maxLines: 2, overflow: TextOverflow.ellipsis),
@@ -193,6 +351,13 @@ class _ChatViewState extends State<ChatView> {
                   final what = target.text.isEmpty ? (target.fileName ?? target.mediaLabel ?? t.messageLower) : target.text;
                   _toast(t.savedToNotes(_short(what)), action: t.openNotes, goTo: Module.notes);
                 },
+          onFiles: target == null
+              ? null
+              : () {
+                  final added = s.saveToFiles(target);
+                  final what = target.text.isEmpty ? (target.fileName ?? target.mediaLabel ?? t.messageLower) : target.text;
+                  _toast(added ? t.savedToFiles(_short(what)) : t.alreadyInFiles, action: t.openFiles, goTo: Module.files);
+                },
         ),
         Expanded(
           child: CustomPaint(
@@ -244,6 +409,7 @@ class _ChatViewState extends State<ChatView> {
                       last: e.last,
                       selected: s.selectedMessageId == m.id,
                       onTap: () => s.selectMessage(m.id),
+                      onMenu: (pos) => _messageMenu(m, pos),
                       onAddMeeting: () => _toCalendar(m),
                     );
                   },
@@ -263,7 +429,9 @@ class _ChatViewState extends State<ChatView> {
             onAttach: _attach,
             emojiOpen: _emojiOpen,
             onEmoji: _toggleEmoji,
-            onEscape: _emojiOpen ? () => setState(() => _emojiOpen = false) : null,
+            editing: _editing?.text,
+            onCancelEdit: _cancelEdit,
+            onEscape: _emojiOpen ? () => setState(() => _emojiOpen = false) : (_editing != null ? _cancelEdit : null),
           ),
         ] else
           _ReadOnlyBar(channel: chat.kind == ChatKind.channel),
@@ -342,7 +510,7 @@ class _EmojiPanel extends StatelessWidget {
           height: 280,
           checkPlatformCompatibility: false,
           locale: Localizations.localeOf(context),
-          emojiTextStyle: const TextStyle(fontFamily: 'Segoe UI Emoji'),
+          emojiTextStyle: const TextStyle(fontFamily: 'Twemoji', fontFamilyFallback: ['Segoe UI Emoji']),
           emojiViewConfig: EmojiViewConfig(
             columns: 10,
             emojiSizeMax: 26,
@@ -400,8 +568,10 @@ class _Header extends StatelessWidget {
               children: [
                 Text(chat.name,
                     maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: c.text)),
-                Text(chat.status,
-                    maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, color: chat.online ? c.accentText : c.text2)),
+                Text(chat.typing.isNotEmpty ? chat.typing : chat.status,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12.5, color: chat.online || chat.typing.isNotEmpty ? c.accentText : c.text2)),
               ],
             ),
           ),
@@ -420,13 +590,14 @@ class _Header extends StatelessWidget {
 }
 
 class _QuickActions extends StatelessWidget {
-  const _QuickActions({required this.label, required this.text, this.onTask, this.onCalendar, this.onNote});
+  const _QuickActions({required this.label, required this.text, this.onTask, this.onCalendar, this.onNote, this.onFiles});
 
   final String label;
   final String text;
   final VoidCallback? onTask;
   final VoidCallback? onCalendar;
   final VoidCallback? onNote;
+  final VoidCallback? onFiles;
 
   @override
   Widget build(BuildContext context) {
@@ -459,6 +630,7 @@ class _QuickActions extends StatelessWidget {
               _QA(icon: Icons.checklist, label: context.s.chats.toTask, iconOnly: iconsOnly, onTap: onTask),
               _QA(icon: Icons.calendar_today_outlined, label: context.s.chats.toCalendar, iconOnly: iconsOnly, onTap: onCalendar),
               _QA(icon: Icons.sticky_note_2_outlined, label: context.s.chats.toNote, iconOnly: iconsOnly, onTap: onNote),
+              _QA(icon: Icons.bookmark_add_outlined, label: context.s.chats.toFiles, iconOnly: iconsOnly, onTap: onFiles),
             ],
           ),
         );
@@ -541,6 +713,7 @@ class _Bubble extends StatelessWidget {
     required this.maxWidth,
     required this.selected,
     required this.onTap,
+    this.onMenu,
     required this.onAddMeeting,
     this.groupStyle = false,
     this.first = true,
@@ -552,6 +725,9 @@ class _Bubble extends StatelessWidget {
   final double maxWidth;
   final bool selected;
   final VoidCallback onTap;
+
+  /// Right click: copy, edit, delete.
+  final void Function(Offset globalPosition)? onMenu;
   final VoidCallback onAddMeeting;
 
   /// Group chat: avatar column and colored sender names.
@@ -570,6 +746,13 @@ class _Bubble extends StatelessWidget {
     final m = message;
     final info = m.info;
     final sticker = info?.kind == MediaKind.sticker;
+    // Photos, videos, GIFs and round videos without a caption float without
+    // a bubble, like in Telegram; the time sits on the picture.
+    final round = info?.kind == MediaKind.videoNote;
+    final bareMedia = info != null &&
+        const {MediaKind.photo, MediaKind.video, MediaKind.gif, MediaKind.videoNote}.contains(info.kind) &&
+        m.text.isEmpty &&
+        m.fileName == null;
     final showAvatarColumn = groupStyle && !m.out;
     final width = showAvatarColumn ? maxWidth - _avatar - 8 : maxWidth;
     final radius = BorderRadius.only(
@@ -578,16 +761,63 @@ class _Bubble extends StatelessWidget {
       bottomLeft: Radius.circular(m.out || !last ? 14 : 5),
       bottomRight: Radius.circular(m.out && last ? 5 : 14),
     );
+    final metaColor = sticker || bareMedia ? Colors.white : (m.out ? c.outMeta : c.text2);
     final meta = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(m.time, style: TextStyle(fontSize: 11.5, color: sticker ? Colors.white : (m.out ? c.outMeta : c.text2))),
-        if (m.out) ...[const SizedBox(width: 3), _Tick(m)],
+        if (m.edited)
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: Text(context.s.chats.edited,
+                style: TextStyle(fontSize: 11.5, fontStyle: FontStyle.italic, color: metaColor)),
+          ),
+        Text(m.time,
+            style: TextStyle(fontSize: 11.5, color: sticker || bareMedia ? Colors.white : (m.out ? c.outMeta : c.text2))),
+        if (m.out) ...[const SizedBox(width: 3), _Tick(m, onMedia: sticker || bareMedia)],
       ],
     );
 
     final Widget content;
-    if (sticker) {
+    if (bareMedia) {
+      final pill = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+        decoration: BoxDecoration(color: const Color(0x8C000000), borderRadius: BorderRadius.circular(8)),
+        child: meta,
+      );
+      content = Column(
+        crossAxisAlignment: m.out ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (m.from != null && first)
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 3),
+              child: Text(
+                m.from!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: c.senderName(_colorIndex)),
+              ),
+            ),
+          DecoratedBox(
+            position: DecorationPosition.foreground,
+            decoration: selected
+                ? BoxDecoration(
+                    shape: round ? BoxShape.circle : BoxShape.rectangle,
+                    borderRadius: round ? null : BorderRadius.circular(10),
+                    border: Border.all(color: c.accent, width: 2),
+                  )
+                : const BoxDecoration(),
+            child: Stack(
+              children: [
+                MessageMedia(message: m, state: state, maxWidth: width),
+                if (!round) Positioned(right: 6, bottom: 10, child: pill),
+              ],
+            ),
+          ),
+          if (round) Padding(padding: const EdgeInsets.only(top: 2), child: pill),
+        ],
+      );
+    } else if (sticker) {
       // Stickers float without a bubble, like in Telegram.
       content = Column(
         crossAxisAlignment: m.out ? CrossAxisAlignment.end : CrossAxisAlignment.start,
@@ -649,6 +879,7 @@ class _Bubble extends StatelessWidget {
       constraints: BoxConstraints(maxWidth: width),
       child: GestureDetector(
         onTap: onTap,
+        onSecondaryTapDown: onMenu == null ? null : (d) => onMenu?.call(d.globalPosition),
         child: MouseRegion(cursor: SystemMouseCursors.click, child: content),
       ),
     );
@@ -731,7 +962,13 @@ class _Composer extends StatelessWidget {
     required this.emojiOpen,
     required this.onEmoji,
     this.onEscape,
+    this.editing,
+    this.onCancelEdit,
   });
+
+  /// Text of the message being edited; shows the "Tahrirlash" bar.
+  final String? editing;
+  final VoidCallback? onCancelEdit;
 
   final TextEditingController controller;
   final FocusNode focus;
@@ -757,10 +994,14 @@ class _Composer extends StatelessWidget {
         border: InputBorder.none,
       ),
     );
-    return Container(
+    final editing = this.editing;
+    final row = Container(
       height: 58,
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(color: c.panel, border: Border(top: BorderSide(color: c.border))),
+      decoration: BoxDecoration(
+        color: c.panel,
+        border: editing == null ? Border(top: BorderSide(color: c.border)) : null,
+      ),
       child: Row(
         children: [
           IconButton(tooltip: context.s.chats.attachFile, onPressed: onAttach, icon: Icon(Icons.attach_file, color: c.icon)),
@@ -778,30 +1019,75 @@ class _Composer extends StatelessWidget {
             icon: Icon(emojiOpen ? Icons.keyboard_alt_outlined : Icons.emoji_emotions_outlined,
                 color: emojiOpen ? c.accent : c.icon),
           ),
-          IconButton(tooltip: context.s.common.send, onPressed: onSend, icon: Icon(Icons.send_rounded, color: c.accent)),
+          IconButton(
+            tooltip: editing == null ? context.s.common.send : context.s.common.save,
+            onPressed: onSend,
+            icon: Icon(editing == null ? Icons.send_rounded : Icons.check_rounded, color: c.accent),
+          ),
         ],
       ),
+    );
+    if (editing == null) return row;
+    // "Tahrirlash" bar: what is being edited; the cross cancels (also Escape).
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 6, 8, 2),
+          decoration: BoxDecoration(color: c.panel, border: Border(top: BorderSide(color: c.border))),
+          child: Row(
+            children: [
+              Icon(Icons.edit_outlined, size: 20, color: c.accent),
+              const SizedBox(width: 12),
+              Container(width: 2, height: 32, color: c.accent),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(context.s.chats.editing,
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: c.accentText)),
+                    Text(editing,
+                        maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: c.textSoft)),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: context.s.chats.cancelEdit,
+                onPressed: onCancelEdit,
+                icon: Icon(Icons.close, size: 20, color: c.icon),
+              ),
+            ],
+          ),
+        ),
+        row,
+      ],
     );
   }
 }
 
 /// Delivery mark for outgoing messages: sending, failed, sent, read.
 class _Tick extends StatelessWidget {
-  const _Tick(this.m);
+  const _Tick(this.m, {this.onMedia = false});
 
   final Message m;
+
+  /// White, on a picture (bubble-less media and stickers).
+  final bool onMedia;
 
   @override
   Widget build(BuildContext context) {
     final c = context.fc;
     final t = context.s.chats;
+    final meta = onMedia ? Colors.white : c.outMeta;
     final (icon, color, tip) = m.failed
         ? (Icons.error_outline, c.danger, t.tickFailed)
         : m.pending
-            ? (Icons.schedule, c.outMeta, t.tickSending)
+            ? (Icons.schedule, meta, t.tickSending)
             : m.read
-                ? (Icons.done_all, c.outMeta, t.tickRead)
-                : (Icons.done, c.outMeta, t.tickSent);
+                ? (Icons.done_all, meta, t.tickRead)
+                : (Icons.done, meta, t.tickSent);
     return Tooltip(message: tip, child: Icon(icon, size: 15, color: color));
   }
 }

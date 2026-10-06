@@ -46,6 +46,8 @@ class NoteStrings {
     required this.collectionNameEmpty,
     required this.collectionExists,
     required this.icon,
+    required this.color,
+    required this.collectionColorLabels,
     required this.deleteCollectionTitle,
     required this.deleteEmptyCollection,
     required this.deleteCollectionBody,
@@ -134,6 +136,11 @@ class NoteStrings {
   final String collectionNameEmpty;
   final String collectionExists;
   final String icon;
+
+  /// Color section of the collection editor and its swatch tooltips
+  /// ([kCollectionColorKeys] order).
+  final String color;
+  final List<String> collectionColorLabels;
   final String Function(String name) deleteCollectionTitle;
   final String deleteEmptyCollection;
 
@@ -213,6 +220,8 @@ final notesUz = NoteStrings(
   collectionNameEmpty: 'Nomini kiriting.',
   collectionExists: 'Bu nomdagi to‘plam allaqachon bor.',
   icon: 'Ikonka',
+  color: 'Rang',
+  collectionColorLabels: const ['Ko‘k', 'Yashil', 'Moviy', 'To‘q sariq', 'Qizil', 'Binafsha', 'Pushti', 'Kulrang'],
   deleteCollectionTitle: (name) => '«$name» o‘chirilsinmi?',
   deleteEmptyCollection: 'To‘plam bo‘sh. Telegram’dagi chatlarga ta’sir qilmaydi.',
   deleteCollectionBody: (n) =>
@@ -279,6 +288,8 @@ final notesRu = NoteStrings(
   collectionNameEmpty: 'Введите название.',
   collectionExists: 'Коллекция с таким названием уже есть.',
   icon: 'Значок',
+  color: 'Цвет',
+  collectionColorLabels: const ['Синий', 'Зелёный', 'Бирюзовый', 'Оранжевый', 'Красный', 'Фиолетовый', 'Розовый', 'Серый'],
   deleteCollectionTitle: (name) => 'Удалить «$name»?',
   deleteEmptyCollection: 'Коллекция пуста. Чаты в Telegram не изменятся.',
   deleteCollectionBody: (n) =>
@@ -347,6 +358,8 @@ final notesEn = NoteStrings(
   collectionNameEmpty: 'Enter a name.',
   collectionExists: 'A collection with this name already exists.',
   icon: 'Icon',
+  color: 'Color',
+  collectionColorLabels: const ['Blue', 'Green', 'Teal', 'Orange', 'Red', 'Purple', 'Pink', 'Grey'],
   deleteCollectionTitle: (name) => 'Delete “$name”?',
   deleteEmptyCollection: 'The collection is empty. Chats in Telegram are not affected.',
   deleteCollectionBody: (n) =>
