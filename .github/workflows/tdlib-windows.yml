@@ -7,7 +7,7 @@ on:
     inputs:
       td_ref:
         description: "tdlib/td branch, tag or commit"
-        default: "master"
+        default: "3e04c757f9ee474db684baf94c433b28165c698d" # TDLib 1.8.67, matches the JSON API used by Focus
         required: true
 
 jobs:

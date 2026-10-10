@@ -432,6 +432,7 @@ class _ChatTile extends StatelessWidget {
     final waiting = state.waitingOf(chat);
     final main = active ? Colors.white : c.text;
     final sub = active ? Colors.white : c.text2;
+    final draft = state.draftOf(chat.id);
     // Right click: move the chat to a collection.
     return GestureDetector(
       onSecondaryTapDown: (d) => showAssignMenu(context, state, chat, d.globalPosition),
@@ -467,12 +468,15 @@ class _ChatTile extends StatelessWidget {
                       Row(
                         children: [
                           Expanded(
-                            child: Text(chat.typing.isNotEmpty ? chat.typing : state.lastOf(chat),
+                            child: Text(chat.typing.isNotEmpty
+                                ? chat.typing
+                                : draft.isNotEmpty ? '${context.s.chats.draft}: $draft' : state.lastOf(chat),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                     fontSize: 13.5,
-                                    color: chat.typing.isNotEmpty && !active ? c.accentText : sub)),
+                                    color: !active && draft.isNotEmpty ? c.danger
+                                        : chat.typing.isNotEmpty && !active ? c.accentText : sub)),
                           ),
                           if (waiting) ...[const SizedBox(width: 6), WaitingDot(ring: active)],
                           if (unread > 0) ...[

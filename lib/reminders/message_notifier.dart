@@ -21,11 +21,13 @@ class MessageNotifier {
     required this.settings,
     required this.windowActive,
     required this.activeChatId,
+    this.accountId,
   });
 
   final Notifier notifier;
   final ChatSource source;
   final Settings settings;
+  final String? accountId;
 
   /// True while the Focus window is focused.
   final bool Function() windowActive;
@@ -70,7 +72,8 @@ class MessageNotifier {
       body = m.preview;
     }
     try {
-      await notifier.show(id: idFor(m.chatId), title: m.chatTitle, body: body, payload: 'chat:${m.chatId}');
+      final payload = accountId == null ? 'chat:${m.chatId}' : 'account:$accountId:chat:${m.chatId}';
+      await notifier.show(id: idFor(m.chatId), title: m.chatTitle, body: body, payload: payload);
     } catch (e) {
       debugPrint('message toast: $e');
     }

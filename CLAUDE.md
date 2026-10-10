@@ -19,6 +19,14 @@ Unofficial, local-first Telegram desktop client for Windows (Flutter + TDLib). T
 - No server. Telegram data comes only from TDLib (`lib/tdlib/`). Everything else (collections, tasks, notes, calendar) is stored locally (SQLite via drift, from phase 2).
 - Backups are encrypted locally and uploaded to the user's own Saved Messages.
 - TDLib binaries live in `tdlib/` (git-ignored), built by `.github/workflows/tdlib-windows.yml` and copied next to `focus.exe` by the CMake rule added by `tool/setup_windows.ps1`.
+- The default TDLib build ref is `3e04c757f9ee474db684baf94c433b28165c698d` (1.8.67). Verify the corresponding `td_api.tl` before changing request shapes or upgrading the ref.
+
+## Account ownership
+- `TdAuth.openSession` must obtain a positive Telegram user ID with `getMe` before opening local data. Never fall back to the shared database if identity lookup fails.
+- `AccountStorage` stores each real account's database and DPAPI backup key under `accounts/<userId>/` inside the existing app support directory. Device settings (theme, language, notification preferences) stay shared. Mock sessions remain in memory.
+- The old root `fokus.sqlite`, `local_state.json` and `backup.key` are unowned legacy data. Import only after the explicit in-app ownership choice. Preserve the originals, copy committed WAL data, keep interrupted choices retryable, and disable automatic backups after import. A global ownership marker prevents offering the same legacy data to another account.
+- Logout cancels scheduled reminders before opening another session. Real notification payloads have the prefix `account:<userId>:`; reject other accounts' payloads and old unscoped payloads.
+- Keep async callbacks tied to the session that started them. A stale session, backup initialization or send failure must never change another account's state.
 
 ## Local mode (must never be broken)
 Defined in `lib/tdlib/td_auth.dart` → `LocalMode`.
@@ -65,7 +73,7 @@ Breakpoints are in `lib/ui/layout.dart`, modelled on Telegram Desktop:
 - Filters: the chat type filter (Shaxsiy, Guruhlar, Kanallar, Botlar) and "hide muted" (⚙ button in the list header). The search field sits below the switch and only on the "Chatlar" side; leaving it clears the query.
 
 ## Local database (phase 2)
-- drift + SQLite: `lib/db/database.dart` (`AppDatabase`, file `fokus.sqlite` in the app support folder; in memory for mock sessions and tests). Generated code: `lib/db/database.g.dart`, committed.
+- drift + SQLite: `lib/db/database.dart` (`AppDatabase`, real account file `accounts/<userId>/fokus.sqlite` in the app support folder; in memory for mock sessions and tests). Generated code: `lib/db/database.g.dart`, committed.
 - After changing tables run `dart run build_runner build --delete-conflicting-outputs --force-jit` (the AOT mode fails because of native build hooks) and bump `schemaVersion` with a migration.
 - Enums are stored by name (`textEnum`), never by index.
 - Stores (e.g. `TaskStore`) keep rows in memory and reload after each write; no drift streams (they leave timers that break widget tests).
@@ -101,6 +109,8 @@ Breakpoints are in `lib/ui/layout.dart`, modelled on Telegram Desktop:
 
 ## Messages: formatting and media
 - Text entities are mapped in `TdChatSource.entitiesOf` and drawn by `lib/ui/chats/message_text.dart`. Links open only for http, https, mailto, tel and tg; hidden links (`textUrl`) ask for confirmation first.
+- Reply/forward rights come from `getMessageProperties`. Replies use `inputMessageReplyToMessage` (also for files/albums); per-chat local reply drafts use `chatReplyDraft:<chatId>` in `key_values`. Preserve forward attribution (`send_copy=false`, `remove_caption=false`), with no copy fallback for protected messages.
+- In-chat search uses `searchChatMessages` and its `next_from_message_id`. Ctrl+F opens it; Escape closes it. A selected result/reply loads `getChatHistory` around the target and anchors that message in the viewport. Keep history windows contiguous, reject stale history responses, and allow returning to latest messages. Search and navigation must never mark messages read.
 - Media (`MediaInfo`): photos and video thumbnails download automatically; videos and voice messages download on click. Playback uses media_kit (libmpv), which adds about 45 MB to the build.
 - Media viewers must stay closable by mouse and Escape and must not cover the title bar close button.
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:desktop_drop/desktop_drop.dart';
@@ -17,6 +18,8 @@ import 'file_actions.dart';
 import 'media.dart';
 import 'message_text.dart';
 import 'send_files_dialog.dart';
+import 'chat_search.dart';
+import 'forward_dialog.dart';
 
 class ChatView extends StatefulWidget {
   const ChatView({super.key, required this.state, required this.infoActive, required this.onInfo, this.onBack});
@@ -42,42 +45,129 @@ class _ChatViewState extends State<ChatView> {
   Message? _editing;
   bool _emojiOpen = false;
   bool _dragging = false;
+  String? _composerChatId;
+  bool _loadingDraft = false;
+  bool _savingEdit = false;
+  int _editEpoch = 0;
+  bool _searchOpen = false;
+  String? _historyAnchor;
+  String? _highlight;
+  int _jumpEpoch = 0;
+  int _anchorEpoch = 0;
+  Timer? _highlightTimer;
+  final _historyCenter = GlobalKey();
 
   AppState get s => widget.state;
 
+  @override
+  void initState() {
+    super.initState();
+    _syncDraft();
+    _input.addListener(_rememberDraft);
+  }
+
+  @override
+  void didUpdateWidget(ChatView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncDraft();
+  }
+
+  void _syncDraft() {
+    final id = s.activeChatId;
+    if (_composerChatId != id) {
+      _jumpEpoch++;
+      _searchOpen = false;
+      _historyAnchor = null;
+      _highlight = null;
+      _highlightTimer?.cancel();
+    }
+    if (_composerChatId != id || (_editing == null && id != null && _input.text != s.draftOf(id))) {
+      _editEpoch++;
+      _composerChatId = id;
+      _editing = null;
+      _savingEdit = false;
+      _emojiOpen = false;
+      _loadingDraft = true;
+      _input.text = id == null ? '' : s.draftOf(id);
+      _input.selection = TextSelection.collapsed(offset: _input.text.length);
+      _loadingDraft = false;
+    }
+  }
+
+  void _rememberDraft() {
+    final id = _composerChatId;
+    if (!_loadingDraft && _editing == null && id != null) s.setDraft(id, _input.text);
+  }
+
+  bool _inChat(String id) => mounted && _composerChatId == id && s.activeChatId == id;
+
   Future<void> _attach() async {
+    final id = s.activeChatId;
+    if (id == null || _editing != null) return;
     final files = await pickFiles();
-    if (files.isNotEmpty) await _sendFiles(files);
+    if (files.isNotEmpty && _inChat(id)) await _sendFiles(files);
   }
 
   /// Shows the send dialog for picked or dropped files. Text already typed
   /// in the composer becomes the caption.
   Future<void> _sendFiles(List<OutgoingFile> files) async {
-    if (!mounted || files.isEmpty) return;
-    final choice = await showSendFilesDialog(context, files, caption: _input.text.trim());
-    if (choice == null || !mounted) return;
-    if (choice.caption.trim().isNotEmpty) _input.clear();
+    final id = s.activeChatId;
+    if (!mounted || files.isEmpty || id == null || !_inChat(id) || _editing != null) return;
+    final state = s;
+    final originalDraft = _input.text;
+    final choice = await showSendFilesDialog(context, files, caption: originalDraft.trim());
+    if (choice == null || !mounted || !_inChat(id)) return;
+    final version = state.store.draftVersion(id);
+    final reply = state.replyOf(id);
+    // Keep the caption until the entire operation succeeds. Partial failures
+    // may already have sent some files, so never retry an album automatically.
     try {
-      await s.sendFiles(choice.files, caption: choice.caption, compressImages: choice.compressImages);
+      if (reply == null) {
+        await state.source.sendFiles(id, choice.files, caption: choice.caption, compressImages: choice.compressImages);
+      } else {
+        await state.source
+            .sendFilesReply(id, choice.files, reply.messageId, caption: choice.caption, compressImages: choice.compressImages);
+      }
+      if (state.store.draftVersion(id) == version) {
+        if (choice.caption.trim().isNotEmpty) state.setDraft(id, '');
+        state.setReply(id, null);
+      }
     } catch (_) {
-      if (mounted) _toast(context.s.chats.fileSendFailed);
+      if (state.store.draftVersion(id) == version && choice.caption.trim() != originalDraft.trim()) {
+        state.setDraft(id, choice.caption);
+      }
+      if (mounted && _inChat(id)) _toast(context.s.chats.fileSendFailed);
     }
-    _focus.requestFocus();
+    if (_inChat(id)) _focus.requestFocus();
   }
 
   void _toggleEmoji() {
-    setState(() => _emojiOpen = !_emojiOpen);
+    setState(() {
+      _emojiOpen = !_emojiOpen;
+      if (_emojiOpen) _searchOpen = false;
+    });
     _focus.requestFocus();
+  }
+
+  void _toggleSearch({bool open = false}) {
+    setState(() {
+      _searchOpen = open || !_searchOpen;
+      if (_searchOpen) _emojiOpen = false;
+    });
   }
 
   @override
   void dispose() {
+    _highlightTimer?.cancel();
     _input.dispose();
     _focus.dispose();
     super.dispose();
   }
 
   Future<void> _send() async {
+    final id = s.activeChatId;
+    if (id == null || !_inChat(id) || _savingEdit) return;
+    final state = s;
     final text = _input.text;
     final editing = _editing;
     if (editing != null) {
@@ -85,14 +175,24 @@ class _ChatViewState extends State<ChatView> {
       return;
     }
     if (text.trim().isEmpty) return;
+    final reply = state.replyOf(id);
     _input.clear();
+    state.setReply(id, null);
+    final version = state.store.draftVersion(id);
     _focus.requestFocus();
     try {
-      await s.send(text);
+      if (reply == null) {
+        await state.source.send(id, text);
+      } else {
+        await state.source.sendReply(id, text, reply.messageId);
+      }
     } catch (_) {
-      if (!mounted) return;
-      _input.text = text;
-      _toast(context.s.chats.messageSendFailed);
+      // A delayed failure must not overwrite a newer draft or another chat.
+      if (state.store.draftVersion(id) == version) {
+        state.setDraft(id, text);
+        state.setReply(id, reply);
+      }
+      if (mounted && _inChat(id)) _toast(context.s.chats.messageSendFailed);
     }
   }
 
@@ -103,14 +203,14 @@ class _ChatViewState extends State<ChatView> {
   Future<void> _messageMenu(Message m, Offset pos) async {
     if (m.pending || m.service) return;
     final chat = s.activeChat;
-    if (chat == null) return;
+    if (chat == null || !_inChat(chat.id)) return;
     final t = context.s.chats;
     final c = context.fc;
     var rights = const MessageRights();
     try {
       rights = await s.source.rightsOf(chat.id, m.id);
     } catch (_) {}
-    if (!mounted) return;
+    if (!mounted || !_inChat(chat.id)) return;
     final plainText = m.fileName == null && m.info == null && m.media == null;
     final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
     PopupMenuItem<String> item(String value, IconData icon, String label, {Color? color}) => PopupMenuItem(
@@ -125,6 +225,8 @@ class _ChatViewState extends State<ChatView> {
           ),
         );
     final items = [
+      if (rights.canReply && chat.canSend) item('reply', Icons.reply, t.replyMessage),
+      if (rights.canForward) item('forward', Icons.forward, t.forwardMessage),
       if (m.text.isNotEmpty) item('copy', Icons.copy_outlined, t.copyMessage),
       if (rights.canEdit && plainText && chat.canSend) item('edit', Icons.edit_outlined, t.editMessage),
       if (rights.canDelete) item('delete', Icons.delete_outline, t.deleteMessage, color: c.danger),
@@ -136,8 +238,28 @@ class _ChatViewState extends State<ChatView> {
       position: RelativeRect.fromRect(pos & const Size(1, 1), Offset.zero & overlay.size),
       items: items,
     );
-    if (!mounted) return;
+    if (!mounted || !_inChat(chat.id)) return;
     switch (choice) {
+      case 'reply':
+        if (_editing != null) _cancelEdit();
+        s.setReply(
+            chat.id,
+            ReplyInfo(
+                chatId: chat.id,
+                messageId: m.id,
+                author: m.from ?? chat.name,
+                text: m.text.isNotEmpty ? m.text : (m.fileName ?? m.mediaLabel ?? t.message)));
+        _focus.requestFocus();
+      case 'forward':
+        final source = s.source;
+        final destination = await showForwardDialog(context, source, m);
+        if (destination == null || !mounted) return;
+        try {
+          await source.forwardMessages(destination, chat.id, [m.id]);
+          if (mounted) s.openChat(destination);
+        } catch (_) {
+          if (mounted) _toast(t.forwardFailed);
+        }
       case 'copy':
         await Clipboard.setData(ClipboardData(text: m.text));
         if (mounted) _toast(t.copied);
@@ -148,7 +270,40 @@ class _ChatViewState extends State<ChatView> {
     }
   }
 
+  Future<void> _jumpTo(String chatId, String messageId) async {
+    final unavailable = context.s.chats.messageUnavailable;
+    if (s.source.chatById(chatId) == null) {
+      _toast(unavailable);
+      return;
+    }
+    if (s.activeChatId != chatId) {
+      s.openChat(chatId);
+      _syncDraft();
+    }
+    final epoch = ++_jumpEpoch;
+    try {
+      await s.source.historyAround(chatId, messageId);
+      if (!_inChat(chatId) || epoch != _jumpEpoch) return;
+      if (messageId != '0' && !s.messagesOf(chatId).any((m) => m.id == messageId)) {
+        _toast(unavailable);
+        return;
+      }
+      _highlightTimer?.cancel();
+      setState(() {
+        _historyAnchor = messageId == '0' ? null : messageId;
+        _highlight = _historyAnchor;
+        _anchorEpoch++;
+      });
+      _highlightTimer = Timer(const Duration(seconds: 3), () {
+        if (mounted) setState(() => _highlight = null);
+      });
+    } catch (_) {
+      if (_inChat(chatId) && epoch == _jumpEpoch) _toast(unavailable);
+    }
+  }
+
   void _startEdit(Message m) {
+    _editEpoch++;
     setState(() {
       _editing = m;
       _emojiOpen = false;
@@ -159,8 +314,15 @@ class _ChatViewState extends State<ChatView> {
   }
 
   void _cancelEdit() {
-    setState(() => _editing = null);
-    _input.clear();
+    _editEpoch++;
+    _loadingDraft = true;
+    setState(() {
+      _editing = null;
+      _savingEdit = false;
+    });
+    _input.text = s.draftOf(_composerChatId!);
+    _input.selection = TextSelection.collapsed(offset: _input.text.length);
+    _loadingDraft = false;
     _focus.requestFocus();
   }
 
@@ -171,15 +333,14 @@ class _ChatViewState extends State<ChatView> {
       _cancelEdit();
       return;
     }
-    setState(() => _editing = null);
-    _input.clear();
-    _focus.requestFocus();
+    setState(() => _savingEdit = true);
+    final epoch = _editEpoch;
     try {
       await s.source.editText(chat.id, m.id, text);
+      if (_inChat(chat.id) && _editEpoch == epoch) _cancelEdit();
     } catch (_) {
-      if (!mounted) return;
-      _startEdit(m);
-      _input.text = text;
+      if (!mounted || !_inChat(chat.id) || _editEpoch != epoch) return;
+      setState(() => _savingEdit = false);
       _toast(context.s.chats.editFailed);
     }
   }
@@ -235,7 +396,7 @@ class _ChatViewState extends State<ChatView> {
         ),
       ),
     );
-    if (ok != true || !mounted) return;
+    if (ok != true || !_inChat(chat.id)) return;
     if (_editing?.id == m.id) _cancelEdit();
     try {
       await s.source.deleteMessages(chat.id, [m.id], forAll: forAll);
@@ -332,7 +493,16 @@ class _ChatViewState extends State<ChatView> {
           onInfo: widget.onInfo,
           onBack: widget.onBack,
           onCall: () => _toast(t.callsOnPhone),
+          onSearch: _toggleSearch,
         ),
+        if (_searchOpen)
+          ChatSearch(
+            key: ValueKey(chat.id),
+            source: s.source,
+            chatId: chat.id,
+            onSelected: (m) => _jumpTo(chat.id, m.id),
+            onClose: () => setState(() => _searchOpen = false),
+          ),
         _QuickActions(
           label: s.selectedMessageId != null ? t.selectedMessage : t.lastMessageHint,
           text: target?.text ?? '',
@@ -374,48 +544,80 @@ class _ChatViewState extends State<ChatView> {
                   );
                 }
                 final groupStyle = chat.kind == ChatKind.group || msgs.any((m) => m.from != null && !m.out);
-                return NotificationListener<ScrollNotification>(
-                  // Older messages load when the top of the history comes close.
-                  onNotification: (n) {
-                    if (n.metrics.extentAfter < 600) s.loadOlder();
-                    return false;
-                  },
-                  // Text can be selected and copied across messages.
-                  child: SelectionArea(
-                  child: ListView.builder(
-                  reverse: true,
-                  padding: EdgeInsets.symmetric(horizontal: narrow ? 10 : 22, vertical: 12),
-                  itemCount: items.length + (loadingHistory ? 1 : 0),
-                  itemBuilder: (_, i) {
-                    if (i == items.length) {
-                      return Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Center(
-                          child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.2, color: c.accent)),
-                        ),
+                Widget render(Object item) {
+                  if (item is String) return _DatePill(item);
+                  final e = item as _Entry;
+                  final m = e.m;
+                  if (m.service) return _DatePill(m.text);
+                  return _Bubble(
+                    message: m,
+                    state: s,
+                    maxWidth: bubbleMax,
+                    groupStyle: groupStyle,
+                    first: e.first,
+                    last: e.last,
+                    selected: s.selectedMessageId == m.id || _highlight == m.id,
+                    onTap: () => s.selectMessage(m.id),
+                    onMenu: (pos) => _messageMenu(m, pos),
+                    onAddMeeting: () => _toCalendar(m),
+                    onOpenReply: m.reply == null || m.reply!.messageId == '0' ? null : () => _jumpTo(m.reply!.chatId, m.reply!.messageId),
+                  );
+                }
+
+                final anchorIndex = items.indexWhere((e) => e is _Entry && e.m.id == _historyAnchor);
+                final anchored = _historyAnchor != null && anchorIndex >= 0;
+                final padding = EdgeInsets.symmetric(horizontal: narrow ? 10 : 22, vertical: 12);
+                final Widget history = anchored
+                    ? CustomScrollView(
+                        key: ValueKey('${chat.id}:$_historyAnchor:$_anchorEpoch'),
+                        center: _historyCenter,
+                        anchor: 0.5,
+                        slivers: [
+                          SliverList(
+                              delegate: SliverChildBuilderDelegate(
+                                  (_, i) => Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: padding.left), child: render(items[anchorIndex - 1 - i])),
+                                  childCount: anchorIndex)),
+                          SliverList(
+                              key: _historyCenter,
+                              delegate: SliverChildBuilderDelegate(
+                                  (_, i) => Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: padding.left), child: render(items[anchorIndex + i])),
+                                  childCount: items.length - anchorIndex)),
+                        ],
+                      )
+                    : ListView.builder(
+                        key: ValueKey('${chat.id}:latest'),
+                        reverse: true,
+                        padding: padding,
+                        itemCount: items.length + (loadingHistory ? 1 : 0),
+                        itemBuilder: (_, i) => i == items.length
+                            ? Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Center(
+                                    child: SizedBox(
+                                        width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.2, color: c.accent))))
+                            : render(items[items.length - 1 - i]),
                       );
-                    }
-                    final item = items[items.length - 1 - i];
-                    if (item is String) return _DatePill(item);
-                    final e = item as _Entry;
-                    final m = e.m;
-                    if (m.service) return _DatePill(m.text);
-                    return _Bubble(
-                      message: m,
-                      state: s,
-                      maxWidth: bubbleMax,
-                      groupStyle: groupStyle,
-                      first: e.first,
-                      last: e.last,
-                      selected: s.selectedMessageId == m.id,
-                      onTap: () => s.selectMessage(m.id),
-                      onMenu: (pos) => _messageMenu(m, pos),
-                      onAddMeeting: () => _toCalendar(m),
-                    );
-                  },
-                  ),
-                  ),
-                );
+                return Stack(children: [
+                  Positioned.fill(
+                      child: NotificationListener<ScrollNotification>(
+                    onNotification: (n) {
+                      if ((anchored ? n.metrics.extentBefore : n.metrics.extentAfter) < 600) s.loadOlder();
+                      return false;
+                    },
+                    child: SelectionArea(child: history),
+                  )),
+                  if (_historyAnchor != null)
+                    Positioned(
+                        right: 16,
+                        bottom: 12,
+                        child: FloatingActionButton.small(
+                            heroTag: null,
+                            tooltip: t.latestMessages,
+                            onPressed: () => _jumpTo(chat.id, '0'),
+                            child: const Icon(Icons.arrow_downward))),
+                ]);
               },
             ),
           ),
@@ -431,13 +633,21 @@ class _ChatViewState extends State<ChatView> {
             onEmoji: _toggleEmoji,
             editing: _editing?.text,
             onCancelEdit: _cancelEdit,
-            onEscape: _emojiOpen ? () => setState(() => _emojiOpen = false) : (_editing != null ? _cancelEdit : null),
+            reply: s.replyOf(chat.id),
+            onCancelReply: () => s.setReply(chat.id, null),
+            savingEdit: _savingEdit,
+            onEscape: _emojiOpen
+                ? () => setState(() => _emojiOpen = false)
+                : (_editing != null ? _cancelEdit : (s.replyOf(chat.id) != null ? () => s.setReply(chat.id, null) : null)),
           ),
         ] else
           _ReadOnlyBar(channel: chat.kind == ChatKind.channel),
       ],
     );
-    if (!chat.canSend) return body;
+    final shortcutBody = CallbackShortcuts(bindings: {
+      const SingleActivator(LogicalKeyboardKey.keyF, control: true): () => _toggleSearch(open: true),
+    }, child: body);
+    if (!chat.canSend) return shortcutBody;
     // Files dragged from Explorer open the send dialog.
     return DropTarget(
       onDragEntered: (_) => setState(() => _dragging = true),
@@ -448,7 +658,7 @@ class _ChatViewState extends State<ChatView> {
       },
       child: Stack(
         children: [
-          Positioned.fill(child: body),
+          Positioned.fill(child: shortcutBody),
           if (_dragging) const Positioned.fill(child: _DropOverlay()),
         ],
       ),
@@ -477,8 +687,7 @@ class _DropOverlay extends StatelessWidget {
               children: [
                 Icon(Icons.upload_file, size: 44, color: c.accent),
                 const SizedBox(height: 10),
-                Text(context.s.chats.dropFiles,
-                    style: TextStyle(color: c.text, fontSize: 16, fontWeight: FontWeight.w700)),
+                Text(context.s.chats.dropFiles, style: TextStyle(color: c.text, fontSize: 16, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
                 Text(context.s.chats.dropFilesHint, style: TextStyle(color: c.text2, fontSize: 13)),
               ],
@@ -540,12 +749,14 @@ class _EmojiPanel extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.chat, required this.infoOpen, required this.onInfo, required this.onCall, this.onBack});
+  const _Header(
+      {required this.chat, required this.infoOpen, required this.onInfo, required this.onCall, required this.onSearch, this.onBack});
 
   final Chat chat;
   final bool infoOpen;
   final VoidCallback onInfo;
   final VoidCallback onCall;
+  final VoidCallback onSearch;
   final VoidCallback? onBack;
 
   @override
@@ -567,7 +778,9 @@ class _Header extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(chat.name,
-                    maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: c.text)),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: c.text)),
                 Text(chat.typing.isNotEmpty ? chat.typing : chat.status,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -575,6 +788,7 @@ class _Header extends StatelessWidget {
               ],
             ),
           ),
+          IconButton(tooltip: context.s.chats.searchInChat, onPressed: onSearch, icon: Icon(Icons.search, size: 20, color: c.icon)),
           IconButton(tooltip: context.s.chats.call, onPressed: onCall, icon: Icon(Icons.call_outlined, size: 20, color: c.icon)),
           IconButton(
             tooltip: context.s.chats.infoPanel,
@@ -714,6 +928,7 @@ class _Bubble extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.onMenu,
+    this.onOpenReply,
     required this.onAddMeeting,
     this.groupStyle = false,
     this.first = true,
@@ -729,6 +944,7 @@ class _Bubble extends StatelessWidget {
   /// Right click: copy, edit, delete.
   final void Function(Offset globalPosition)? onMenu;
   final VoidCallback onAddMeeting;
+  final VoidCallback? onOpenReply;
 
   /// Group chat: avatar column and colored sender names.
   final bool groupStyle;
@@ -745,11 +961,13 @@ class _Bubble extends StatelessWidget {
     final c = context.fc;
     final m = message;
     final info = m.info;
-    final sticker = info?.kind == MediaKind.sticker;
+    final sticker = info?.kind == MediaKind.sticker && m.reply == null && m.forwardedFrom == null;
     // Photos, videos, GIFs and round videos without a caption float without
     // a bubble, like in Telegram; the time sits on the picture.
     final round = info?.kind == MediaKind.videoNote;
-    final bareMedia = info != null &&
+    final bareMedia = m.reply == null &&
+        m.forwardedFrom == null &&
+        info != null &&
         const {MediaKind.photo, MediaKind.video, MediaKind.gif, MediaKind.videoNote}.contains(info.kind) &&
         m.text.isEmpty &&
         m.fileName == null;
@@ -768,11 +986,9 @@ class _Bubble extends StatelessWidget {
         if (m.edited)
           Padding(
             padding: const EdgeInsets.only(right: 4),
-            child: Text(context.s.chats.edited,
-                style: TextStyle(fontSize: 11.5, fontStyle: FontStyle.italic, color: metaColor)),
+            child: Text(context.s.chats.edited, style: TextStyle(fontSize: 11.5, fontStyle: FontStyle.italic, color: metaColor)),
           ),
-        Text(m.time,
-            style: TextStyle(fontSize: 11.5, color: sticker || bareMedia ? Colors.white : (m.out ? c.outMeta : c.text2))),
+        Text(m.time, style: TextStyle(fontSize: 11.5, color: sticker || bareMedia ? Colors.white : (m.out ? c.outMeta : c.text2))),
         if (m.out) ...[const SizedBox(width: 3), _Tick(m, onMedia: sticker || bareMedia)],
       ],
     );
@@ -855,6 +1071,14 @@ class _Bubble extends StatelessWidget {
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: c.senderName(_colorIndex)),
                 ),
               ),
+            if (m.forwardedFrom != null)
+              Padding(
+                  padding: const EdgeInsets.only(bottom: 5),
+                  child: Text(context.s.chats.forwardedFrom(m.forwardedFrom!),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: c.accentText, fontSize: 13, fontWeight: FontWeight.w600))),
+            if (m.reply != null) _ReplyPreview(reply: m.reply!, onTap: onOpenReply),
             if (m.fileName != null) FileRow(message: m, state: state),
             if (info != null)
               MessageMedia(message: m, state: state, maxWidth: width - 22)
@@ -953,6 +1177,31 @@ class _Bubble extends StatelessWidget {
   }
 }
 
+class _ReplyPreview extends StatelessWidget {
+  const _ReplyPreview({required this.reply, this.onTap});
+  final ReplyInfo reply;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.fc;
+    return InkWell(
+        onTap: onTap,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 5),
+          padding: const EdgeInsets.only(left: 8),
+          decoration: BoxDecoration(border: Border(left: BorderSide(color: c.accent, width: 3))),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+            Text(reply.author,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: c.accentText)),
+            Text(reply.text, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: c.textSoft)),
+          ]),
+        ));
+  }
+}
+
 class _Composer extends StatelessWidget {
   const _Composer({
     required this.controller,
@@ -964,11 +1213,17 @@ class _Composer extends StatelessWidget {
     this.onEscape,
     this.editing,
     this.onCancelEdit,
+    this.reply,
+    this.onCancelReply,
+    this.savingEdit = false,
   });
 
   /// Text of the message being edited; shows the "Tahrirlash" bar.
   final String? editing;
   final VoidCallback? onCancelEdit;
+  final ReplyInfo? reply;
+  final VoidCallback? onCancelReply;
+  final bool savingEdit;
 
   final TextEditingController controller;
   final FocusNode focus;
@@ -984,8 +1239,13 @@ class _Composer extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.fc;
     final field = TextField(
+      enabled: !savingEdit,
       controller: controller,
       focusNode: focus,
+      minLines: 1,
+      maxLines: 5,
+      keyboardType: TextInputType.multiline,
+      textInputAction: TextInputAction.newline,
       onSubmitted: (_) => onSend(),
       style: TextStyle(fontSize: 14.5, color: c.text),
       decoration: InputDecoration(
@@ -996,7 +1256,7 @@ class _Composer extends StatelessWidget {
     );
     final editing = this.editing;
     final row = Container(
-      height: 58,
+      constraints: const BoxConstraints(minHeight: 58),
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         color: c.panel,
@@ -1004,30 +1264,57 @@ class _Composer extends StatelessWidget {
       ),
       child: Row(
         children: [
-          IconButton(tooltip: context.s.chats.attachFile, onPressed: onAttach, icon: Icon(Icons.attach_file, color: c.icon)),
+          IconButton(
+              tooltip: context.s.chats.attachFile,
+              onPressed: editing == null ? onAttach : null,
+              icon: Icon(Icons.attach_file, color: c.icon)),
           Expanded(
-            child: onEscape == null
-                ? field
-                : CallbackShortcuts(
-                    bindings: {const SingleActivator(LogicalKeyboardKey.escape): onEscape!},
-                    child: field,
-                  ),
+            child: Focus(
+              onKeyEvent: (_, event) {
+                final composing = controller.value.composing;
+                if (savingEdit || (composing.isValid && !composing.isCollapsed)) return KeyEventResult.ignored;
+                if (event.logicalKey == LogicalKeyboardKey.escape && onEscape != null && event is KeyDownEvent) {
+                  onEscape!();
+                  return KeyEventResult.handled;
+                }
+                final enter = event.logicalKey == LogicalKeyboardKey.enter || event.logicalKey == LogicalKeyboardKey.numpadEnter;
+                if (enter && !HardwareKeyboard.instance.isShiftPressed) {
+                  if (event is KeyDownEvent) onSend();
+                  return KeyEventResult.handled;
+                }
+                return KeyEventResult.ignored;
+              },
+              child: field,
+            ),
           ),
           IconButton(
             tooltip: emojiOpen ? context.s.chats.closeEmoji : context.s.chats.emoji,
-            onPressed: onEmoji,
-            icon: Icon(emojiOpen ? Icons.keyboard_alt_outlined : Icons.emoji_emotions_outlined,
-                color: emojiOpen ? c.accent : c.icon),
+            onPressed: savingEdit ? null : onEmoji,
+            icon: Icon(emojiOpen ? Icons.keyboard_alt_outlined : Icons.emoji_emotions_outlined, color: emojiOpen ? c.accent : c.icon),
           ),
           IconButton(
             tooltip: editing == null ? context.s.common.send : context.s.common.save,
-            onPressed: onSend,
+            onPressed: savingEdit ? null : onSend,
             icon: Icon(editing == null ? Icons.send_rounded : Icons.check_rounded, color: c.accent),
           ),
         ],
       ),
     );
-    if (editing == null) return row;
+    if (editing == null) {
+      if (reply == null) return row;
+      return Column(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+            color: c.panel,
+            padding: const EdgeInsets.fromLTRB(16, 6, 8, 2),
+            child: Row(children: [
+              Icon(Icons.reply, color: c.accent),
+              const SizedBox(width: 12),
+              Expanded(child: _ReplyPreview(reply: reply!)),
+              IconButton(tooltip: context.s.chats.cancelReply, onPressed: onCancelReply, icon: Icon(Icons.close, color: c.icon)),
+            ])),
+        row,
+      ]);
+    }
     // "Tahrirlash" bar: what is being edited; the cross cancels (also Escape).
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -1046,10 +1333,8 @@ class _Composer extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(context.s.chats.editing,
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: c.accentText)),
-                    Text(editing,
-                        maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: c.textSoft)),
+                    Text(context.s.chats.editing, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: c.accentText)),
+                    Text(editing, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: c.textSoft)),
                   ],
                 ),
               ),

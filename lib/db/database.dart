@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
@@ -230,6 +231,9 @@ class KeyValues extends Table {
 @DriftDatabase(tables: [Tasks, Events, Notes, Collections, ChatCollections, SeenCounts, KeyValues, FileNames, FileMarks, SavedItems])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
+
+  factory AppDatabase.inDirectory(Directory directory) =>
+      AppDatabase(NativeDatabase.createInBackground(File('${directory.path}/fokus.sqlite')));
 
   factory AppDatabase.open() => AppDatabase(
         driftDatabase(

@@ -103,6 +103,7 @@ class AppState extends ChangeNotifier {
   /// A day inside the week (or the day) the calendar shows.
   DateTime calendarFocus = EventStore.day(DateTime.now());
   String? selectedMessageId;
+  bool _disposed = false;
 
   void _onSource() {
     // Messages arriving in the chat the user is looking at count as seen.
@@ -113,6 +114,7 @@ class AppState extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     source.removeListener(_onSource);
     final id = activeChatId;
     if (id != null) source.close(id);
@@ -350,6 +352,20 @@ class AppState extends ChangeNotifier {
     final id = activeChatId;
     if (id == null || text.trim().isEmpty) return;
     await source.send(id, text);
+  }
+
+  String draftOf(String chatId) => store.draftOf(chatId);
+  ReplyInfo? replyOf(String chatId) => store.replyDraftOf(chatId);
+  void setReply(String chatId, ReplyInfo? reply) {
+    if (_disposed) return;
+    store.setReplyDraft(chatId, reply);
+    notifyListeners();
+  }
+
+  void setDraft(String chatId, String text) {
+    if (_disposed || store.draftOf(chatId) == text) return;
+    store.setDraft(chatId, text);
+    notifyListeners();
   }
 
   /// Sends files to the open chat (see [ChatSource.sendFiles]).

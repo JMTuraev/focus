@@ -4,6 +4,7 @@ import '../backup/backup_key_store.dart';
 import '../backup/backup_transport.dart';
 import '../db/database.dart';
 import 'local_store.dart';
+import 'account_storage.dart';
 import 'models.dart';
 
 /// A message that just arrived from someone else (for Windows toasts).
@@ -49,6 +50,18 @@ class FoundFile {
 /// Where chats and messages come from: mock data or TDLib.
 /// Notifies listeners whenever chats or loaded messages change.
 abstract class ChatSource extends ChangeNotifier {
+  Future<void> sendReply(String chatId, String text, String messageId) =>
+      Future.error(UnsupportedError('Replies are not supported by this source'));
+  Future<void> sendFilesReply(String chatId, List<OutgoingFile> files, String messageId,
+          {String caption = '', bool compressImages = true}) =>
+      Future.error(UnsupportedError('File replies are not supported by this source'));
+  Future<void> forwardMessages(String chatId, String fromChatId, List<String> messageIds) =>
+      Future.error(UnsupportedError('Forwarding is not supported by this source'));
+  Future<MessageSearchPage> searchMessages(String chatId, String query, {String fromMessageId = '', int limit = 50}) =>
+      Future.error(UnsupportedError('Search is not supported by this source'));
+  Future<void> historyAround(String chatId, String messageId) =>
+      Future.error(UnsupportedError('Message navigation is not supported by this source'));
+
   /// A found file's message with the current download state (progress,
   /// local path). The default returns it unchanged.
   Message refreshFound(FoundFile f) => f.message;
@@ -116,13 +129,23 @@ abstract class ChatSource extends ChangeNotifier {
 /// What the user may do with a message (TDLib getMessageProperties).
 @immutable
 class MessageRights {
-  const MessageRights({this.canEdit = false, this.canDeleteForMe = false, this.canDeleteForAll = false});
+  const MessageRights(
+      {this.canEdit = false, this.canDeleteForMe = false, this.canDeleteForAll = false, this.canReply = false, this.canForward = false});
 
   final bool canEdit;
   final bool canDeleteForMe;
   final bool canDeleteForAll;
+  final bool canReply;
+  final bool canForward;
 
   bool get canDelete => canDeleteForMe || canDeleteForAll;
+}
+
+class MessageSearchPage {
+  const MessageSearchPage({required this.messages, required this.total, this.nextFromMessageId = ''});
+  final List<Message> messages;
+  final int total;
+  final String nextFromMessageId;
 }
 
 /// What the app needs after login: chats plus Focus-only local data.
@@ -134,6 +157,7 @@ class ChatSession {
     BackupTransport? backupTransport,
     BackupKeyStore? backupKeys,
     this.initialChatId,
+    this.accountStorage,
   })  : db = db ?? AppDatabase.memory(),
         backupTransport = backupTransport ?? MemoryBackupTransport(),
         backupKeys = backupKeys ?? MemoryBackupKeyStore();
@@ -152,6 +176,8 @@ class ChatSession {
 
   /// Chat selected at start (mock data opens the first scripted chat).
   final String? initialChatId;
+  final AccountStorage? accountStorage;
+  String? get accountId => accountStorage?.accountId;
 
   Future<void> close() async {
     await store.flush();

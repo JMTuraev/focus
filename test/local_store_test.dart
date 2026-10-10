@@ -23,6 +23,52 @@ void main() {
 
   AppDatabase openDb() => AppDatabase(NativeDatabase(dbFile));
 
+  test('per-chat drafts survive restart, preserve whitespace and clear independently', () async {
+    var db = openDb();
+    final a = await LocalStore.openDb(db, legacy: json);
+    a.setDraft('42', '  Shartnoma\nertaga 😀  ');
+    a.setDraft('43', 'Boshqa mijoz');
+    a.setDraft('44', 'Tozalash');
+    a.setDraft('44', '');
+    await a.flush();
+    await db.close();
+
+    db = openDb();
+    final b = await LocalStore.openDb(db, legacy: json);
+    expect(b.draftOf('42'), '  Shartnoma\nertaga 😀  ');
+    expect(b.draftOf('43'), 'Boshqa mijoz');
+    expect(b.draftOf('44'), '');
+    b.setDraft('42', '');
+    final clearedVersion = b.draftVersion('42');
+    await b.flush();
+    await b.reload();
+    expect(b.draftVersion('42'), greaterThan(clearedVersion), reason: 'reload invalidates pending sends for cleared drafts too');
+    expect(b.draftOf('42'), '');
+    expect(b.draftOf('43'), 'Boshqa mijoz');
+    expect(await (db.select(db.keyValues)..where((t) => t.key.equals('chatDraft:42'))).get(), isEmpty);
+    await db.close();
+  });
+
+  test('reply drafts survive restart, clear independently and reject another chat', () async {
+    var db = openDb();
+    final a = await LocalStore.openDb(db);
+    const reply = ReplyInfo(chatId: '42', messageId: '99', author: 'Mijoz 😀', text: 'Savol\nIkkinchi qator');
+    a.setReplyDraft('42', reply);
+    a.setDraft('42', 'Javob');
+    expect(() => a.setReplyDraft('43', reply), throwsArgumentError);
+    await a.flush(); await db.close();
+    db = openDb();
+    final b = await LocalStore.openDb(db);
+    expect(b.replyDraftOf('42')!.text, reply.text);
+    expect(b.replyDraftOf('43'), isNull);
+    b.setReplyDraft('42', null);
+    await b.flush(); await b.reload();
+    expect(b.replyDraftOf('42'), isNull);
+    expect(b.draftOf('42'), 'Javob');
+    expect(await (db.select(db.keyValues)..where((t) => t.key.equals('chatReplyDraft:42'))).get(), isEmpty);
+    await db.close();
+  });
+
   test('collections, assignments and seen counts survive a restart', () async {
     var db = openDb();
     final a = await LocalStore.openDb(db, legacy: json);

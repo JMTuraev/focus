@@ -40,6 +40,7 @@ class ReminderService {
     required this.events,
     required this.tasks,
     required this.settings,
+    this.accountId,
     DateTime Function()? clock,
   }) : _clock = clock ?? DateTime.now;
 
@@ -47,6 +48,9 @@ class ReminderService {
   final EventStore events;
   final TaskStore tasks;
   final Settings settings;
+  final String? accountId;
+  String _payload(String value) => accountId == null ? value : 'account:$accountId:$value';
+  bool _disposed = false;
   final DateTime Function() _clock;
 
   static const eventBase = 100000000;
@@ -71,10 +75,19 @@ class ReminderService {
   }
 
   void dispose() {
+    _disposed = true;
     _debounce?.cancel();
     events.removeListener(_changed);
     tasks.removeListener(_changed);
     settings.removeListener(_changed);
+  }
+
+  Future<void> cancelScheduled() async {
+    await _running;
+    for (final id in await notifier.pendingIds()) {
+      if (_ours(id)) await notifier.cancel(id);
+    }
+    _scheduled = {};
   }
 
   void _changed() {
@@ -105,7 +118,7 @@ class ReminderService {
         at: at,
         title: e.title,
         body: [when, if (e.chatTitle != null) e.chatTitle!].join(' · '),
-        payload: 'event:${e.id}',
+        payload: _payload('event:${e.id}'),
       );
     }
 
@@ -118,7 +131,7 @@ class ReminderService {
         at: at,
         title: s.taskReminderTitle(t.title),
         body: [s.taskReminderDue(Fmt.dueLabel(due)), if (t.chatTitle != null) t.chatTitle!].join(' · '),
-        payload: 'task:${t.id}',
+        payload: _payload('task:${t.id}'),
       );
     }
     return out;
@@ -128,6 +141,7 @@ class ReminderService {
   Future<void> sync() => _running = (_running ?? Future.value()).then((_) => _sync());
 
   Future<void> _sync() async {
+    if (_disposed) return;
     final want = desired();
     try {
       if (_first) {

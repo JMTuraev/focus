@@ -63,6 +63,15 @@ void main() {
       expect(notifier.shownPayloads, ['chat:dilshod']);
     });
 
+    test('real account notifications carry their owner', () async {
+      final service = MessageNotifier(notifier: notifier, source: source, settings: settings,
+        windowActive: () => false, activeChatId: () => null, accountId: '11')..start();
+      source.receive('dilshod', 'Test');
+      await pump();
+      expect(notifier.shownPayloads, ['account:11:chat:dilshod']);
+      service.dispose();
+    });
+
     test('groups name the sender; the same chat reuses one notification id', () async {
       make();
       source.receive('team', 'Hisobot tayyor', sender: 'Sardor');
@@ -147,6 +156,21 @@ void main() {
       events.dispose();
       tasks.dispose();
       await db.close();
+    });
+
+    test('logout cancels owned schedules and queued sync cannot recreate them', () async {
+      service.dispose();
+      service = ReminderService(notifier: notifier, events: events, tasks: tasks,
+        settings: settings, clock: () => now, accountId: '11');
+      final task = await tasks.add(title: 'Account A reminder', due: now.add(const Duration(days: 1)));
+      await service.sync();
+      expect(notifier.scheduledById[ReminderService.taskBase + task]!.payload, 'account:11:task:$task');
+      final queued = service.sync();
+      service.dispose();
+      await service.cancelScheduled(); await queued;
+      expect(notifier.scheduledById, isEmpty);
+      await service.sync();
+      expect(notifier.scheduledById, isEmpty);
     });
 
     test('meetings and tasks that are due get a reminder', () async {

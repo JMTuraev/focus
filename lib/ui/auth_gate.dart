@@ -7,6 +7,7 @@ import '../auth/auth.dart';
 import '../backup/backup_service.dart';
 import '../calendar/event_store.dart';
 import '../data/chat_source.dart';
+import '../data/account_storage.dart';
 import '../notes/note_store.dart';
 import '../reminders/message_notifier.dart';
 import '../reminders/notifier.dart';
@@ -19,6 +20,7 @@ import '../theme.dart';
 import 'login/login_screen.dart';
 import 'settings_dialog.dart';
 import 'shell.dart';
+import 'title_bar.dart';
 import '../l10n/l10n.dart';
 
 /// Login screen until TDLib reports `authorizationStateReady`, then the app
@@ -48,7 +50,10 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver, Window
   bool _windowActive = true;
   StreamSubscription<String>? _taps;
   bool _opening = false;
+  int _authEpoch = 0;
   bool _launchHandled = false;
+  String? _sessionError;
+  Future<void> _closing = Future.value();
 
   @override
   void initState() {
@@ -89,16 +94,55 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver, Window
   }
 
   Future<void> _onAuth() async {
+    final epoch = ++_authEpoch;
     final ready = widget.auth.state.value.step == AuthStep.ready;
     if (ready && _session == null && !_opening) {
       _opening = true;
+      ChatSession? openingSession;
       try {
+        await _closing;
+        if (!mounted || widget.auth.state.value.step != AuthStep.ready) return;
         final session = await widget.auth.openSession();
-        if (!mounted || widget.auth.state.value.step != AuthStep.ready) {
+        openingSession = session;
+        if (!mounted || epoch != _authEpoch || widget.auth.state.value.step != AuthStep.ready) {
+          await session.close();
+          return;
+        }
+        final storage = session.accountStorage;
+        if (storage != null && await storage.offerLegacyImport) {
+          if (!mounted) {
+            await session.close();
+            return;
+          }
+          final import = await showDialog<bool>(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              title: Text(context.s.auth.legacyTitle),
+              content: SizedBox(width: 420, child: Text(context.s.auth.legacyBody)),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context, false), child: Text(context.s.auth.keepSeparate)),
+                FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(context.s.auth.importLegacy)),
+              ],
+            ),
+          );
+          if (!mounted || epoch != _authEpoch || widget.auth.state.value.step != AuthStep.ready) {
+            await session.close();
+            return;
+          }
+          if (import == true) {
+            await storage.importLegacy(session.db);
+            await session.store.reload();
+          } else {
+            await storage.keepLegacySeparate();
+          }
+        }
+        if (!mounted || epoch != _authEpoch || widget.auth.state.value.step != AuthStep.ready) {
           await session.close();
           return;
         }
         setState(() {
+          _sessionError = null;
           _session = session;
           _state = AppState(
             source: session.source,
@@ -110,12 +154,17 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver, Window
           );
           _badge = TaskbarBadge(_state!)..start();
           _backup = BackupService(db: session.db, transport: session.backupTransport, keys: session.backupKeys);
-          _backup!.init().then((_) => _backup?.startAuto());
+          final backup = _backup!;
+          backup.init().then((_) {
+            if (mounted && identical(_backup, backup)) backup.startAuto();
+          });
           final n = widget.notifier;
           if (n != null) {
-            _reminders = ReminderService(notifier: n, events: _state!.events, tasks: _state!.tasks, settings: widget.settings)
+            _reminders = ReminderService(
+                notifier: n, events: _state!.events, tasks: _state!.tasks, settings: widget.settings, accountId: session.accountId)
               ..start();
             _messages = MessageNotifier(
+              accountId: session.accountId,
               notifier: n,
               source: session.source,
               settings: widget.settings,
@@ -125,16 +174,25 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver, Window
           }
         });
         _handleLaunch();
+      } catch (_) {
+        if (openingSession != null && !identical(openingSession, _session)) await openingSession.close();
+        if (mounted && epoch == _authEpoch) setState(() => _sessionError = context.s.auth.sessionFailed);
       } finally {
         _opening = false;
+        if (mounted && epoch != _authEpoch && _session == null && _sessionError == null && widget.auth.state.value.step == AuthStep.ready) {
+          unawaited(_onAuth());
+        }
       }
     } else if (!ready && _session != null) {
-      setState(_closeSession);
+      setState(() => _closeSession(cancelNotifications: true));
     }
+    if (!ready && mounted && _sessionError != null) setState(() => _sessionError = null);
   }
 
-  void _closeSession() {
-    _reminders?.dispose();
+  void _closeSession({bool cancelNotifications = false}) {
+    final reminders = _reminders;
+    reminders?.dispose();
+    if (cancelNotifications && reminders != null) _closing = reminders.cancelScheduled();
     _reminders = null;
     _messages?.dispose();
     _messages = null;
@@ -143,7 +201,9 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver, Window
     _backup?.dispose();
     _backup = null;
     _state?.dispose();
-    _session?.close();
+    final session = _session;
+    final notificationsClosed = _closing;
+    if (session != null) _closing = Future.wait([notificationsClosed, session.close()]);
     _state = null;
     _session = null;
   }
@@ -164,6 +224,10 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver, Window
     unawaited(windowManager.show().then((_) => windowManager.focus()).catchError((Object _) {}));
     final state = _state;
     if (state == null) return;
+    final account = _session?.accountId;
+    final ownedPayload = AccountStorage.notificationFor(account, payload);
+    if (ownedPayload == null) return;
+    payload = ownedPayload;
     final parts = payload.split(':');
     final id = parts.length == 2 ? int.tryParse(parts[1]) : null;
     if (id == null) return;
@@ -171,6 +235,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver, Window
       case 'event':
         for (var i = 0; i < 20 && !state.events.loaded; i++) {
           await Future<void>.delayed(const Duration(milliseconds: 50));
+          if (!identical(_state, state)) return;
         }
         final e = state.events.byId(id);
         state.showCalendarAt(e?.start ?? DateTime.now());
@@ -187,9 +252,30 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver, Window
     return ValueListenableBuilder<AuthState>(
       valueListenable: widget.auth.state,
       builder: (context, s, _) {
+        if (_sessionError != null) {
+          return Scaffold(
+              body: Column(children: [
+            FokusTitleBar(settings: widget.settings),
+            Expanded(
+                child: Center(
+                    child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Text(_sessionError!),
+                TextButton(
+                    onPressed: () {
+                      setState(() => _sessionError = null);
+                      _onAuth();
+                    },
+                    child: Text(context.s.common.retry)),
+              ]),
+            ))),
+          ]));
+        }
         final state = _state;
         if (s.step == AuthStep.ready && state != null) {
           return Shell(
+            key: ObjectKey(state),
             state: state,
             settings: widget.settings,
             onLogout: () => _confirmLogout(context),

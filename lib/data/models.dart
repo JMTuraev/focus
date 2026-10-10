@@ -240,6 +240,14 @@ class MediaInfo {
   double get aspect => width > 0 && height > 0 ? width / height : 4 / 3;
 }
 
+class ReplyInfo {
+  const ReplyInfo({required this.chatId, required this.messageId, required this.author, required this.text});
+  final String chatId;
+  final String messageId;
+  final String author;
+  final String text;
+}
+
 class Message {
   const Message({
     required this.id,
@@ -266,9 +274,13 @@ class Message {
     this.meetingAt,
     this.file,
     this.edited = false,
+    this.reply,
+    this.forwardedFrom,
   });
 
   final String id;
+  final ReplyInfo? reply;
+  final String? forwardedFrom;
 
   /// Text or caption ('' for media without caption).
   final String text;
@@ -345,6 +357,8 @@ class Message {
         senderPhoto: senderPhoto,
         file: file,
         edited: edited,
+        reply: reply,
+        forwardedFrom: forwardedFrom,
       );
 
   /// The same message with new text (mock edits).
@@ -368,6 +382,8 @@ class Message {
         senderPhoto: senderPhoto,
         file: file,
         edited: true,
+        reply: reply,
+        forwardedFrom: forwardedFrom,
       );
 }
 

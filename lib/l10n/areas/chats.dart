@@ -16,6 +16,20 @@ class ChatStrings {
     required this.typeBots,
     required this.fileSendFailed,
     required this.messageSendFailed,
+    required this.replyMessage,
+    required this.cancelReply,
+    required this.forwardMessage,
+    required this.forwardedFrom,
+    required this.forwardFailed,
+    required this.searchInChat,
+    required this.noSearchResults,
+    required this.searchFailed,
+    required this.loadMoreResults,
+    required this.olderResult,
+    required this.newerResult,
+    required this.latestMessages,
+    required this.messageUnavailable,
+    required this.draft,
     required this.actionTyping,
     required this.actionVoice,
     required this.actionVideo,
@@ -182,6 +196,19 @@ class ChatStrings {
   // ---- chat view
   final String fileSendFailed;
   final String messageSendFailed;
+  final String replyMessage;
+  final String cancelReply;
+  final String forwardMessage;
+  final String Function(String) forwardedFrom;
+  final String forwardFailed;
+  final String searchInChat;
+  final String noSearchResults;
+  final String searchFailed;
+  final String loadMoreResults;
+  final String olderResult;
+  final String newerResult;
+  final String latestMessages;
+  final String messageUnavailable;
 
   /// What the other side is doing (TDLib chat actions), shown as the status.
   final String actionTyping;
@@ -192,6 +219,7 @@ class ChatStrings {
 
   /// Message context menu, editing and deleting.
   final String copyMessage;
+  final String draft;
   final String copied;
   final String editMessage;
   final String deleteMessage;
@@ -404,6 +432,12 @@ class ChatStrings {
 }
 
 final chatsUz = ChatStrings(
+  replyMessage: 'Javob berish', cancelReply: 'Javobni bekor qilish (Esc)',
+  forwardMessage: 'Boshqa chatga yuborish', forwardedFrom: (name) => '$name dan yuborilgan',
+  forwardFailed: 'Xabarni boshqa chatga yuborib bo‘lmadi.',
+  searchInChat: 'Chat ichida qidirish', noSearchResults: 'Xabarlar topilmadi', searchFailed: 'Qidiruv bajarilmadi. Qayta urinib ko‘ring.',
+  loadMoreResults: 'Yana natijalar', olderResult: 'Oldingi xabar', newerResult: 'Keyingi xabar',
+  latestMessages: 'Oxirgi xabarlarga o‘tish', messageUnavailable: 'Asl xabarni ochib bo‘lmadi.',
   allChats: 'Barcha chatlar',
   loadingChats: 'Chatlar yuklanmoqda…',
   noChatsInFilter: 'Bu filtrda chat yo‘q',
@@ -486,6 +520,7 @@ final chatsUz = ChatStrings(
   saveAs: 'Boshqa joyga saqlash…',
   openLinkTitle: 'Havolani ochasizmi?',
   pause: 'To‘xtatish',
+  draft: 'Qoralama',
   play: 'Tinglash',
   closeEsc: 'Yopish (Esc)',
   sendPhoto: 'Rasm yuborish',
@@ -561,6 +596,12 @@ final chatsUz = ChatStrings(
 );
 
 final chatsRu = ChatStrings(
+  replyMessage: 'Ответить', cancelReply: 'Отменить ответ (Esc)',
+  forwardMessage: 'Переслать', forwardedFrom: (name) => 'Переслано от $name',
+  forwardFailed: 'Не удалось переслать сообщение.',
+  searchInChat: 'Поиск в чате', noSearchResults: 'Сообщения не найдены', searchFailed: 'Не удалось выполнить поиск. Попробуйте снова.',
+  loadMoreResults: 'Ещё результаты', olderResult: 'Предыдущее сообщение', newerResult: 'Следующее сообщение',
+  latestMessages: 'Перейти к последним сообщениям', messageUnavailable: 'Не удалось открыть исходное сообщение.',
   allChats: 'Все чаты',
   loadingChats: 'Загрузка чатов…',
   noChatsInFilter: 'Нет чатов в этом фильтре',
@@ -643,6 +684,7 @@ final chatsRu = ChatStrings(
   saveAs: 'Сохранить как…',
   openLinkTitle: 'Открыть ссылку?',
   pause: 'Пауза',
+  draft: 'Черновик',
   play: 'Прослушать',
   closeEsc: 'Закрыть (Esc)',
   sendPhoto: 'Отправить фото',
@@ -718,6 +760,12 @@ final chatsRu = ChatStrings(
 );
 
 final chatsEn = ChatStrings(
+  replyMessage: 'Reply', cancelReply: 'Cancel reply (Esc)',
+  forwardMessage: 'Forward', forwardedFrom: (name) => 'Forwarded from $name',
+  forwardFailed: 'Could not forward the message.',
+  searchInChat: 'Search in chat', noSearchResults: 'No messages found', searchFailed: 'Search failed. Please try again.',
+  loadMoreResults: 'More results', olderResult: 'Previous message', newerResult: 'Next message',
+  latestMessages: 'Go to latest messages', messageUnavailable: 'Could not open the original message.',
   allChats: 'All chats',
   loadingChats: 'Loading chats…',
   noChatsInFilter: 'No chats in this filter',
@@ -800,6 +848,7 @@ final chatsEn = ChatStrings(
   saveAs: 'Save as…',
   openLinkTitle: 'Open this link?',
   pause: 'Pause',
+  draft: 'Draft',
   play: 'Play',
   closeEsc: 'Close (Esc)',
   sendPhoto: 'Send photo',

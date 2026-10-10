@@ -4,6 +4,11 @@ import '../l10n.dart' show enPlural, ruPlural;
 class AuthStrings {
   AuthStrings({
     required this.loading,
+    required this.legacyTitle,
+    required this.legacyBody,
+    required this.importLegacy,
+    required this.keepSeparate,
+    required this.sessionFailed,
     required this.connecting,
     required this.signingIn,
     required this.loggingOut,
@@ -68,6 +73,11 @@ class AuthStrings {
   // Busy and notice screens
   /// Mock start-up.
   final String loading;
+  final String legacyTitle;
+  final String legacyBody;
+  final String importLegacy;
+  final String keepSeparate;
+  final String sessionFailed;
   final String connecting;
   final String signingIn;
   final String loggingOut;
@@ -165,6 +175,11 @@ class AuthStrings {
 }
 
 final authUz = AuthStrings(
+  legacyTitle: 'Eski lokal ma’lumotlar',
+  legacyBody: 'Bu kompyuterda eski vazifalar, eslatmalar va zaxira ma’lumotlari bor. Ularni faqat shu Telegram akkauntiga tegishli bo‘lsa oling. Asl nusxa saqlanadi, avtomatik zaxiralash o‘chiq qoladi.',
+  importLegacy: 'Shu akkauntga olish',
+  keepSeparate: 'Alohida saqlash',
+  sessionFailed: 'Akkaunt ma’lumotlarini ochib bo‘lmadi. Ilovani qayta ishga tushiring; saqlangan ma’lumotlar o‘chirilmagan.',
   loading: 'Yuklanmoqda…',
   connecting: 'Telegram’ga ulanmoqda…',
   signingIn: 'Kirilmoqda…',
@@ -237,6 +252,11 @@ final authUz = AuthStrings(
 );
 
 final authRu = AuthStrings(
+  legacyTitle: 'Старые локальные данные',
+  legacyBody: 'На этом компьютере есть старые задачи, заметки и данные резервного копирования. Импортируйте их только если они принадлежат этому аккаунту Telegram. Оригинал сохранится, автоматическое резервное копирование останется выключенным.',
+  importLegacy: 'Импортировать в этот аккаунт',
+  keepSeparate: 'Хранить отдельно',
+  sessionFailed: 'Не удалось открыть данные аккаунта. Перезапустите приложение; сохранённые данные не удалены.',
   loading: 'Загрузка…',
   connecting: 'Подключение к Telegram…',
   signingIn: 'Вход…',
@@ -315,6 +335,11 @@ final authRu = AuthStrings(
 );
 
 final authEn = AuthStrings(
+  legacyTitle: 'Previous local data',
+  legacyBody: 'This computer has previous tasks, notes and backup data. Import them only if they belong to this Telegram account. The original will be kept and automatic backups will remain off.',
+  importLegacy: 'Import into this account',
+  keepSeparate: 'Keep separate',
+  sessionFailed: 'Could not open account data. Restart the app; your saved data has not been deleted.',
   loading: 'Loading…',
   connecting: 'Connecting to Telegram…',
   signingIn: 'Logging in…',

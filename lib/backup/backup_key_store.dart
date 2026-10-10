@@ -19,10 +19,13 @@ abstract class BackupKeyStore {
 /// `backup.key` in the app support folder, encrypted with Windows DPAPI for
 /// the current user (not inside fokus.sqlite, which is what gets backed up).
 class DpapiBackupKeyStore implements BackupKeyStore {
+  DpapiBackupKeyStore({this.directory});
+
+  final Directory? directory;
   static const _entropy = 'fokus-backup-key-v1';
 
   Future<File> _file() async {
-    final dir = await getApplicationSupportDirectory();
+    final dir = directory ?? await getApplicationSupportDirectory();
     return File('${dir.path}${Platform.pathSeparator}backup.key');
   }
 

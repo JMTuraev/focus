@@ -44,6 +44,7 @@ class TdChatSource extends ChatSource {
   final _files = <int, _FileState>{};
   final _downloads = <int>{};
   final _userRequests = <int>{};
+
   /// Parsed meetings by "chatId:messageId" (message ids are unique per chat).
   final _meetings = <String, Meeting?>{};
 
@@ -73,6 +74,7 @@ class TdChatSource extends ChatSource {
     try {
       final me = await td.query({'@type': 'getMe'});
       _myId = me['id'] as int;
+      _users[_myId] = me;
     } catch (e) {
       debugPrint('getMe: $e');
     }
@@ -200,8 +202,7 @@ class TdChatSource extends ChatSource {
     _changed();
   }
 
-  static bool _sameList(TdObject a, TdObject b) =>
-      a['@type'] == b['@type'] && a['chat_folder_id'] == b['chat_folder_id'];
+  static bool _sameList(TdObject a, TdObject b) => a['@type'] == b['@type'] && a['chat_folder_id'] == b['chat_folder_id'];
 
   void _setPosition(TdObject chat, TdObject position) {
     final list = (chat['positions'] as List? ?? const []).cast<TdObject>().toList();
@@ -232,10 +233,14 @@ class TdChatSource extends ChatSource {
     for (final m in _messages[chatId] ?? const <TdObject>[]) {
       if (m['id'] == messageId) return m;
     }
-    return null;
+    return _found['$chatId:$messageId'];
   }
 
   void _insert(int chatId, TdObject m) {
+    if (_historical.contains(chatId)) {
+      _found['$chatId:${m['id']}'] = Map<String, dynamic>.of(m);
+      return;
+    }
     final list = _messages[chatId];
     if (list == null) return; // history not loaded yet; open() will fetch it
     if (list.any((x) => x['id'] == m['id'])) return;
@@ -293,8 +298,7 @@ class TdChatSource extends ChatSource {
     };
     if (kind != ChatKind.group) return label;
     final names = [
-      for (final id in map.keys.take(2))
-        (_users[id]?['first_name'] as String?) ?? (_chats[id]?['title'] as String?) ?? '',
+      for (final id in map.keys.take(2)) (_users[id]?['first_name'] as String?) ?? (_chats[id]?['title'] as String?) ?? '',
     ].where((n) => n.isNotEmpty).toList();
     return names.isEmpty ? label : '${names.join(', ')} $label';
   }
@@ -325,8 +329,13 @@ class TdChatSource extends ChatSource {
   void _replace(int chatId, int oldId, TdObject m) {
     final list = _messages[chatId];
     if (list == null) return;
-    list.removeWhere((x) => x['id'] == oldId);
-    _insert(chatId, m);
+    final index = list.indexWhere((x) => x['id'] == oldId);
+    if (index >= 0) {
+      list[index] = Map<String, dynamic>.of(m);
+      list.sort((a, b) => (a['id'] as int).compareTo(b['id'] as int));
+    } else {
+      _insert(chatId, m);
+    }
   }
 
   static _FileState _stateOf(TdObject f) {
@@ -369,8 +378,7 @@ class TdChatSource extends ChatSource {
   }
 
   List<Chat> _buildChats() {
-    final entries = _chats.values.where((c) => _mainOrder(c) > 0).toList()
-      ..sort((a, b) => _mainOrder(b).compareTo(_mainOrder(a)));
+    final entries = _chats.values.where((c) => _mainOrder(c) > 0).toList()..sort((a, b) => _mainOrder(b).compareTo(_mainOrder(a)));
     return [for (final c in entries) _toChat(c)];
   }
 
@@ -465,9 +473,7 @@ class TdChatSource extends ChatSource {
       case ChatKind.private || ChatKind.bot || ChatKind.saved:
         return (user?['type'] as TdObject?)?['@type'] != 'userTypeDeleted';
       case ChatKind.channel || ChatKind.group:
-        final g = type['@type'] == 'chatTypeBasicGroup'
-            ? _basicGroups[type['basic_group_id']]
-            : _supergroups[type['supergroup_id']];
+        final g = type['@type'] == 'chatTypeBasicGroup' ? _basicGroups[type['basic_group_id']] : _supergroups[type['supergroup_id']];
         final status = g?['status'] as TdObject?;
         final st = status?['@type'];
         if (st == 'chatMemberStatusCreator') return true;
@@ -496,9 +502,7 @@ class TdChatSource extends ChatSource {
       case ChatKind.private:
         return _userStatus(user);
       case ChatKind.group || ChatKind.channel:
-        final g = type['@type'] == 'chatTypeBasicGroup'
-            ? _basicGroups[type['basic_group_id']]
-            : _supergroups[type['supergroup_id']];
+        final g = type['@type'] == 'chatTypeBasicGroup' ? _basicGroups[type['basic_group_id']] : _supergroups[type['supergroup_id']];
         final n = (g?['member_count'] as int?) ?? 0;
         if (n == 0) return kind == ChatKind.channel ? t.statusChannel : t.statusGroup;
         return kind == ChatKind.channel ? t.subscribers(n, Fmt.count(n)) : t.members(n, Fmt.count(n));
@@ -686,8 +690,7 @@ class TdChatSource extends ChatSource {
       'messageAudio' => withCaption(((content['audio'] as TdObject?)?['title'] as String?)?.isNotEmpty == true
           ? (content['audio'] as TdObject)['title'] as String
           : t.audio),
-      'messageDocument' =>
-        withCaption(((content['document'] as TdObject?)?['file_name'] as String?) ?? S.current.common.file),
+      'messageDocument' => withCaption(((content['document'] as TdObject?)?['file_name'] as String?) ?? S.current.common.file),
       'messageLocation' => t.location,
       'messageVenue' => t.venue(((content['venue'] as TdObject?)?['title'] as String?) ?? ''),
       'messageContact' => t.contact,
@@ -698,8 +701,7 @@ class TdChatSource extends ChatSource {
       'messageStory' => t.story,
       'messagePaidMedia' => withCaption(t.paidMedia),
       'messageInvoice' => ((content['product_info'] as TdObject?)?['title'] as String?) ?? t.invoice,
-      'messageGiveaway' || 'messageGiveawayWinners' || 'messageGiveawayCompleted' || 'messageGiveawayPrizeStars' =>
-        t.giveaway,
+      'messageGiveaway' || 'messageGiveawayWinners' || 'messageGiveawayCompleted' || 'messageGiveawayPrizeStars' => t.giveaway,
       'messageUnsupported' => t.unsupportedMessage,
       'messageChatAddMembers' => t.joinedGroup,
       'messageChatJoinByLink' || 'messageChatJoinByRequest' => t.joinedGroup,
@@ -820,7 +822,59 @@ class TdChatSource extends ChatSource {
       meeting: showMeet ? meet.label : null,
       meetingAt: showMeet ? meet.at : null,
       file: fileObj == null ? null : _fileInfo(fileObj, uploading: sending == 'messageSendingStatePending'),
+      reply: _replyInfo(m),
+      forwardedFrom: _originName((m['forward_info'] as TdObject?)?['origin'] as TdObject?),
     );
+  }
+
+  String? _originName(TdObject? origin) {
+    if (origin == null) return null;
+    switch (origin['@type']) {
+      case 'messageOriginUser':
+        final u = _users[origin['sender_user_id']];
+        final name = [u?['first_name'], u?['last_name']].whereType<String>().where((s) => s.isNotEmpty).join(' ');
+        return name.isEmpty ? S.current.chats.deletedAccount : name;
+      case 'messageOriginHiddenUser':
+        return origin['sender_name'] as String?;
+      case 'messageOriginChat':
+        return _chats[origin['sender_chat_id']]?['title'] as String? ?? S.current.chats.message;
+      case 'messageOriginChannel':
+        return _chats[origin['chat_id']]?['title'] as String? ?? S.current.chats.message;
+      default:
+        return null;
+    }
+  }
+
+  ReplyInfo? _replyInfo(TdObject message) {
+    final reply = message['reply_to'] as TdObject?;
+    if (reply?['@type'] != 'messageReplyToMessage') return null;
+    final chatId = reply!['chat_id'] as int? ?? message['chat_id'] as int;
+    final id = reply['message_id'] as int? ?? 0;
+    final cached = _messages[chatId]?.where((m) => m['id'] == id).firstOrNull ?? _found['$chatId:$id'];
+    if (cached == null && id != 0) _loadReply(chatId, id);
+    final content = cached?['content'] as TdObject? ?? reply['content'] as TdObject?;
+    final quote = _formatted((reply['quote'] as TdObject?)?['text']);
+    final author = cached == null ? _originName(reply['origin'] as TdObject?) : _senderName(cached, full: true);
+    return ReplyInfo(
+        chatId: '$chatId',
+        messageId: '$id',
+        author: author?.isNotEmpty == true ? author! : (_chats[chatId]?['title'] as String? ?? S.current.chats.message),
+        text: quote.isNotEmpty
+            ? quote
+            : content == null
+                ? S.current.chats.message
+                : _contentText(content));
+  }
+
+  final Set<String> _requestedReplies = {};
+  void _loadReply(int chatId, int messageId) {
+    final key = '$chatId:$messageId';
+    if (_disposed || !_requestedReplies.add(key)) return;
+    td.query({'@type': 'getMessage', 'chat_id': chatId, 'message_id': messageId}).then((m) {
+      if (_disposed || m['@type'] != 'message') return;
+      _found[key] = m;
+      _changed();
+    }).catchError((Object _) {});
   }
 
   /// Who wrote a group message: id, initials, name color index, photo.
@@ -1003,9 +1057,7 @@ class TdChatSource extends ChatSource {
       case 'messageVoiceNote':
         final v = content['voice_note'] as TdObject;
         return build(MediaKind.voice,
-            file: v['voice'] as TdObject?,
-            duration: (v['duration'] as int?) ?? 0,
-            waveform: decodeWaveform(v['waveform'] as String?));
+            file: v['voice'] as TdObject?, duration: (v['duration'] as int?) ?? 0, waveform: decodeWaveform(v['waveform'] as String?));
       case 'messageSticker':
         final s = content['sticker'] as TdObject;
         final webp = (s['format'] as TdObject?)?['@type'] == 'stickerFormatWebp';
@@ -1040,7 +1092,11 @@ class TdChatSource extends ChatSource {
   Future<void> open(String chatId) async {
     final id = int.parse(chatId);
     td.query({'@type': 'openChat', 'chat_id': id}).catchError((Object e) => <String, dynamic>{});
-    if (!_messages.containsKey(id)) await _loadHistory(id);
+    if (_historical.contains(id)) {
+      await historyAround(chatId, '0');
+    } else if (!_messages.containsKey(id)) {
+      await _loadHistory(id);
+    }
   }
 
   @override
@@ -1056,7 +1112,8 @@ class TdChatSource extends ChatSource {
   /// Fetches about [want] older messages. TDLib may answer with only a few
   /// messages from its local database first, so it is asked repeatedly.
   Future<void> _loadHistory(int chatId, {int want = 40}) async {
-    if (_historyLoading.contains(chatId) || _historyDone.contains(chatId)) return;
+    final generation = _historyNavigation[chatId] ?? 0;
+    if (_disposed || _navigating.contains(chatId) || _historyLoading.contains(chatId) || _historyDone.contains(chatId)) return;
     _historyLoading.add(chatId);
     final list = _messages[chatId] ??= [];
     _changed();
@@ -1073,6 +1130,7 @@ class TdChatSource extends ChatSource {
           'only_local': false,
         });
         final batch = (r['messages'] as List? ?? const []).whereType<Map<String, dynamic>>().toList();
+        if (_disposed || (_historyNavigation[chatId] ?? 0) != generation) return;
         if (batch.isEmpty) {
           _historyDone.add(chatId);
           break;
@@ -1089,6 +1147,16 @@ class TdChatSource extends ChatSource {
     } finally {
       _historyLoading.remove(chatId);
       _changed();
+      // A latest-history jump may receive just one cached message while an
+      // older page is in flight. Fill that latest window once the stale page
+      // has released the loading slot.
+      if (!_disposed &&
+          (_historyNavigation[chatId] ?? 0) != generation &&
+          !_historical.contains(chatId) &&
+          !_navigating.contains(chatId) &&
+          (_messages[chatId]?.length ?? 0) < want) {
+        unawaited(_loadHistory(chatId));
+      }
     }
   }
 
@@ -1123,11 +1191,21 @@ class TdChatSource extends ChatSource {
 
   @override
   Future<void> send(String chatId, String text) async {
+    await _sendText(chatId, text);
+  }
+
+  @override
+  Future<void> sendReply(String chatId, String text, String messageId) => _sendText(chatId, text, replyTo: messageId);
+
+  static TdObject _replyTo(String messageId) => {'@type': 'inputMessageReplyToMessage', 'message_id': int.parse(messageId)};
+
+  Future<void> _sendText(String chatId, String text, {String? replyTo}) async {
     final t = text.trim();
     if (t.isEmpty) return;
     await td.query({
       '@type': 'sendMessage',
       'chat_id': int.parse(chatId),
+      if (replyTo != null) 'reply_to': _replyTo(replyTo),
       'input_message_content': {
         '@type': 'inputMessageText',
         'text': {'@type': 'formattedText', 'text': t},
@@ -1167,8 +1245,7 @@ class TdChatSource extends ChatSource {
     }
   }
 
-  String _titleOf(TdObject chat) =>
-      _kind(chat) == ChatKind.saved ? S.current.chats.savedMessages : (chat['title'] as String? ?? '');
+  String _titleOf(TdObject chat) => _kind(chat) == ChatKind.saved ? S.current.chats.savedMessages : (chat['title'] as String? ?? '');
 
   @override
   Message refreshFound(FoundFile f) {
@@ -1187,6 +1264,8 @@ class TdChatSource extends ChatSource {
     });
     return MessageRights(
       canEdit: p['can_be_edited'] == true,
+      canReply: p['can_be_replied'] == true,
+      canForward: p['can_be_forwarded'] == true,
       canDeleteForMe: p['can_be_deleted_only_for_self'] == true,
       canDeleteForAll: p['can_be_deleted_for_all_users'] == true,
     );
@@ -1231,11 +1310,21 @@ class TdChatSource extends ChatSource {
 
   @override
   Future<void> sendFiles(String chatId, List<OutgoingFile> files, {String caption = '', bool compressImages = true}) async {
+    await _sendFiles(chatId, files, caption: caption, compressImages: compressImages);
+  }
+
+  @override
+  Future<void> sendFilesReply(String chatId, List<OutgoingFile> files, String messageId,
+          {String caption = '', bool compressImages = true}) =>
+      _sendFiles(chatId, files, caption: caption, compressImages: compressImages, replyTo: messageId);
+
+  Future<void> _sendFiles(String chatId, List<OutgoingFile> files,
+      {String caption = '', bool compressImages = true, String? replyTo}) async {
     if (files.isEmpty) return;
     final id = int.parse(chatId);
     var text = caption.trim();
     if (text.length > kCaptionLimit) {
-      await send(chatId, text);
+      await _sendText(chatId, text, replyTo: replyTo);
       text = '';
     }
     final planned = await planFiles(files, compressImages: compressImages);
@@ -1246,9 +1335,19 @@ class TdChatSource extends ChatSource {
       ];
       first = false;
       if (contents.length == 1) {
-        await td.query({'@type': 'sendMessage', 'chat_id': id, 'input_message_content': contents.single});
+        await td.query({
+          '@type': 'sendMessage',
+          'chat_id': id,
+          if (replyTo != null) 'reply_to': _replyTo(replyTo),
+          'input_message_content': contents.single
+        });
       } else {
-        await td.query({'@type': 'sendMessageAlbum', 'chat_id': id, 'input_message_contents': contents});
+        await td.query({
+          '@type': 'sendMessageAlbum',
+          'chat_id': id,
+          if (replyTo != null) 'reply_to': _replyTo(replyTo),
+          'input_message_contents': contents
+        });
       }
     }
   }
@@ -1270,6 +1369,87 @@ class TdChatSource extends ChatSource {
       'document': {'@type': 'inputDocument', 'document': file},
       'caption': text,
     };
+  }
+
+  @override
+  Future<void> forwardMessages(String chatId, String fromChatId, List<String> messageIds) async {
+    if (messageIds.isEmpty) return;
+    // Preserve attribution and let TDLib enforce protected-content rights.
+    await td.query({
+      '@type': 'forwardMessages',
+      'chat_id': int.parse(chatId),
+      'from_chat_id': int.parse(fromChatId),
+      'message_ids': messageIds.map(int.parse).toList(),
+      'send_copy': false,
+      'remove_caption': false
+    });
+  }
+
+  @override
+  Future<MessageSearchPage> searchMessages(String chatId, String query, {String fromMessageId = '', int limit = 50}) async {
+    final id = int.parse(chatId);
+    final chat = _chats[id];
+    if (chat == null || query.trim().isEmpty) return const MessageSearchPage(messages: [], total: 0);
+    final result = await td.query({
+      '@type': 'searchChatMessages',
+      'chat_id': id,
+      'query': query.trim(),
+      'from_message_id': int.tryParse(fromMessageId) ?? 0,
+      'offset': 0,
+      'limit': limit.clamp(1, 100),
+      'filter': {'@type': 'searchMessagesFilterEmpty'}
+    });
+    final raw = (result['messages'] as List? ?? const []).cast<TdObject>();
+    for (final m in raw) {
+      _found['$chatId:${m['id']}'] = m;
+    }
+    final next = result['next_from_message_id'] as int? ?? 0;
+    return MessageSearchPage(
+        messages: [for (final m in raw) _toMessage(m, chat, _kind(chat))],
+        total: result['total_count'] as int? ?? raw.length,
+        nextFromMessageId: next == 0 ? '' : '$next');
+  }
+
+  final Map<int, int> _historyNavigation = {};
+  final Set<int> _historical = {};
+  final Set<int> _navigating = {};
+
+  @override
+  Future<void> historyAround(String chatId, String messageId) async {
+    final id = int.parse(chatId);
+    final target = int.parse(messageId);
+    final generation = (_historyNavigation[id] ?? 0) + 1;
+    _historyNavigation[id] = generation;
+    _navigating.add(id);
+    try {
+      final result = await td.query({
+        '@type': 'getChatHistory',
+        'chat_id': id,
+        'from_message_id': target,
+        'offset': target == 0 ? 0 : -20,
+        'limit': 40,
+        'only_local': false
+      });
+      final list = (result['messages'] as List? ?? const []).cast<TdObject>().map(TdObject.of).toList();
+      if (target != 0 && !list.any((m) => m['id'] == target)) {
+        list.add(await td.query({'@type': 'getMessage', 'chat_id': id, 'message_id': target}));
+      }
+      if (_disposed || _historyNavigation[id] != generation) return;
+      // Replace the window instead of presenting disjoint history as contiguous.
+      _messages[id] = list..sort((a, b) => (a['id'] as int).compareTo(b['id'] as int));
+      if (target == 0) {
+        _historical.remove(id);
+      } else {
+        _historical.add(id);
+      }
+      _historyDone.remove(id);
+      _changed();
+    } finally {
+      if (_historyNavigation[id] == generation) _navigating.remove(id);
+    }
+    if (!_disposed && target == 0 && _historyNavigation[id] == generation && (_messages[id]?.length ?? 0) < 40) {
+      await _loadHistory(id);
+    }
   }
 }
 

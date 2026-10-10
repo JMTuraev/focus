@@ -1,5 +1,6 @@
 // Encrypted backups: crypto format, database snapshots, the service,
 // the Telegram transport (fake TDLib) and the dialog.
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -14,6 +15,7 @@ import 'package:fokus/backup/backup_transport.dart';
 import 'package:fokus/backup/snapshot.dart';
 import 'package:fokus/data/chat_source.dart';
 import 'package:fokus/data/local_store.dart';
+import 'package:fokus/data/models.dart';
 import 'package:fokus/data/mock_source.dart';
 import 'package:fokus/db/database.dart';
 import 'package:fokus/main.dart';
@@ -39,6 +41,8 @@ Future<AppDatabase> _withData() async {
   final store = await LocalStore.openDb(db);
   store
     ..setCollection('42', 'oila')
+    ..setDraft('42', 'Qoralama\nsaqlanadi 😀')
+    ..setReplyDraft('42', const ReplyInfo(chatId: '42', messageId: '55', author: 'Mijoz', text: 'Savol'))
     ..setSeen('42', 3);
   await store.flush();
   return db;
@@ -99,6 +103,8 @@ void main() {
       final store = await LocalStore.openDb(target);
       expect(store.collectionOf('42'), 'oila');
       expect(store.seenOf('42'), 3);
+      expect(store.draftOf('42'), 'Qoralama\nsaqlanadi 😀');
+      expect(store.replyDraftOf('42')!.messageId, '55');
       await source.close();
       await target.close();
     });
@@ -132,6 +138,23 @@ void main() {
   });
 
   group('BackupService', () {
+    test('late key loading after logout cannot read the closed database or start uploads', () async {
+      final db = AppDatabase.memory();
+      final keys = _DelayedKeys();
+      final transport = MemoryBackupTransport();
+      final service = BackupService(db: db, transport: transport, keys: keys);
+      final initializing = service.init();
+      service.dispose();
+      await db.close();
+      keys.pending.complete(await BackupCrypto.deriveKey('local-test-password', params: light));
+      await initializing;
+      service.autoDaily = true;
+      service.startAuto();
+      await service.maybeAutoBackup();
+      expect(transport.files, isEmpty);
+      expect(service.loaded, isFalse);
+    });
+
     test('password rules, backup, and restore on this PC', () async {
       final db = await _withData();
       final transport = MemoryBackupTransport();
@@ -344,6 +367,12 @@ void main() {
     expect(find.textContaining('nusxa tiklandi'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+}
+
+class _DelayedKeys extends MemoryBackupKeyStore {
+  final pending = Completer<BackupKey?>();
+  @override
+  Future<BackupKey?> load() => pending.future;
 }
 
 class _Auth extends MockAuth {

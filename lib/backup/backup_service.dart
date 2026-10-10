@@ -54,19 +54,35 @@ class BackupService extends ChangeNotifier {
   DateTime? lastBackupAt;
   bool autoDaily = false;
   Timer? _timer;
+  bool _disposed = false;
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
+  }
 
   bool get hasPassword => _key != null;
 
   Future<void> init() async {
-    _key = await keys.load();
-    lastBackupAt = DateTime.tryParse(await _get(_lastKey) ?? '');
-    autoDaily = await _get(_autoKey) == '1';
-    loaded = true;
-    notifyListeners();
+    try {
+      _key = await keys.load();
+      if (_disposed) return;
+      lastBackupAt = DateTime.tryParse(await _get(_lastKey) ?? '');
+      if (_disposed) return;
+      autoDaily = await _get(_autoKey) == '1';
+      if (_disposed) return;
+      loaded = true;
+      notifyListeners();
+    } catch (e) {
+      if (_disposed) return;
+      autoDaily = false;
+      loaded = true;
+      lastError = S.current.backup.backupFailed('$e');
+      notifyListeners();
+    }
   }
 
-  Future<String?> _get(String key) async =>
-      (await (db.select(db.keyValues)..where((t) => t.key.equals(key))).getSingleOrNull())?.value;
+  Future<String?> _get(String key) async => (await (db.select(db.keyValues)..where((t) => t.key.equals(key))).getSingleOrNull())?.value;
 
   Future<void> _set(String key, String value) =>
       db.into(db.keyValues).insert(KeyValuesCompanion.insert(key: key, value: value), mode: InsertMode.insertOrReplace);
@@ -90,8 +106,7 @@ class BackupService extends ChangeNotifier {
   }
 
   /// "Shanba, 4-okt · 12:30" in the current language.
-  static String _captionDate(DateTime t) =>
-      '${Fmt.weekday(t.weekday)}, ${S.current.common.dayMonthShort(t.day, t.month)} · ${Fmt.hm(t)}';
+  static String _captionDate(DateTime t) => '${Fmt.weekday(t.weekday)}, ${S.current.common.dayMonthShort(t.day, t.month)} · ${Fmt.hm(t)}';
 
   static String fileName(DateTime t) =>
       'fokus-backup-${t.year}-${Fmt.two(t.month)}-${Fmt.two(t.day)}_${Fmt.two(t.hour)}${Fmt.two(t.minute)}.fokusbak';
@@ -109,6 +124,7 @@ class BackupService extends ChangeNotifier {
     try {
       final plain = await Snapshot.capture(db);
       final data = await BackupCrypto.encrypt(plain, key);
+      if (_disposed) return;
       final now = _clock();
       status = S.current.backup.statusUploading;
       notifyListeners();
@@ -122,6 +138,7 @@ class BackupService extends ChangeNotifier {
           notifyListeners();
         },
       );
+      if (_disposed) return;
       lastBackupAt = now;
       await _set(_lastKey, now.toIso8601String());
     } on BackupException catch (e) {
@@ -150,6 +167,7 @@ class BackupService extends ChangeNotifier {
     notifyListeners();
     try {
       final data = await transport.download(entry);
+      if (_disposed) return;
       status = S.current.backup.statusRestoring;
       notifyListeners();
       final Uint8List plain;
@@ -161,6 +179,7 @@ class BackupService extends ChangeNotifier {
         if (key == null || !listEquals(key.salt, salt) || key.params != params) throw NeedPasswordException();
         plain = await BackupCrypto.decrypt(data, key);
       }
+      if (_disposed) return;
       await Snapshot.restore(db, plain);
       // Settings of this PC win over the ones inside the backup.
       if (lastBackupAt != null) await _set(_lastKey, lastBackupAt!.toIso8601String());
@@ -174,13 +193,14 @@ class BackupService extends ChangeNotifier {
 
   /// Daily automatic backup while Focus runs (checked hourly).
   void startAuto() {
+    if (_disposed) return;
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(hours: 1), (_) => maybeAutoBackup());
     unawaited(maybeAutoBackup());
   }
 
   Future<void> maybeAutoBackup() async {
-    if (!autoDaily || !hasPassword || busy) return;
+    if (_disposed || !autoDaily || !hasPassword || busy) return;
     final last = lastBackupAt;
     if (last != null && _clock().difference(last) < autoEvery) return;
     try {
@@ -192,6 +212,7 @@ class BackupService extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _timer?.cancel();
     super.dispose();
   }

@@ -17,6 +17,7 @@ class MockChatSource extends ChatSource {
   /// Edited texts and deleted messages by "chatId:messageId".
   final Map<String, String> _edits = {};
   final Set<String> _deleted = {};
+  final Map<String, ReplyInfo> _replies = {};
   final _incoming = StreamController<IncomingMessage>.broadcast();
 
   @override
@@ -100,7 +101,7 @@ class MockChatSource extends ChatSource {
     if (t.isEmpty) return;
     final now = DateTime.now();
     final time = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-    (_sent[chatId] ??= []).add(Message(id: '$chatId-s${now.microsecondsSinceEpoch}', text: t, time: time, out: true));
+    (_sent[chatId] ??= []).add(Message(id: '$chatId-s${now.microsecondsSinceEpoch}', text: t, time: time, out: true, reply: _replies.remove(chatId)));
     final i = _chats.indexWhere((c) => c.id == chatId);
     if (i >= 0) _chats[i] = _chats[i].copyWith(last: '${S.current.chats.youPrefix}$t', time: time, waiting: false);
     notifyListeners();
@@ -116,6 +117,56 @@ class MockChatSource extends ChatSource {
     return null;
   }
 
+  ReplyInfo _reply(String chatId, String messageId) {
+    final m = messagesOf(chatId).firstWhere((m) => m.id == messageId);
+    return ReplyInfo(chatId: chatId, messageId: messageId,
+      author: m.from ?? chatById(chatId)!.name,
+      text: m.text.isNotEmpty ? m.text : m.fileName ?? m.mediaLabel ?? S.current.chats.message);
+  }
+
+  @override
+  Future<void> sendReply(String chatId, String text, String messageId) async {
+    _replies[chatId] = _reply(chatId, messageId);
+    await send(chatId, text);
+  }
+
+  @override
+  Future<void> sendFilesReply(String chatId, List<OutgoingFile> files, String messageId,
+      {String caption = '', bool compressImages = true}) async {
+    _replies[chatId] = _reply(chatId, messageId);
+    await sendFiles(chatId, files, caption: caption, compressImages: compressImages);
+  }
+
+  @override
+  Future<void> forwardMessages(String chatId, String fromChatId, List<String> messageIds) async {
+    if (chatById(chatId)?.canSend != true) throw StateError('Read-only destination');
+    final now = DateTime.now();
+    for (final id in messageIds) {
+      final m = messagesOf(fromChatId).firstWhere((m) => m.id == id);
+      (_sent[chatId] ??= []).add(Message(
+        id: '$chatId-forward-${now.microsecondsSinceEpoch}-$id', text: m.text, time: Fmt.hm(now), date: now, out: true,
+        fileName: m.fileName, fileMeta: m.fileMeta, file: m.file, info: m.info, media: m.media, mediaLabel: m.mediaLabel,
+        entities: m.entities, reply: m.reply, forwardedFrom: m.forwardedFrom ?? m.from ?? chatById(fromChatId)!.name,
+      ));
+    }
+    notifyListeners();
+  }
+
+  @override
+  Future<MessageSearchPage> searchMessages(String chatId, String query, {String fromMessageId = '', int limit = 50}) async {
+    if (query.trim().isEmpty) return const MessageSearchPage(messages: [], total: 0);
+    final found = messagesOf(chatId).reversed.where((m) => !m.service &&
+        '${m.text} ${m.fileName ?? ''}'.toLowerCase().contains(query.trim().toLowerCase())).toList();
+    final start = fromMessageId.isEmpty ? 0 : found.indexWhere((m) => m.id == fromMessageId);
+    final offset = start < 0 ? found.length : start;
+    final page = found.skip(offset).take(limit.clamp(1, 100)).toList();
+    return MessageSearchPage(messages: page, total: found.length,
+      nextFromMessageId: offset + page.length < found.length ? found[offset + page.length].id : '');
+  }
+
+  @override
+  Future<void> historyAround(String chatId, String messageId) async {}
+
   @override
   Future<MessageRights> rightsOf(String chatId, String messageId) async {
     final chat = chatById(chatId);
@@ -124,6 +175,8 @@ class MockChatSource extends ChatSource {
     final plainText = m.fileName == null && m.info == null && m.media == null;
     return MessageRights(
       canEdit: m.out && plainText,
+      canReply: chat.canSend && !m.pending && !m.failed,
+      canForward: !m.pending && !m.failed,
       canDeleteForMe: true,
       canDeleteForAll: m.out || chat.kind == ChatKind.private,
     );
@@ -166,6 +219,7 @@ class MockChatSource extends ChatSource {
         fileName: f.name,
         fileMeta: '${Fmt.size(f.size)} · ${f.extension.isEmpty ? S.current.common.file : f.extension.toUpperCase()}',
         file: FileInfo(fileId: -1, size: f.size, path: f.path, progress: 1),
+        reply: _replies.remove(chatId),
       ));
     }
     final idx = _chats.indexWhere((c) => c.id == chatId);

@@ -9,7 +9,7 @@ import '../auth/auth.dart';
 import '../backup/backup_key_store.dart';
 import '../data/chat_source.dart';
 import '../data/local_store.dart';
-import '../db/database.dart';
+import '../data/account_storage.dart';
 import '../config.dart';
 import '../l10n/l10n.dart';
 import 'db_key.dart';
@@ -56,9 +56,7 @@ class TdAuth implements AuthService {
       return;
     }
     final td = _td!;
-    _sub = td.updates
-        .where((u) => u['@type'] == 'updateAuthorizationState')
-        .listen((u) => _onState(u['authorization_state'] as TdObject));
+    _sub = td.updates.where((u) => u['@type'] == 'updateAuthorizationState').listen((u) => _onState(u['authorization_state'] as TdObject));
     // The first update may arrive before we subscribed, so ask explicitly.
     try {
       await _onState(await td.query({'@type': 'getAuthorizationState'}));
@@ -181,10 +179,7 @@ class TdAuth implements AuthService {
 
   static CodeDelivery _delivery(TdObject? t) => switch (t?['@type']) {
         'authenticationCodeTypeTelegramMessage' => CodeDelivery.telegram,
-        'authenticationCodeTypeSms' ||
-        'authenticationCodeTypeSmsWord' ||
-        'authenticationCodeTypeSmsPhrase' =>
-          CodeDelivery.sms,
+        'authenticationCodeTypeSms' || 'authenticationCodeTypeSmsWord' || 'authenticationCodeTypeSmsPhrase' => CodeDelivery.sms,
         'authenticationCodeTypeCall' => CodeDelivery.call,
         'authenticationCodeTypeFlashCall' => CodeDelivery.flashCall,
         'authenticationCodeTypeMissedCall' => CodeDelivery.missedCall,
@@ -253,16 +248,28 @@ class TdAuth implements AuthService {
   Future<ChatSession> openSession() async {
     final td = _td;
     if (td == null) throw StateError('TDLib client is not running');
+    final me = await td.query({'@type': 'getMe'});
+    final id = me['id'];
+    if (id is! int || id <= 0) throw StateError('Cannot identify the Telegram account');
+    final storage = await AccountStorage.forAccount('$id');
+    final db = await storage.open();
     final source = TdChatSource(td);
-    unawaited(source.start());
-    final db = AppDatabase.open();
-    return ChatSession(
-      source: source,
-      store: await LocalStore.open(db),
-      db: db,
-      backupTransport: TdBackupTransport(td),
-      backupKeys: DpapiBackupKeyStore(),
-    );
+    try {
+      final store = await LocalStore.openDb(db);
+      unawaited(source.start());
+      return ChatSession(
+        source: source,
+        store: store,
+        db: db,
+        backupTransport: TdBackupTransport(td),
+        backupKeys: DpapiBackupKeyStore(directory: storage.directory),
+        accountStorage: storage,
+      );
+    } catch (_) {
+      source.dispose();
+      await db.close();
+      rethrow;
+    }
   }
 
   Future<void> dispose() async {
