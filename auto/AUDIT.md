@@ -56,8 +56,27 @@ Donat oynasi va Payme/Click/Tirikchilik/HTTPS/karta konfiguratsiyasi mavjud. Don
 - Yakuniy kod: flutter test --no-pub — **246 test o‘tdi** (boshlang‘ich kodga nisbatan **50 yangi test**). Flutter analyze --no-pub va git diff --check **toza**. Yakuniy test uslubi tuzatishidan keyin chat_protocol_test.dart dagi **8 test** yana o‘tdi; analyzer ham toza.
 - Faqat sintetik lokal bazalar, mock UI va fake TDLib ishlatildi. A/B/restart, DPAPI kalitlari, committed WAL, explicit import/retry, eski notification, tez session almashishi, kechikkan backup, qoralama/snapshot, reply text/document/album, protected forward, server qidiruvi/cursor, kechikkan tarix va uch tilda tor oyna qamrab olindi.
 - Oldingi offline DLL tekshiruvi **1.8.67** qaytargan. Real Telegram login/xabar jo‘natish qilinmadi.
-- Windows mock build mos Visual Studio C++ toolchain yo‘qligi sababli tugamagan. Native kompilyatsiya va real media ijrosi tasdiqlanmagan.
+- To‘liq Windows build mos Visual Studio C++ toolchain yo‘qligi sababli tugamagan. Quyidagi ishga tushirish sinovi mavjud native host bilan bajarildi; yangi native kompilyatsiya va real media ijrosi tasdiqlanmagan.
 - **Prod:** ilova o‘rnatilmadi/tarqatilmadi. Foydalanuvchi bazasi va Telegram ma’lumotlari o‘zgartirilmadi. AllClubs/Xposter/Rezone/Dood loyihalariga murojaat qilinmadi.
+
+### Windows oynasida amaliy sinov — 11-oktabr
+
+Joriy `b2f56ab` Dart kodi `flutter build bundle --debug --target-platform windows-x64 --dart-define=USE_MOCK=true` orqali qayta yig‘ildi. 4-oktabrdagi mavjud Debug native host nusxasi alohida `build/audit/ui_run/Debug` papkasiga olindi va yangi kernel/assets bilan ishga tushirildi. Kernel nusxasi va yangi bundle SHA-256 qiymatlari bir xil; mavjud `flutter_windows.dll` ham joriy Flutter 3.38.9 dvigateli bilan bir xil. Bu yangi Dart kodining Windows oynasidagi sinovi; yangi EXE/plugin kompilyatsiyasi yoki release build sinovi emas.
+
+`build/audit/ui_smoke_main.dart` lokal harnessi asl `FokusApp` va `AuthGate` orqali `MockAuth(loggedIn: true)`, `Settings.inMemory` va xotiradagi chat/biznes bazasini ishlatadi. Kirish oynasi avtomatlashtirilmadi, TDLib yuklanmadi, Telegramga xabar yuborilmadi. Sinov runtime’i odatiy o‘rnatilgan ilova yoki foydalanuvchi ma’lumotlarini almashtirmaydi.
+
+Computer Use bilan Windows oynasida tekshirildi:
+
+- Xabarni o‘ng bosish menyusi, reply preview va yuborilgan javobdagi asl xabar/muallif.
+- Dilshod chatidagi matn/reply qoralamasi Madina chatiga o‘tmaydi; qaytishda ikkalasi tiklanadi.
+- Forward oynasida chatni tanlash va yuborish; Madina chatida Dilshod muallifligi va asl matn ko‘rinadi.
+- Sarlavhadagi chat qidiruvi, natijalar hisoblagichi, natijaga o‘tish/highlight va yuqori/pastki natija tugmalari (1/3 → 2/3 → 1/3).
+- Tungi rejim; 420×560 oynada chat ro‘yxatidan chatga o‘tish, qidiruv, natijaga o‘tish va composer joylashuvi. Render overflow ko‘rinmadi.
+- Qayta boshlangan toza sinovda Enter bilan mock xabar muvaffaqiyatli yuborildi.
+
+Cheklovlar: Computer Use matn joylash/klaviatura kombinatsiyalari Flutter `HardwareKeyboard`’ga noto‘g‘ri physical-key hodisalarini yubordi; Ctrl+F native avtomatizatsiyada tasdiqlanmadi. Ctrl+F va Shift+Enter/IME xatti-harakati widget testlarida qamrab olingan. Dastlabki taskbar badge `SetOverlayIcon` chaqiruvi ushlangan PlatformException (-1) berdi; Windows badge/notification bu sinov bilan tasdiqlanmaydi. Real akkaunt A/B, TDLib jo‘natish/qidiruv, media va yangi to‘liq native build hali alohida sinov talab qiladi.
+
+Oyna sinovidan keyin `chat_drafts_test.dart` va `chat_interactions_test.dart` qayta ishga tushirildi: **22/22 test o‘tdi**, jumladan Ctrl+F, Enter, Shift+Enter, IME va tor oynaning uch tili. Ishlayotgan mock oyna 1200×780 o‘lchamga qaytarildi.
 
 ## Qaytarish va keyingi ishlar
 
