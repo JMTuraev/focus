@@ -40,7 +40,7 @@ Qoralamalar key_values jadvalidagi chatDraft:<chatId> va chatReplyDraft:<chatId>
 | P1 | Kanallardagi rasmiy sponsored messages olish/ko‘rsatish mexanizmi yo‘q ([Terms 3.3](https://core.telegram.org/api/terms)). |
 | P2 | Chat ro‘yxati start(pages: 3) bilan dastlabki uch 100 talik sahifani oladi; keyingi sahifa uchun UI yo‘q. Ko‘p mijozli akkaunt uchun to‘liq yuklash kerak. |
 | P2 | Failed jo‘natishni qayta yuborish boshqaruvi va qisman yuborilgan album tafsilotlari yo‘q. |
-| P2 | Windows build va real login/media/jo‘natish/notification sinovi tasdiqlanmagan. |
+| P2 | Real Telegram login/media/jo‘natish/notification sinovi tasdiqlanmagan; yangi Windows Debug/Release build va sintetik native test holati quyida. |
 
 Telegram Desktop bilan tenglikka qolgan ishlar: ko‘p xabar tanlash/guruhli forward, reaksiyalar, link preview, clipboard rasmlari, mikrofon yozuvi, audio mini-player/tezlik/navbat, inline video va photo viewer navigatsiyasi. Reply/forward hozir bitta xabar uchun. Tashqi chat/topikdan yangi reply yaratish va quote matnini tanlash muharriri yo‘q; serverdan kelgan mavjud quote ko‘rsatiladi.
 
@@ -56,7 +56,7 @@ Donat oynasi va Payme/Click/Tirikchilik/HTTPS/karta konfiguratsiyasi mavjud. Don
 - Yakuniy kod: flutter test --no-pub — **246 test o‘tdi** (boshlang‘ich kodga nisbatan **50 yangi test**). Flutter analyze --no-pub va git diff --check **toza**. Yakuniy test uslubi tuzatishidan keyin chat_protocol_test.dart dagi **8 test** yana o‘tdi; analyzer ham toza.
 - Faqat sintetik lokal bazalar, mock UI va fake TDLib ishlatildi. A/B/restart, DPAPI kalitlari, committed WAL, explicit import/retry, eski notification, tez session almashishi, kechikkan backup, qoralama/snapshot, reply text/document/album, protected forward, server qidiruvi/cursor, kechikkan tarix va uch tilda tor oyna qamrab olindi.
 - Oldingi offline DLL tekshiruvi **1.8.67** qaytargan. Real Telegram login/xabar jo‘natish qilinmadi.
-- To‘liq Windows build mos Visual Studio C++ toolchain yo‘qligi sababli tugamagan. Quyidagi ishga tushirish sinovi mavjud native host bilan bajarildi; yangi native kompilyatsiya va real media ijrosi tasdiqlanmagan.
+- Dastlabki to‘liq Windows build Visual Studio aniqlanmagani sababli tugamagan. Quyidagi dastlabki ishga tushirish sinovi mavjud native host bilan bajarildi; keyingi «Windows build tuzatishi va native sinov» bo‘limida yangi Debug/Release native build natijalari berilgan. Real media ijrosi hali tasdiqlanmagan.
 - **Prod:** ilova o‘rnatilmadi/tarqatilmadi. Foydalanuvchi bazasi va Telegram ma’lumotlari o‘zgartirilmadi. AllClubs/Xposter/Rezone/Dood loyihalariga murojaat qilinmadi.
 
 ### Windows oynasida amaliy sinov — 11-oktabr
@@ -80,6 +80,23 @@ Oyna sinovidan keyin `chat_drafts_test.dart` va `chat_interactions_test.dart` qa
 
 ## Qaytarish va keyingi ishlar
 
+### Windows build tuzatishi va native sinov
+
+Avvalgi cheklov sababi: MSVC 14.44.35207, ATL va Windows SDK 10.0.26100.0 mavjud, lekin Visual Studio discovery bo‘sh natija bergan; o‘rnatilgan CMake 3.31.6-msvc6 `--version` chaqiruvida ham access violation bilan tugagan. Flutter/VS tizim fayllari almashtirilmadi. `tool/build_windows.ps1` loyiha ichidagi tekshirilgan Kitware CMake 3.31.6 nusxasi, aniq VS yo‘li va `version=17.14.37411.7` bilan [portable instance](https://cmake.org/cmake/help/latest/variable/CMAKE_GENERATOR_INSTANCE.html) usulidan foydalanadi. Rasmiy arxiv SHA-256 bilan tekshiriladi. `TEMP`/`TMP` faqat build jarayonida loyiha papkasiga o‘tadi va keyin tiklanadi. Standart `flutter doctor`/VS registratsiyasi hali bo‘sh natija berishi mumkin; ushbu loyiha build skripti bilan yig‘iladi.
+
+- **Yangi native Debug build:** EXE, barcha C++ plaginlar va Dart kodi to‘liq yig‘ildi. Eski EXE’ga yangi kernel qo‘yish usuli ishlatilmadi.
+- **Yangi Release build:** oddiy `lib/main.dart`, `USE_MOCK=true`; `build/windows-portable/x64/runner/Release/focus.exe` va AOT `data/app.so` tayyor. Test targeti Release artifactiga kiritilmagan.
+- Build skripti Windows PowerShell 5.1 bilan ham Release bundle yig‘di. Release ichidagi `tdjson.dll` lokal, tarmoqqa ulanmagan tekshiruvda **1.8.67** qaytardi.
+- Lokal installer kelajakda shu build skriptidan foydalanadi. Installer bu topshiriqda ishga tushirilmadi; `%LOCALAPPDATA%/Programs/Focus` dagi ilova almashtirilmadi.
+- **Windows oynasida uchta avtomatik integration ssenariysi o‘tdi:** A→B→A→B akkaunt almashishi (haqiqiy vaqtinchalik SQLite bazalari, vazifalar, matn/reply qoralamalari va qayta ochishda tiklash); multiline reply/Shift+Enter/Enter va muallifli forward; Ctrl+F, qidiruv, 1/2→2/2→1/2 navigatsiya va Escape.
+- Native test qidiruv natijalariga o‘tilgach Escape panelni yopmasligini aniqladi. Search input fokusi tiklandi; chat bo‘ylab Escape qidiruvni yopib, yozish maydoniga qaytadi. Composerda Escape qidiruv ochiq bo‘lsa reply qoralamasini bekor qilmaydi. Alohida regression widget testi qo‘shildi va o‘tdi.
+- Integration harness `TdAuth` va `Settings.load` ni chaqirmaydi, Windows notification xizmatini boshlamaydi. Auth/chat source sintetik; SQLite/account storage haqiqiy. Sinov papkasi har safar yangi, foydalanuvchi bazasi bilan aralashtirilmaydi; yopilish tugashi kutiladi. Windows SDK integration_test native plagini yo‘qligi haqidagi ogohlantirishni chiqardi, ammo Dart driver barcha natijalarni olib, muvaffaqiyatli tugadi.
+- **Ma’lumot yaxlitligi:** foydalanuvchi support papkasidagi 770 faylning oldin/keyin inventarlari aynan bir xil. Fayl o‘lchami va vaqtlar, biznes SQLite/JSON, settings va kalitlarning SHA-256 qiymatlari o‘zgarmagan. Inventarlar faqat git-ignored `build/audit/` da; maxfiy qiymatlar yoki foydalanuvchi kontenti hisobotga chiqarilmagan.
+- **Yakuniy tekshiruv:** `flutter test --no-pub --concurrency=1` — **247/247 test o‘tdi**; `flutter analyze --no-pub` — muammo yo‘q. Native integration sinovida uchta ssenariy o‘tdi (setup/teardown bilan driver hisoblagichi +5). `git diff --check` toza.
+- C: diskidagi bo‘sh joy test kompilyatsiyasiga yetmadi; keyingi sinovlar loyiha ichidagi D: vaqtinchalik papkasi bilan bajarildi. Parallel test/analyzer urinishida xotira yetishmasligi kuzatildi; yakuniy suite ketma-ket, `--concurrency=1` bilan muvaffaqiyatli bajarildi.
+
+Real Telegram akkauntlari bilan kirish/jo‘natish va foydalanuvchining legacy bazasini import qilish sinovi bajarilmadi. Bu topshiriqda mavjud ma’lumotlarni test uchun ishlatish yoki production o‘zgarish bo‘lmadi. Schema 8 va FOKUSBAK formati saqlangan.
+
 Asl umumiy baza va backup kaliti saqlanadi. Yangi akkaunt papkalarini o‘chirmang yoki aralashtirmang. Kodni oldingi versiyaga qaytarish root umumiy bazani yana ishlatadi va akkaunt ajratilishini yo‘qotadi. Yangi akkaunt ma’lumotini eski umumiy bazaga avtomatik aralashtirish kerak emas. Schema/backup formati o‘zgarmagan; boshqa qurilmada backupdan tiklash parol bilan explicit amal bo‘lib qoladi.
 
-Keyingi ustuvorlik: Windows build muhiti va test akkauntda qo‘lda tekshirish; lokal rejim/Telegram qoidalari; sponsored messages va to‘liq chat ro‘yxati; ko‘p xabar/reactions/audio; donat rekvizitlari. auto/LOG.md va auto/PARITY.md dagi foydalanuvchi o‘zgarishlariga tegilmasin.
+Keyingi ustuvorlik: alohida Telegram test akkauntida qo‘lda tekshirish; lokal rejim/Telegram qoidalari; sponsored messages va to‘liq chat ro‘yxati; ko‘p xabar/reactions/audio; donat rekvizitlari. auto/LOG.md va auto/PARITY.md dagi foydalanuvchi o‘zgarishlariga tegilmasin.

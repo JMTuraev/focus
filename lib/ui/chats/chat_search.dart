@@ -21,6 +21,7 @@ class ChatSearch extends StatefulWidget {
 
 class _ChatSearchState extends State<ChatSearch> {
   final _input = TextEditingController();
+  final _focus = FocusNode();
   Timer? _debounce;
   int _request = 0;
   bool _busy = false;
@@ -35,6 +36,7 @@ class _ChatSearchState extends State<ChatSearch> {
     _request++;
     _debounce?.cancel();
     _input.dispose();
+    _focus.dispose();
     super.dispose();
   }
 
@@ -85,6 +87,9 @@ class _ChatSearchState extends State<ChatSearch> {
     if (index >= _messages.length && _next.isNotEmpty) await _search(more: true);
     if (!mounted || query != _input.text || index >= _messages.length) return;
     setState(() => _selected = index);
+    // Keep keyboard navigation in search after selecting a result by mouse.
+    // Request before loading history so a later user focus change wins.
+    _focus.requestFocus();
     await widget.onSelected(_messages[index]);
   }
 
@@ -117,6 +122,7 @@ class _ChatSearchState extends State<ChatSearch> {
               Expanded(
                   child: TextField(
                       controller: _input,
+                      focusNode: _focus,
                       autofocus: true,
                       onChanged: _changed,
                       onSubmitted: (_) => _search(),

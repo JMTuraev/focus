@@ -23,10 +23,11 @@ if ($running) {
 }
 
 Write-Host 'Release build...'
-flutter build windows --release --dart-define-from-file=secrets.json --dart-define=USE_MOCK=false
+flutter pub get
 if ($LASTEXITCODE -ne 0) { Write-Error 'Build muvaffaqiyatsiz tugadi.' }
+& (Join-Path $PSScriptRoot 'build_windows.ps1') -Mode Release -RealTelegram -DefineFile secrets.json
 
-$src = Join-Path $root 'build\windows\x64\runner\Release'
+$src = Join-Path $root 'build\windows-portable\x64\runner\Release'
 $exe = Join-Path $src 'focus.exe'
 if (-not (Test-Path $exe)) { Write-Error "focus.exe topilmadi: $src" }
 if (-not (Test-Path (Join-Path $src 'tdjson.dll'))) { Write-Error 'tdjson.dll release papkasiga nusxalanmagan.' }

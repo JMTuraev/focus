@@ -156,6 +156,11 @@ class _ChatViewState extends State<ChatView> {
     });
   }
 
+  void _closeSearch() {
+    setState(() => _searchOpen = false);
+    _focus.requestFocus();
+  }
+
   @override
   void dispose() {
     _highlightTimer?.cancel();
@@ -501,7 +506,7 @@ class _ChatViewState extends State<ChatView> {
             source: s.source,
             chatId: chat.id,
             onSelected: (m) => _jumpTo(chat.id, m.id),
-            onClose: () => setState(() => _searchOpen = false),
+            onClose: _closeSearch,
           ),
         _QuickActions(
           label: s.selectedMessageId != null ? t.selectedMessage : t.lastMessageHint,
@@ -636,7 +641,9 @@ class _ChatViewState extends State<ChatView> {
             reply: s.replyOf(chat.id),
             onCancelReply: () => s.setReply(chat.id, null),
             savingEdit: _savingEdit,
-            onEscape: _emojiOpen
+            onEscape: _searchOpen
+                ? _closeSearch
+                : _emojiOpen
                 ? () => setState(() => _emojiOpen = false)
                 : (_editing != null ? _cancelEdit : (s.replyOf(chat.id) != null ? () => s.setReply(chat.id, null) : null)),
           ),
@@ -646,6 +653,7 @@ class _ChatViewState extends State<ChatView> {
     );
     final shortcutBody = CallbackShortcuts(bindings: {
       const SingleActivator(LogicalKeyboardKey.keyF, control: true): () => _toggleSearch(open: true),
+      if (_searchOpen) const SingleActivator(LogicalKeyboardKey.escape): _closeSearch,
     }, child: body);
     if (!chat.canSend) return shortcutBody;
     // Files dragged from Explorer open the send dialog.

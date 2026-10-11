@@ -97,6 +97,7 @@ Breakpoints are in `lib/ui/layout.dart`, modelled on Telegram Desktop:
 - Settings dialog (rail ⚙): theme (system / light / dark), reminders on/off, task reminder hour, test notification, new message toasts (on/off, channels, show text), backup.
 
 ## Windows runner
+- If Flutter cannot discover an existing VS 2022 C++ installation, use `tool/build_windows.ps1`. It builds a complete native bundle in `build/windows-portable/x64` with a checksum-verified project-local CMake and an explicit portable VS instance. It defaults to mock mode and never installs the app. Do not patch global Flutter/VS tools to spoof discovery. `integration_test/desktop_chat_test.dart` uses fresh temporary account databases, mock auth/chats and memory-only settings; run it with `flutter drive` and the prebuilt Debug test executable. Keep its test target separate from the ordinary Release app.
 - `windows/runner/main.cpp` allows one instance (named mutex): a second start brings the running window to the front and exits, because two instances would fight over the TDLib database. Close the app before `flutter run`.
 - `Runner.rc` `CompanyName` (`com.example`) and `ProductName` (`fokus`) decide the data folder `%APPDATA%\com.example\fokus` (TDLib session, `fokus.sqlite`, keys). Never change them without moving that folder first, or users lose their login and local data.
 - Local install: `tool/install_local.ps1` builds a release, copies it to `%LOCALAPPDATA%\Programs\Focus` and puts a "Focus" shortcut on the desktop.

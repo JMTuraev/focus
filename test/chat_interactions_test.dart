@@ -209,6 +209,33 @@ void main() {
     });
   }
 
+  testWidgets('Escape closes search after navigating results and preserves a reply in the composer', (tester) async {
+    final source = _Source();
+    final state = await _pump(tester, source);
+    await _reply(tester, source);
+    final reply = state.replyOf('dilshod');
+    await tester.tap(find.byTooltip(S.uz.chats.searchInChat));
+    await tester.pumpAndSettle();
+    final input = find.descendant(of: find.byType(ChatSearch), matching: find.byType(TextField));
+    await tester.enterText(input, 'PDF');
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip(S.uz.chats.olderResult));
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.byType(ChatSearch), findsNothing);
+    expect(state.replyOf('dilshod'), same(reply));
+    await tester.tap(find.byTooltip(S.uz.chats.searchInChat));
+    await tester.pumpAndSettle();
+    await tester.tap(_composer);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.byType(ChatSearch), findsNothing);
+    expect(state.replyOf('dilshod'), same(reply));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('search ignores a late response after query changes and handles paging', (tester) async {
     final old = Completer<MessageSearchPage>();
     final source = _Source()

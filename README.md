@@ -13,6 +13,30 @@ flutter pub get
 flutter run -d windows
 ```
 
+## Windows build: mavjud MSVC aniqlanmasa
+
+VS 2022 C++/ATL va Windows SDK fayllari bor, lekin `flutter build windows` ularni aniqlamayotgan kompyuterda loyiha skriptidan foydalaning:
+
+```powershell
+flutter pub get
+./tool/build_windows.ps1 -Mode Release
+```
+
+Skript [CMake’ning portable Visual Studio instance usuli](https://cmake.org/cmake/help/latest/variable/CMAKE_GENERATOR_INSTANCE.html) bilan MSVC yo‘li va versiyasini ko‘rsatadi. CMake 3.31.6 [Kitware rasmiy arxividan](https://github.com/Kitware/CMake/releases/tag/v3.31.6) olinadi va SHA-256 tekshiriladi. Kesh va vaqtinchalik fayllar `build/` ichida; kompyuterdagi Flutter/Visual Studio fayllari o‘zgartirilmaydi. Natija: `build/windows-portable/x64/runner/Release/focus.exe`. Standart build mock rejimda. Skript ilovani o‘rnatmaydi va foydalanuvchi bazasiga murojaat qilmaydi.
+
+Haqiqiy Telegram buildini alohida tayyorlash uchun `-RealTelegram -DefineFile secrets.json` qo‘shing. Uni ishga tushirish odatdagi foydalanuvchi ma’lumotlarini ochadi; buni sintetik test bilan aralashtirmang.
+
+Windows oynasida avtomatik sinov (haqiqiy akkaunt yoki Telegramga ulanmaydi):
+
+```powershell
+./tool/build_windows.ps1 -Target integration_test/desktop_chat_test.dart
+$env:TEMP = "$PWD/build/toolchain/temp"
+$env:TMP = $env:TEMP
+flutter drive -d windows --no-pub --driver test_driver/desktop.dart --target integration_test/desktop_chat_test.dart --use-application-binary build/windows-portable/x64/runner/Debug/focus.exe --dart-define=USE_MOCK=true
+```
+
+Bu test EXEsi vaqtinchalik alohida SQLite bazalarda A→B→A almashish, qoralama/reply, forward, Ctrl+F va qidiruv natijalarini tekshiradi. Test targetini foydalanuvchiga tarqatmang; oddiy ilova uchun skriptni `-Target lib/main.dart -Mode Release` bilan qayta bajaring. C: diskida joy kam bo‘lsa, lokal testlarda ham `TEMP`/`TMP` ni shu `build/toolchain/temp` papkasiga yo‘naltiring; xotira cheklangan muhitda `flutter test --concurrency=1` ishlating.
+
 ## 2. Telegram kalitlari
 
 `secrets.example.json` dan nusxa olib, `secrets.json` deb saqlang va my.telegram.org'dagi `api_id` / `api_hash` ni yozing. Bu fayl `.gitignore` da — GitHub'ga tushmaydi.
