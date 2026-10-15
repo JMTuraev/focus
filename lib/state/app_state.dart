@@ -595,7 +595,7 @@ class AppState extends ChangeNotifier {
   Future<int?> noteFromMessage(Message m) async {
     final chat = activeChat;
     if (chat == null) return null;
-    final body = m.text.trim().isNotEmpty ? m.text : (m.fileName ?? m.mediaLabel ?? '');
+    final body = m.text.trim().isNotEmpty ? m.text : (m.fileName ?? m.mediaLabel ?? S.current.chats.message);
     return notes.add(body: body, chatId: chat.id, chatTitle: chat.name, messageId: m.id);
   }
 }

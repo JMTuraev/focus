@@ -236,6 +236,26 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('native message menu saves the clicked message as a local task and note', (tester) async {
+    final auth = _DesktopAuth(await root.createTemp('menu_'));
+    await _mount(tester, auth);
+    final state = _state(tester);
+    final original = state.source.messagesOf('dilshod').first;
+    await _menu(tester, original.text);
+    await tester.tap(find.widgetWithText(PopupMenuItem<String>, S.uz.chats.toTask));
+    await tester.pumpAndSettle();
+    expect(state.tasks.all.single.messageId, original.id);
+    expect(state.tasks.all.single.messageText, original.text);
+    expect(state.tasks.all.single.chatId, 'dilshod');
+    await _menu(tester, original.text);
+    await tester.tap(find.widgetWithText(PopupMenuItem<String>, S.uz.chats.toNote));
+    await tester.pumpAndSettle();
+    expect(state.notes.all.single.messageId, original.id);
+    expect(state.notes.all.single.body, original.text);
+    expect(state.notes.all.single.chatId, 'dilshod');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('native profile photos open, navigate and close on account switch', (tester) async {
     final auth = _DesktopAuth(await root.createTemp('profile_'));
     await _mount(tester, auth);

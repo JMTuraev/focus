@@ -132,10 +132,11 @@ Future<void> showFileMenu(
 
 /// Document or audio row in a message: click downloads, then opens.
 class FileRow extends StatelessWidget {
-  const FileRow({super.key, required this.message, required this.state});
+  const FileRow({super.key, required this.message, required this.state, this.onMessageMenu});
 
   final Message message;
   final AppState state;
+  final void Function(Offset position, BuildContext anchor)? onMessageMenu;
 
   @override
   Widget build(BuildContext context) {
@@ -192,7 +193,13 @@ class FileRow extends StatelessWidget {
         );
 
     return GestureDetector(
-      onSecondaryTapDown: (d) => onMenu(d.globalPosition),
+      onSecondaryTapUp: (d) {
+        if (onMessageMenu != null) {
+          onMessageMenu!(d.globalPosition, context);
+        } else {
+          onMenu(d.globalPosition);
+        }
+      },
       child: MouseRegion(
         cursor: f == null ? MouseCursor.defer : SystemMouseCursors.click,
         child: GestureDetector(

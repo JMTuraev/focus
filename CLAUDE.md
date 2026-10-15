@@ -103,6 +103,8 @@ Breakpoints are in `lib/ui/layout.dart`, modelled on Telegram Desktop:
 - `Runner.rc` `CompanyName` (`com.example`) and `ProductName` (`fokus`) decide the data folder `%APPDATA%\com.example\fokus` (TDLib session, `fokus.sqlite`, keys). Never change them without moving that folder first, or users lose their login and local data.
 - Local install: `tool/install_local.ps1` builds a release, copies it to `%LOCALAPPDATA%\Programs\Focus` and puts a "Focus" shortcut on the desktop.
 
+- Local updates stage the bundle before moving directories and retain `Focus.previous-*` for rollback. They never delete user app support data. `-SkipBuild` requires the build helper's completed, real-Telegram, ordinary Release manifest; mock/test artifacts must not replace the user's installed app.
+
 ## Notes
 - `lib/notes/note_store.dart` (`Notes` table, schema v3); screen and editor in `lib/ui/notes/`. Text notes or checklists (items as JSON via `NoteItemsConverter`), 7 colors (`FokusColors.noteColors`, `NoteColor` order), pinning.
 - The editor saves when it closes, however it is closed (button, Escape, click outside); an empty new note is not saved.
@@ -118,6 +120,7 @@ Breakpoints are in `lib/ui/layout.dart`, modelled on Telegram Desktop:
 - Profile avatars in the chat header and info panel open `profile_photos.dart`. `ChatSource.profilePhotos` returns read-only, cursor-paged photos: user/secret chats use `getUserProfilePhotos`, groups/channels use `searchChatMessages` with `searchMessagesFilterChatPhoto`. Include the current personal/public fallback from full info; it can be absent from user photo history. Keep file state and requests scoped to the source session, discard replies after disposal, and close the gallery when its chat/account changes. No database/schema changes or Telegram read receipts.
 
 ## Sending files and emoji
+- Message context menus use `message_menu.dart`, anchored to the clicked bubble in overlay coordinates and constrained to the history viewport. Prefer space beside the bubble; narrow windows can use space above/below. Keep exactly one menu, close it on chat/session changes, and reject delayed rights results. Local task/note actions always use the clicked message, never the latest/previously selected one. Document rows delegate to the same menu while preserving open/folder/save commands.
 - 📎 or dragging files from Explorer (`desktop_drop`) opens `send_files_dialog.dart`: files, "Rasmlarni siqib yuborish", caption (text already typed in the composer becomes the caption).
 - `lib/data/send_plan.dart` decides how files go: images that fit Telegram's photo limits as `inputMessagePhoto` with width and height, the rest as `inputMessageDocument`; photos first, albums of at most 10 (`sendMessageAlbum`); caption on the first file; captions over 1024 characters go first as a text message.
 - Documents in messages (`FileRow` in `file_actions.dart`): click downloads, then opens with the Windows app; right click: open, show in folder, save elsewhere. Programs and scripts (`isRiskyFile`) ask before opening. Upload progress comes from `remote.uploaded_size`.

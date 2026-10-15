@@ -29,6 +29,7 @@ class ChatStrings {
     required this.newerResult,
     required this.latestMessages,
     required this.messageUnavailable,
+    required this.localSaveFailed,
     required this.profilePhotos,
     required this.noProfilePhotos,
     required this.profilePhotosFailed,
@@ -215,6 +216,7 @@ class ChatStrings {
   final String newerResult;
   final String latestMessages;
   final String messageUnavailable;
+  final String localSaveFailed;
   final String profilePhotos;
   final String noProfilePhotos;
   final String profilePhotosFailed;
@@ -444,6 +446,7 @@ class ChatStrings {
 }
 
 final chatsUz = ChatStrings(
+  localSaveFailed: 'Lokal saqlab bo‘lmadi. Qayta urinib ko‘ring.',
   profilePhotos: 'Profil rasmlari', noProfilePhotos: 'Ko‘rish mumkin bo‘lgan profil rasmi yo‘q.',
   profilePhotosFailed: 'Rasmlarni yuklab bo‘lmadi.', profilePhotoUnavailable: 'Bu rasmni ochib bo‘lmadi.',
   previousPhoto: 'Oldingi rasm (←)', nextPhoto: 'Keyingi rasm (→)',
@@ -611,6 +614,7 @@ final chatsUz = ChatStrings(
 );
 
 final chatsRu = ChatStrings(
+  localSaveFailed: 'Не удалось сохранить локально. Попробуйте ещё раз.',
   profilePhotos: 'Фотографии профиля', noProfilePhotos: 'Нет доступных фотографий профиля.',
   profilePhotosFailed: 'Не удалось загрузить фотографии.', profilePhotoUnavailable: 'Не удалось открыть фотографию.',
   previousPhoto: 'Предыдущее фото (←)', nextPhoto: 'Следующее фото (→)',
@@ -778,6 +782,7 @@ final chatsRu = ChatStrings(
 );
 
 final chatsEn = ChatStrings(
+  localSaveFailed: 'Could not save locally. Please try again.',
   profilePhotos: 'Profile photos', noProfilePhotos: 'No profile photos are available.',
   profilePhotosFailed: 'Could not load photos.', profilePhotoUnavailable: 'Could not open this photo.',
   previousPhoto: 'Previous photo (←)', nextPhoto: 'Next photo (→)',

@@ -73,6 +73,10 @@ try {
     $env:TEMP = Join-Path $projectRoot 'build/toolchain/temp'
     $env:TMP = $env:TEMP
     New-Item -ItemType Directory -Path $env:TEMP -Force | Out-Null
+    $metadataPath = Join-Path $buildRoot "runner/$Mode/focus-build.json"
+    if (Test-Path -LiteralPath (Split-Path $metadataPath)) {
+        @{ status = 'building' } | ConvertTo-Json | Set-Content -LiteralPath $metadataPath -Encoding utf8
+    }
     $flutterArgs = @('build', 'windows', "--$($Mode.ToLowerInvariant())", '--no-pub', '--config-only', '--target', $Target,
         "--dart-define=USE_MOCK=$((-not $RealTelegram).ToString().ToLowerInvariant())")
     if ($DefineFile) { $flutterArgs += "--dart-define-from-file=$DefineFile" }
@@ -101,6 +105,9 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Windows compilation failed.' }
     $executable = Join-Path $buildRoot "runner/$Mode/focus.exe"
     if (-not (Test-Path -LiteralPath $executable)) { throw 'Windows executable is missing.' }
+    @{ status = 'complete'; mode = $Mode; target = $Target; realTelegram = $RealTelegram.IsPresent;
+       testRunner = ($testRunner -eq 'ON'); builtAt = [DateTime]::UtcNow.ToString('o') } |
+        ConvertTo-Json | Set-Content -LiteralPath (Join-Path (Split-Path $executable) 'focus-build.json') -Encoding utf8
     Write-Host "Built: $executable"
 } finally {
     Pop-Location

@@ -60,6 +60,12 @@ flutter run -d windows --dart-define-from-file=secrets.json
 
 Chat sarlavhasidagi yoki ma’lumot panelidagi avatarni bosing. Katta rasm ochiladi; yon tugmalar yoki ←/→ bilan tarix bo‘ylab yuring, sichqoncha g‘ildiragi bilan kattalashtiring. Escape yoki × oynani yopadi. Telegram ruxsat bergan shaxsiy profil rasmlari va guruh/kanal rasmlari tarixi ko‘rsatiladi; maxfiylik bilan yashirilgan rasmlar olinmaydi. Akkaunt yoki chat almashganda rasm oynasi yopiladi. Animatsiyali avatarlarning statik rasmi ko‘rsatiladi.
 
+Xabarni o‘ng bosing: reply/forward va fayl amallari bilan birga **Vazifa qilish** va **Eslatmaga** chiqadi. Aynan bosilgan xabar, chat havolasi va matni lokal bazaga saqlanadi; Telegramga xabar yuborilmaydi. Menyu bo‘sh joy bo‘lsa xabar yonida, tor oynada tepa/pastida ochiladi va chat chegarasida qoladi.
+
+## Lokal yangilash
+
+`tool/install_local.ps1` haqiqiy Telegram Release buildini o‘rnatadi. Avval Focusni yoping. Eski ilova `Programs/Focus.previous-*` papkasida qaytarish uchun saqlanadi; app support bazasi yoki login fayllari o‘chirilmaydi. Nusxalash tugagach papka almashtiriladi. `-SkipBuild` faqat `tool/build_windows.ps1 -Mode Release -RealTelegram -DefineFile secrets.json` bilan muvaffaqiyatli yig‘ilgan oddiy build uchun: installer `focus-build.json` orqali mock/test/tugallanmagan buildni rad etadi. Eski umumiy biznes bazasini akkauntga import qilish ilovadagi alohida egalik tanlovi orqali bajariladi; original fayllar saqlanadi.
+
 ## Tuzilma
 
 ```

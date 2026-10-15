@@ -4,6 +4,20 @@ Sana: 2026-yil 11-oktabr, Asia/Tashkent. Maqsad: Telegram kabi tanish chatni biz
 
 ## Git va yetkazish
 
+### 15-oktabr: xabar menyusi va lokal yangilash
+
+Foydalanuvchi bergan skrinshotdagi menyuning xabar ustiga tushishi o‘rnatilgan ilovada ham tasdiqlandi. Yangi `message_menu.dart` haqiqiy bubble va history viewportini overlay koordinatalariga o‘tkazadi: joy bo‘lsa yon tomonda, tor oynada tepa/pastda ochadi va chat chegarasida ushlab turadi. Tanlangan bubble ajratiladi; bitta menyu ochiladi, chat/account almashishida yopiladi va eski rights javobi tashlanadi. SelectionArea menyusi bilan ustma-ust chiqish to‘xtatilgan. Ranglar mavjud palitradan, tarjimalar uch tilda.
+
+Menyuga **Vazifa qilish** va **Eslatmaga** qo‘shildi. Aynan o‘ng bosilgan xabar olinadi; avval tanlangan/oxirgi xabar aralashmaydi. Telegram rights yuklanmasa ham lokal amallar mavjud. Hujjat satri shu menyuga ulanadi; fayl ochish/papkada ko‘rsatish/saqlash va Fayllarga qo‘shish saqlangan. Matnsiz media eslatmasi bo‘sh yozuvga aylanmaydi. Ma’lumot schema 8 va akkauntga tegishli bazada saqlanadi; Telegramga yuborish/read amali qo‘shilmagan.
+
+**269/269 umumiy test o‘tdi**. Yangi menyu uchun 9 test: aynan bosilgan xabar, lokal task/note havolalari, offline rights, hujjat menyusi, kechikkan javob, Escape, offset overlay, uch tilda 420×560 tor oyna va chegaralar. Dastlabki regressiya sinovi mock hujjatda `file` null bo‘lsa Fayllarga bandi yo‘qolishini aniqladi; shart tuzatilib, butun suite qayta o‘tdi. Windows oynasida **5 integration ssenariysi o‘tdi**, jumladan menyudan haqiqiy vaqtinchalik SQLite bazaga task/note saqlash (driver +7 setup/teardown bilan, exit 0). User bazasida test task/note yaratilmagan.
+
+Installer endi paketni oldindan nusxalab, papkalarni almashtiradi va oldingi EXE/DLL/assets nusxasini `Focus.previous-*` da saqlaydi. Xatoda papka qaytariladi; mavjud yorliq saqlanadi. `-SkipBuild` faqat muvaffaqiyatli oddiy, real-Telegram Release manifesti bilan ishlaydi; mock/test yoki tugallanmagan build rad etiladi. App support ma’lumotlari installer tomonidan o‘chirilmaydi.
+
+**Foydalanuvchining aniq o‘rnatish/run ruxsati bilan bajarildi:** oddiy `lib/main.dart`, `USE_MOCK=false` Release yig‘ildi; secrets qiymatlari chiqarilmadi. Eski Focus odatiy Alt+F4 bilan yopildi. Support papkasining **774 fayli** lokal git-ignored `build/audit/upgrade-*/data` nusxasiga ko‘chirilib, har bir SHA-256 tekshirildi. Installer eski ilova papkasini saqlab, yangi buildni o‘rnatdi. O‘rnatilgan EXE, AOT `data/app.so` va TDLib SHA-256 qiymatlari yig‘ilgan bundle bilan bir xil. Yangi ilova ochilishidan oldin **774 asl faylning hammasi hash bo‘yicha o‘zgarmagani** yana tekshirildi.
+
+Yangi ilova mavjud Telegram sessiyasini ochdi va **eski lokal ma’lumotlar egaligi tanlovini kutmoqda**: eski umumiy baza bor, avval akkaunt papkalari bo‘lmagan. Import/alohida saqlash avtomatik tanlanmadi. Egasiga tegishlilik bo‘yicha savol yuborilgan, javob kutilmoqda. Shu sabab haqiqiy akkauntdagi profil rasmlari va yangilangan menyuning jonli tekshiruvi hali tugamagan. Bu bo‘limdagi 5 integration ssenariysi sintetik bazalarda bajarilgan. Asl baza, kalitlar va eski ilova nusxasi saqlangan; import faqat aniq tanlovdan keyin. AllClubs/Xposter/Firebase deploy yoki ma’lumotlari bilan amal bajarilmagan.
+
 ### 15-oktabr: profil rasmlari
 
 Chat sarlavhasi va mijoz ma’lumot panelidagi avatar endi katta rasm oynasini ochadi. Ko‘rinadigan rasmlar tarixi, joriy personal/public fallback rasmi, sahifalash, oldingi/keyingi tugmalar va ←/→, 6× gacha kattalashtirish, Escape/× bilan yopish qo‘shildi. Rasmi yo‘q, tarmoq xatosi va qayta yuklash holatlari uch tilda bor. Tor oynada oynaning yopish tugmasi Windows title baridan pastda qoladi. Animatsiyali avatarlar hozir statik rasm sifatida ochiladi.

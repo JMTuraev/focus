@@ -21,6 +21,7 @@ import 'send_files_dialog.dart';
 import 'chat_search.dart';
 import 'forward_dialog.dart';
 import 'profile_photos.dart';
+import 'message_menu.dart';
 
 class ChatView extends StatefulWidget {
   const ChatView({super.key, required this.state, required this.infoActive, required this.onInfo, this.onBack});
@@ -57,6 +58,10 @@ class _ChatViewState extends State<ChatView> {
   int _anchorEpoch = 0;
   Timer? _highlightTimer;
   final _historyCenter = GlobalKey();
+  final _historyViewport = GlobalKey();
+  ModalRoute<dynamic>? _messageMenuRoute;
+  String? _menuMessageId;
+  int _menuEpoch = 0;
 
   AppState get s => widget.state;
 
@@ -70,12 +75,14 @@ class _ChatViewState extends State<ChatView> {
   @override
   void didUpdateWidget(ChatView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.state, widget.state)) _closeMessageMenu();
     _syncDraft();
   }
 
   void _syncDraft() {
     final id = s.activeChatId;
     if (_composerChatId != id) {
+      _closeMessageMenu();
       _jumpEpoch++;
       _searchOpen = false;
       _historyAnchor = null;
@@ -164,6 +171,7 @@ class _ChatViewState extends State<ChatView> {
 
   @override
   void dispose() {
+    _closeMessageMenu();
     _highlightTimer?.cancel();
     _input.dispose();
     _focus.dispose();
@@ -206,45 +214,79 @@ class _ChatViewState extends State<ChatView> {
 
   /// Right click on a message: copy, edit (own text, if Telegram allows),
   /// delete. Rights come from TDLib (getMessageProperties).
-  Future<void> _messageMenu(Message m, Offset pos) async {
+  void _closeMessageMenu() {
+    _menuEpoch++;
+    _menuMessageId = null;
+    final route = _messageMenuRoute;
+    _messageMenuRoute = null;
+    if (route == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final navigator = route.navigator;
+      if (route.isActive && navigator != null && navigator.mounted) {
+        navigator.removeRoute(route);
+      }
+    });
+  }
+
+  Future<void> _saveLocalMessage(Message m, {required bool task}) async {
+    final state = s;
+    final chatId = state.activeChatId;
+    if (chatId == null) return;
+    final t = context.s.chats;
+    try {
+      final result = task ? await state.taskFromMessage(m) : await state.noteFromMessage(m);
+      if (result == null || !mounted || !identical(state, s) || !_inChat(chatId)) return;
+      final what = m.text.isEmpty ? (m.fileName ?? m.mediaLabel ?? t.messageLower) : m.text;
+      _toast(task ? t.taskCreated(_short(what)) : t.savedToNotes(_short(what)),
+          action: task ? t.goToTasks : t.openNotes, onAction: () {
+            if (mounted && identical(state, s)) state.openModule(task ? Module.tasks : Module.notes);
+          });
+    } catch (_) {
+      if (mounted && identical(state, s) && _inChat(chatId)) _toast(t.localSaveFailed);
+    }
+  }
+
+  Future<void> _messageMenu(Message m, Offset pos, BuildContext anchor) async {
     if (m.pending || m.service) return;
+    if (_messageMenuRoute?.isActive == true) return;
+    final state = s;
     final chat = s.activeChat;
     if (chat == null || !_inChat(chat.id)) return;
+    final epoch = ++_menuEpoch;
     final t = context.s.chats;
-    final c = context.fc;
     var rights = const MessageRights();
     try {
       rights = await s.source.rightsOf(chat.id, m.id);
     } catch (_) {}
-    if (!mounted || !_inChat(chat.id)) return;
+    if (!mounted || !identical(state, s) || epoch != _menuEpoch || !_inChat(chat.id) || !anchor.mounted) return;
     final plainText = m.fileName == null && m.info == null && m.media == null;
-    final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
-    PopupMenuItem<String> item(String value, IconData icon, String label, {Color? color}) => PopupMenuItem(
-          value: value,
-          height: 38,
-          child: Row(
-            children: [
-              Icon(icon, size: 18, color: color ?? c.icon),
-              const SizedBox(width: 10),
-              Text(label, style: TextStyle(color: color ?? c.text, fontSize: 14)),
-            ],
-          ),
-        );
+    MessageMenuAction item(String value, IconData icon, String label, {bool destructive = false}) =>
+        MessageMenuAction(value, icon, label, destructive: destructive);
     final items = [
       if (rights.canReply && chat.canSend) item('reply', Icons.reply, t.replyMessage),
       if (rights.canForward) item('forward', Icons.forward, t.forwardMessage),
       if (m.text.isNotEmpty) item('copy', Icons.copy_outlined, t.copyMessage),
+      item('task', Icons.checklist, t.toTask),
+      item('note', Icons.sticky_note_2_outlined, t.toNote),
+      if (m.file != null || m.fileName != null || m.info != null || m.media != null)
+        item('files', Icons.bookmark_add_outlined, t.saveToFiles),
+      if (m.file?.path != null) ...[
+        item('open-file', Icons.open_in_new, context.s.common.open),
+        item('file-folder', Icons.folder_open_outlined, t.showInFolder),
+        item('save-file', Icons.save_alt, t.saveAs),
+      ],
       if (rights.canEdit && plainText && chat.canSend) item('edit', Icons.edit_outlined, t.editMessage),
-      if (rights.canDelete) item('delete', Icons.delete_outline, t.deleteMessage, color: c.danger),
+      if (rights.canDelete) item('delete', Icons.delete_outline, t.deleteMessage, destructive: true),
     ];
     if (items.isEmpty) return;
-    final choice = await showMenu<String>(
-      context: context,
-      color: c.panel,
-      position: RelativeRect.fromRect(pos & const Size(1, 1), Offset.zero & overlay.size),
-      items: items,
-    );
-    if (!mounted || !_inChat(chat.id)) return;
+    final viewport = _historyViewport.currentContext;
+    if (viewport == null) return;
+    ContextMenuController.removeAny();
+    setState(() => _menuMessageId = m.id);
+    final choice = await showMessageMenu(context, anchor: anchor, viewport: viewport, pointer: pos,
+      actions: items, onRoute: (route) => _messageMenuRoute = route);
+    if (!mounted || !identical(state, s) || epoch != _menuEpoch || !_inChat(chat.id)) return;
+    setState(() { _menuMessageId = null; _messageMenuRoute = null; });
     switch (choice) {
       case 'reply':
         if (_editing != null) _cancelEdit();
@@ -259,16 +301,32 @@ class _ChatViewState extends State<ChatView> {
       case 'forward':
         final source = s.source;
         final destination = await showForwardDialog(context, source, m);
-        if (destination == null || !mounted) return;
+        if (destination == null || !mounted || !identical(state, s) || !_inChat(chat.id)) return;
         try {
           await source.forwardMessages(destination, chat.id, [m.id]);
-          if (mounted) s.openChat(destination);
+          if (mounted && identical(state, s)) state.openChat(destination);
         } catch (_) {
-          if (mounted) _toast(t.forwardFailed);
+          if (mounted && identical(state, s)) _toast(t.forwardFailed);
         }
       case 'copy':
         await Clipboard.setData(ClipboardData(text: m.text));
         if (mounted) _toast(t.copied);
+      case 'task':
+        await _saveLocalMessage(m, task: true);
+      case 'note':
+        await _saveLocalMessage(m, task: false);
+      case 'files':
+        final added = state.saveToFiles(m);
+        final what = m.fileName ?? m.mediaLabel ?? t.messageLower;
+        _toast(added ? t.savedToFiles(_short(what)) : t.alreadyInFiles, action: t.openFiles, onAction: () {
+          if (mounted && identical(state, s)) state.openModule(Module.files);
+        });
+      case 'open-file':
+        await openDownloadedFile(context, m.file!.path!, m.fileName ?? context.s.common.file);
+      case 'file-folder':
+        await showInFolder(m.file!.path!);
+      case 'save-file':
+        await saveFileAs(context, m.file!.path!, m.fileName ?? context.s.common.file);
       case 'edit':
         _startEdit(m);
       case 'delete':
@@ -515,19 +573,11 @@ class _ChatViewState extends State<ChatView> {
           text: target?.text ?? '',
           onTask: target == null
               ? null
-              : () async {
-                  await s.taskFromMessage(target);
-                  final what = target.text.isEmpty ? (target.fileName ?? target.mediaLabel ?? t.messageLower) : target.text;
-                  _toast(t.taskCreated(_short(what)), action: t.goToTasks, goTo: Module.tasks);
-                },
+              : () => _saveLocalMessage(target, task: true),
           onCalendar: target == null ? null : () => _toCalendar(target),
           onNote: target == null
               ? null
-              : () async {
-                  await s.noteFromMessage(target);
-                  final what = target.text.isEmpty ? (target.fileName ?? target.mediaLabel ?? t.messageLower) : target.text;
-                  _toast(t.savedToNotes(_short(what)), action: t.openNotes, goTo: Module.notes);
-                },
+              : () => _saveLocalMessage(target, task: false),
           onFiles: target == null
               ? null
               : () {
@@ -538,6 +588,7 @@ class _ChatViewState extends State<ChatView> {
         ),
         Expanded(
           child: CustomPaint(
+            key: _historyViewport,
             painter: WallpaperPainter.of(c),
             child: LayoutBuilder(
               builder: (context, box) {
@@ -563,9 +614,9 @@ class _ChatViewState extends State<ChatView> {
                     groupStyle: groupStyle,
                     first: e.first,
                     last: e.last,
-                    selected: s.selectedMessageId == m.id || _highlight == m.id,
+                    selected: s.selectedMessageId == m.id || _highlight == m.id || _menuMessageId == m.id,
                     onTap: () => s.selectMessage(m.id),
-                    onMenu: (pos) => _messageMenu(m, pos),
+                    onMenu: (pos, anchor) => _messageMenu(m, pos, anchor),
                     onAddMeeting: () => _toCalendar(m),
                     onOpenReply: m.reply == null || m.reply!.messageId == '0' ? null : () => _jumpTo(m.reply!.chatId, m.reply!.messageId),
                   );
@@ -953,7 +1004,7 @@ class _Bubble extends StatelessWidget {
   final VoidCallback onTap;
 
   /// Right click: copy, edit, delete.
-  final void Function(Offset globalPosition)? onMenu;
+  final void Function(Offset globalPosition, BuildContext anchor)? onMenu;
   final VoidCallback onAddMeeting;
   final VoidCallback? onOpenReply;
 
@@ -1090,7 +1141,7 @@ class _Bubble extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(color: c.accentText, fontSize: 13, fontWeight: FontWeight.w600))),
             if (m.reply != null) _ReplyPreview(reply: m.reply!, onTap: onOpenReply),
-            if (m.fileName != null) FileRow(message: m, state: state),
+            if (m.fileName != null) FileRow(message: m, state: state, onMessageMenu: onMenu),
             if (info != null)
               MessageMedia(message: m, state: state, maxWidth: width - 22)
             else if (m.media != null)
@@ -1110,14 +1161,15 @@ class _Bubble extends StatelessWidget {
       );
     }
 
-    final bubble = ConstrainedBox(
+    final bubble = Builder(builder: (anchor) => ConstrainedBox(
       constraints: BoxConstraints(maxWidth: width),
       child: GestureDetector(
+        key: ValueKey('message-bubble:${m.id}'),
         onTap: onTap,
-        onSecondaryTapDown: onMenu == null ? null : (d) => onMenu?.call(d.globalPosition),
+        onSecondaryTapUp: onMenu == null ? null : (d) => onMenu?.call(d.globalPosition, anchor),
         child: MouseRegion(cursor: SystemMouseCursors.click, child: content),
       ),
-    );
+    ));
 
     return Padding(
       padding: EdgeInsets.only(top: first ? 3 : 1, bottom: last ? 3 : 1),
