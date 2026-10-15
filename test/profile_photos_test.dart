@@ -283,7 +283,16 @@ void main() {
                 photos: [_uiPhoto(1), _uiPhoto(2)], total: 3, nextCursor: '2')
             : ProfilePhotoPage(photos: [_uiPhoto(2), _uiPhoto(3)], total: 3);
       await _pump(tester, source, panel: panel);
-      await tester.tap(find.byType(ProfilePhotoButton));
+      final semantics = tester.ensureSemantics();
+      try {
+        final node = tester.getSemantics(find.byType(ProfilePhotoButton));
+        final button = node.getSemanticsData();
+        expect(button.flagsCollection.isButton, isTrue);
+        expect(button.hasAction(ui.SemanticsAction.tap), isTrue);
+        node.owner!.performAction(node.id, ui.SemanticsAction.tap);
+      } finally {
+        semantics.dispose();
+      }
       await tester.pumpAndSettle();
       expect(find.text('1/3'), findsOneWidget);
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);

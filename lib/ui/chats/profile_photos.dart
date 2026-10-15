@@ -67,14 +67,24 @@ class _ProfilePhotoButtonState extends State<ProfilePhotoButton> {
   }
 
   @override
-  Widget build(BuildContext context) => Tooltip(
+  Widget build(BuildContext context) {
+    final enabled = widget.chat.kind != ChatKind.saved;
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: context.s.chats.profilePhotos,
+      onTap: enabled ? _open : null,
+      child: ExcludeSemantics(
+          child: Tooltip(
         message: context.s.chats.profilePhotos,
         child: InkWell(
-            onTap: widget.chat.kind == ChatKind.saved ? null : _open,
+            onTap: enabled ? _open : null,
             customBorder: const CircleBorder(),
             child:
                 ChatAvatar(widget.chat, size: widget.size, showOnline: false)),
-      );
+      )),
+    );
+  }
 }
 
 class ProfilePhotoViewer extends StatefulWidget {
@@ -262,7 +272,8 @@ class _ProfilePhotoViewerState extends State<ProfilePhotoViewer> {
                                   child: _loading
                                       ? const CircularProgressIndicator()
                                       : _pageFailed
-                                          ? const Icon(Icons.broken_image_outlined)
+                                          ? const Icon(
+                                              Icons.broken_image_outlined)
                                           : Text(t.noProfilePhotos,
                                               textAlign: TextAlign.center))
                               : ListenableBuilder(
