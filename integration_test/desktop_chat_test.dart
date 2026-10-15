@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
@@ -20,6 +21,7 @@ import 'package:fokus/state/app_state.dart';
 import 'package:fokus/state/settings.dart';
 import 'package:fokus/ui/chats/chat_search.dart';
 import 'package:fokus/ui/chats/chat_view.dart';
+import 'package:fokus/ui/chats/profile_photos.dart';
 import 'package:fokus/ui/shell.dart';
 import 'package:fokus/l10n/l10n.dart';
 
@@ -45,8 +47,10 @@ class _DesktopAuth extends MockAuth {
   Future<ChatSession> openSession() async {
     final storage = AccountStorage(root, account);
     final db = await storage.open();
+    final photo = File('${root.path}/synthetic_profile.png');
+    await photo.writeAsBytes(base64Decode('iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAWSURBVChTY3DMfPgfH2ZAF0DHw0MBAHmlooHA5OB1AAAAAElFTkSuQmCC'));
     final session = _NativeSession(
-      source: MockChatSource(),
+      source: _DesktopSource(photo.path),
       store: await LocalStore.openDb(db),
       db: db,
       accountStorage: storage,
@@ -54,6 +58,15 @@ class _DesktopAuth extends MockAuth {
     sessions.add(session);
     return session;
   }
+}
+
+class _DesktopSource extends MockChatSource {
+  _DesktopSource(this.photoPath);
+  final String photoPath;
+
+  @override
+  Future<ProfilePhotoPage> profilePhotos(String chatId, {String cursor = ''}) async => ProfilePhotoPage(
+    photos: [for (var i = 1; i <= 2; i++) ProfilePhoto(id: '$i', media: MediaInfo(kind: MediaKind.photo, filePath: photoPath))], total: 2);
 }
 
 class _NativeSession extends ChatSession {
@@ -113,7 +126,7 @@ void main() {
     await windowManager.ensureInitialized();
     await windowManager.waitUntilReadyToShow(
       const WindowOptions(
-          title: 'Focus',
+          title: 'Focus Tests',
           size: Size(1200, 780),
           minimumSize: Size(420, 560),
           titleBarStyle: TitleBarStyle.hidden),
@@ -221,6 +234,28 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
     await tester.pumpAndSettle();
+  });
+
+  testWidgets('native profile photos open, navigate and close on account switch', (tester) async {
+    final auth = _DesktopAuth(await root.createTemp('profile_'));
+    await _mount(tester, auth);
+    await tester.tap(find.byType(ProfilePhotoButton).first);
+    await tester.pumpAndSettle();
+    expect(find.byType(ProfilePhotoViewer), findsOneWidget);
+    expect(find.text('1/2'), findsOneWidget);
+    expect(find.text(S.uz.chats.profilePhotoUnavailable), findsNothing);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pumpAndSettle();
+    expect(find.text('2/2'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.byType(ProfilePhotoViewer), findsNothing);
+    await tester.tap(find.byType(ProfilePhotoButton).first);
+    await tester.pumpAndSettle();
+    auth.switchTo('22');
+    await _settleAccount(tester);
+    expect(find.byType(ProfilePhotoViewer), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('native Ctrl+F search jumps, navigates and closes with Escape',

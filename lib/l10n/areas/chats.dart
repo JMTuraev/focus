@@ -29,6 +29,12 @@ class ChatStrings {
     required this.newerResult,
     required this.latestMessages,
     required this.messageUnavailable,
+    required this.profilePhotos,
+    required this.noProfilePhotos,
+    required this.profilePhotosFailed,
+    required this.profilePhotoUnavailable,
+    required this.previousPhoto,
+    required this.nextPhoto,
     required this.draft,
     required this.actionTyping,
     required this.actionVoice,
@@ -209,6 +215,12 @@ class ChatStrings {
   final String newerResult;
   final String latestMessages;
   final String messageUnavailable;
+  final String profilePhotos;
+  final String noProfilePhotos;
+  final String profilePhotosFailed;
+  final String profilePhotoUnavailable;
+  final String previousPhoto;
+  final String nextPhoto;
 
   /// What the other side is doing (TDLib chat actions), shown as the status.
   final String actionTyping;
@@ -432,6 +444,9 @@ class ChatStrings {
 }
 
 final chatsUz = ChatStrings(
+  profilePhotos: 'Profil rasmlari', noProfilePhotos: 'Ko‘rish mumkin bo‘lgan profil rasmi yo‘q.',
+  profilePhotosFailed: 'Rasmlarni yuklab bo‘lmadi.', profilePhotoUnavailable: 'Bu rasmni ochib bo‘lmadi.',
+  previousPhoto: 'Oldingi rasm (←)', nextPhoto: 'Keyingi rasm (→)',
   replyMessage: 'Javob berish', cancelReply: 'Javobni bekor qilish (Esc)',
   forwardMessage: 'Boshqa chatga yuborish', forwardedFrom: (name) => '$name dan yuborilgan',
   forwardFailed: 'Xabarni boshqa chatga yuborib bo‘lmadi.',
@@ -596,6 +611,9 @@ final chatsUz = ChatStrings(
 );
 
 final chatsRu = ChatStrings(
+  profilePhotos: 'Фотографии профиля', noProfilePhotos: 'Нет доступных фотографий профиля.',
+  profilePhotosFailed: 'Не удалось загрузить фотографии.', profilePhotoUnavailable: 'Не удалось открыть фотографию.',
+  previousPhoto: 'Предыдущее фото (←)', nextPhoto: 'Следующее фото (→)',
   replyMessage: 'Ответить', cancelReply: 'Отменить ответ (Esc)',
   forwardMessage: 'Переслать', forwardedFrom: (name) => 'Переслано от $name',
   forwardFailed: 'Не удалось переслать сообщение.',
@@ -760,6 +778,9 @@ final chatsRu = ChatStrings(
 );
 
 final chatsEn = ChatStrings(
+  profilePhotos: 'Profile photos', noProfilePhotos: 'No profile photos are available.',
+  profilePhotosFailed: 'Could not load photos.', profilePhotoUnavailable: 'Could not open this photo.',
+  previousPhoto: 'Previous photo (←)', nextPhoto: 'Next photo (→)',
   replyMessage: 'Reply', cancelReply: 'Cancel reply (Esc)',
   forwardMessage: 'Forward', forwardedFrom: (name) => 'Forwarded from $name',
   forwardFailed: 'Could not forward the message.',

@@ -50,6 +50,17 @@ class FoundFile {
 /// Where chats and messages come from: mock data or TDLib.
 /// Notifies listeners whenever chats or loaded messages change.
 abstract class ChatSource extends ChangeNotifier {
+  /// Visible profile photos only. The opaque cursor is scoped to this chat.
+  Future<ProfilePhotoPage> profilePhotos(String chatId, {String cursor = ''}) async =>
+      const ProfilePhotoPage(photos: [], total: 0);
+
+  ProfilePhoto? currentProfilePhoto(String chatId) => null;
+
+  /// Refresh download progress from the session's file cache.
+  ProfilePhoto refreshProfilePhoto(ProfilePhoto photo) => photo;
+
+  Future<void> downloadProfilePhoto(int fileId) async => download(fileId, priority: 32);
+
   Future<void> sendReply(String chatId, String text, String messageId) =>
       Future.error(UnsupportedError('Replies are not supported by this source'));
   Future<void> sendFilesReply(String chatId, List<OutgoingFile> files, String messageId,

@@ -359,6 +359,112 @@ class TdChatSource extends ChatSource {
 
   // ------------------------------------------------------------------ chats
 
+  ProfilePhoto? _profilePhoto(TdObject? photo) {
+    if (photo == null) return null;
+    final (preview, full) = _photoSizes(photo['sizes'] as List? ?? const []);
+    final small = preview?['photo'] as TdObject? ?? photo['small'] as TdObject?;
+    final big = full?['photo'] as TdObject? ?? photo['big'] as TdObject? ?? small;
+    if (big == null || big['id'] is! int) return null;
+    final p = small == null ? null : _file(small);
+    final f = _file(big);
+    final date = photo['added_date'] as int? ?? 0;
+    return ProfilePhoto(
+      id: '${photo['id'] ?? 'file:${big['id']}'}',
+      date: date > 0 ? DateTime.fromMillisecondsSinceEpoch(date * 1000) : null,
+      media: MediaInfo(kind: MediaKind.photo, mini: _mini(photo),
+          width: full?['width'] as int? ?? 0, height: full?['height'] as int? ?? 0,
+          previewFileId: small?['id'] as int?, previewPath: p?.path,
+          fileId: big['id'] as int, filePath: f.path,
+          progress: f.progress, downloading: f.active),
+    );
+  }
+
+  @override
+  ProfilePhoto? currentProfilePhoto(String chatId) =>
+      _disposed ? null : _profilePhoto(_chats[int.tryParse(chatId)]?['photo'] as TdObject?);
+
+  @override
+  ProfilePhoto refreshProfilePhoto(ProfilePhoto photo) {
+    if (_disposed) return photo;
+    final m = photo.media;
+    final full = _files[m.fileId];
+    return ProfilePhoto(id: photo.id, date: photo.date,
+      media: MediaInfo(kind: MediaKind.photo, width: m.width, height: m.height, mini: m.mini,
+        previewFileId: m.previewFileId, previewPath: _files[m.previewFileId]?.path ?? m.previewPath,
+        fileId: m.fileId, filePath: full?.path ?? m.filePath,
+        progress: full?.progress ?? m.progress, downloading: full?.active ?? m.downloading));
+  }
+
+  @override
+  Future<void> downloadProfilePhoto(int fileId) async {
+    if (_disposed || _files[fileId]?.path != null) return;
+    final file = await td.query({'@type': 'downloadFile', 'file_id': fileId,
+      'priority': 32, 'offset': 0, 'limit': 0, 'synchronous': true}, timeout: const Duration(minutes: 2));
+    if (_disposed) return;
+    if (file['id'] != fileId) throw StateError('Unexpected profile photo file');
+    final state = _stateOf(file);
+    _files[fileId] = state;
+    _changed();
+    if (state.path == null) throw StateError('Profile photo download incomplete');
+  }
+
+  @override
+  Future<ProfilePhotoPage> profilePhotos(String chatId, {String cursor = ''}) async {
+    const empty = ProfilePhotoPage(photos: [], total: 0);
+    if (_disposed) return empty;
+    final id = int.tryParse(chatId);
+    final chat = _chats[id];
+    if (chat == null || id == null) return empty;
+    final type = chat['type'] as TdObject;
+    final private = type['@type'] == 'chatTypePrivate' || type['@type'] == 'chatTypeSecret';
+    TdObject? current;
+    if (cursor.isEmpty) {
+      final TdObject info;
+      if (private) {
+        info = await td.query({'@type': 'getUserFullInfo', 'user_id': type['user_id']});
+        current = (info['personal_photo'] ?? info['photo'] ?? info['public_photo']) as TdObject?;
+      } else if (type['@type'] == 'chatTypeSupergroup') {
+        info = await td.query({'@type': 'getSupergroupFullInfo', 'supergroup_id': type['supergroup_id']});
+        current = info['photo'] as TdObject?;
+      } else if (type['@type'] == 'chatTypeBasicGroup') {
+        info = await td.query({'@type': 'getBasicGroupFullInfo', 'basic_group_id': type['basic_group_id']});
+        current = info['photo'] as TdObject?;
+      } else {
+        return empty;
+      }
+      if (_disposed) return empty;
+    }
+    final TdObject result;
+    final List<TdObject> raw;
+    final String next;
+    if (private) {
+      final offset = int.tryParse(cursor) ?? 0;
+      result = await td.query({'@type': 'getUserProfilePhotos', 'user_id': type['user_id'], 'offset': offset, 'limit': 20});
+      if (_disposed) return empty;
+      raw = (result['photos'] as List? ?? const []).cast<TdObject>();
+      final end = offset + raw.length;
+      next = raw.isNotEmpty && end < (result['total_count'] as int? ?? end) ? '$end' : '';
+    } else {
+      result = await td.query({'@type': 'searchChatMessages', 'chat_id': id, 'query': '',
+        'from_message_id': int.tryParse(cursor) ?? 0, 'offset': 0, 'limit': 20,
+        'filter': {'@type': 'searchMessagesFilterChatPhoto'}});
+      if (_disposed) return empty;
+      raw = [for (final m in (result['messages'] as List? ?? const []).cast<TdObject>())
+        if ((m['content'] as TdObject?)?['photo'] case final TdObject photo) photo];
+      final from = result['next_from_message_id'] as int? ?? 0;
+      next = from == 0 || '$from' == cursor ? '' : '$from';
+    }
+    final photos = <ProfilePhoto>[];
+    final first = _profilePhoto(current) ?? (cursor.isEmpty ? currentProfilePhoto(chatId) : null);
+    if (first != null) photos.add(first);
+    for (final photo in raw) {
+      final mapped = _profilePhoto(photo);
+      if (mapped != null && !photos.any((p) => p.id == mapped.id || p.media.fileId == mapped.media.fileId)) photos.add(mapped);
+    }
+    final extra = first != null && !raw.any((p) => '${p['id']}' == first.id) ? 1 : 0;
+    return ProfilePhotoPage(photos: photos, total: (result['total_count'] as int? ?? raw.length) + extra, nextCursor: next);
+  }
+
   @override
   bool get loading => _loading;
 

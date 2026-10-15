@@ -20,6 +20,7 @@ import 'message_text.dart';
 import 'send_files_dialog.dart';
 import 'chat_search.dart';
 import 'forward_dialog.dart';
+import 'profile_photos.dart';
 
 class ChatView extends StatefulWidget {
   const ChatView({super.key, required this.state, required this.infoActive, required this.onInfo, this.onBack});
@@ -494,6 +495,7 @@ class _ChatViewState extends State<ChatView> {
       children: [
         _Header(
           chat: chat,
+          source: s.source,
           infoOpen: widget.infoActive,
           onInfo: widget.onInfo,
           onBack: widget.onBack,
@@ -758,9 +760,10 @@ class _EmojiPanel extends StatelessWidget {
 
 class _Header extends StatelessWidget {
   const _Header(
-      {required this.chat, required this.infoOpen, required this.onInfo, required this.onCall, required this.onSearch, this.onBack});
+      {required this.chat, required this.source, required this.infoOpen, required this.onInfo, required this.onCall, required this.onSearch, this.onBack});
 
   final Chat chat;
+  final ChatSource source;
   final bool infoOpen;
   final VoidCallback onInfo;
   final VoidCallback onCall;
@@ -778,7 +781,7 @@ class _Header extends StatelessWidget {
         children: [
           if (onBack != null)
             IconButton(tooltip: context.s.common.back, onPressed: onBack, icon: Icon(Icons.arrow_back, size: 20, color: c.icon)),
-          ChatAvatar(chat, size: 40, showOnline: false),
+          ProfilePhotoButton(chat: chat, source: source, size: 40),
           const SizedBox(width: 12),
           Expanded(
             child: Column(

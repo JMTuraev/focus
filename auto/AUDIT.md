@@ -4,6 +4,20 @@ Sana: 2026-yil 11-oktabr, Asia/Tashkent. Maqsad: Telegram kabi tanish chatni biz
 
 ## Git va yetkazish
 
+### 15-oktabr: profil rasmlari
+
+Chat sarlavhasi va mijoz ma’lumot panelidagi avatar endi katta rasm oynasini ochadi. Ko‘rinadigan rasmlar tarixi, joriy personal/public fallback rasmi, sahifalash, oldingi/keyingi tugmalar va ←/→, 6× gacha kattalashtirish, Escape/× bilan yopish qo‘shildi. Rasmi yo‘q, tarmoq xatosi va qayta yuklash holatlari uch tilda bor. Tor oynada oynaning yopish tugmasi Windows title baridan pastda qoladi. Animatsiyali avatarlar hozir statik rasm sifatida ochiladi.
+
+TDLib 1.8.67 sxemasi (`build/audit/td_api_1_8_67.tl`, workflow ref `3e04c757f9ee474db684baf94c433b28165c698d`) bo‘yicha foydalanuvchi rasmlari `getUserProfilePhotos`, guruh/kanal tarixi `searchChatMessages` + `searchMessagesFilterChatPhoto` orqali olinadi. Current personal/public photo to‘liq infodan olinib, history bilan takrorlanmaydi. Offset xom server natijalari bilan hisoblanadi, guruhda server cursori ishlatiladi. Faqat tanlangan to‘liq rasm yuklanadi; fayl holati akkauntning mavjud source keshidan olinadi. Chat/account almashishi oynani yopadi; disposed source kechikkan javobni tashlab yuboradi. `viewMessages` yoki typing/read amali qo‘shilmagan.
+
+Sinovlar faqat sintetik auth/chat va yangi vaqtinchalik fayllarda. Mavjud support papkasi, TDLib login bazasi, schema 8, backup formati va o‘rnatilgan ilova o‘zgartirilmadi. Real Telegram akkauntida jonli profil rasmlari hali tekshirilmagan.
+
+- Umumiy suite **260/260** o‘tdi; shundan yangi profil rasmlari bo‘yicha **13 test**. So‘ng sintetik PNG haqiqiy dekoder bilan alohida tasdiqlanib, profil testlari yana o‘tdi. Native dastlabki sinovda noto‘g‘ri PNG fixture aniqlangan va tuzatilgan; foydalanuvchi rasmiga tajriba qilinmagan.
+- Yangi Windows Debug build va alohida oynadagi **4 integration ssenariysi o‘tdi**: A/B SQLite ajratilishi, reply/forward, profil rasmlarini ochish/navigatsiya/Escape va akkaunt almashishida yopish, Ctrl+F/qidiruv. Driver natijasi `All tests passed`, exit 0 (setup/teardown bilan +6). Windows SDK plugin ogohlantirishi avvalgidek chiqadi; Dart driver barcha natijalarni olgan.
+- O‘rnatilgan Focus ochiq bo‘lgani uchun dastlabki test ishga tushmagan. Aynan vaqtinchalik bazali test targeti uchun alohida mutex va `Focus Tests` sarlavhasi qo‘shildi. Oddiy buildda `FOCUS_INTEGRATION_TEST_RUNNER=OFF` aniq beriladi; ishlab turgan ilovaning bitta nusxa himoyasi va data identity saqlangan. Foydalanuvchining Focus jarayoni yopilmagan/almashtirilmagan.
+- Native sinov oldin/keyin support papkasidagi **774 faylning nisbiy yo‘llari, o‘lchamlari va o‘zgartirish vaqtlari aynan bir xil**. Metadata inventarlari faqat git-ignored `build/audit/profile-data-*.json` fayllarida; kontent yoki maxfiy qiymatlar chiqarilmagan.
+- Oddiy `lib/main.dart` **Release build yig‘ildi**, mock rejimda va o‘rnatilmagan. CMake keshida test runner **OFF**; Release EXE ichida production mutex mavjud, test mutex mavjud emas. Yakuniy `flutter analyze --no-pub` va `git diff --check` toza. Sichqoncha g‘ildiragi bilan real transform kattalashishi ham tekshirilib, **13/13 profil testi qayta o‘tdi**.
+
 Boshlang‘ich lokal main va origin/main bir xil ce12c96 commitda edi (oldinda/ortda 0/0). Ish codex/telegram-chat-audit branchida. Ushbu audit shu branchdagi kod commitiga kiradi; commit/push natijasi yakuniy chat xabarida tekshiriladi. Main ga merge va ilovani tarqatish bajarilmaydi.
 
 Avvaldan o‘zgargan auto/LOG.md va auto/PARITY.md saqlandi, tahrirlanmadi va ushbu commitga kirmaydi. secrets.json Git’dan chiqarilgan; maxfiy qiymatlar chiqarilmadi.

@@ -35,7 +35,7 @@ $env:TMP = $env:TEMP
 flutter drive -d windows --no-pub --driver test_driver/desktop.dart --target integration_test/desktop_chat_test.dart --use-application-binary build/windows-portable/x64/runner/Debug/focus.exe --dart-define=USE_MOCK=true
 ```
 
-Bu test EXEsi vaqtinchalik alohida SQLite bazalarda A→B→A almashish, qoralama/reply, forward, Ctrl+F va qidiruv natijalarini tekshiradi. Test targetini foydalanuvchiga tarqatmang; oddiy ilova uchun skriptni `-Target lib/main.dart -Mode Release` bilan qayta bajaring. C: diskida joy kam bo‘lsa, lokal testlarda ham `TEMP`/`TMP` ni shu `build/toolchain/temp` papkasiga yo‘naltiring; xotira cheklangan muhitda `flutter test --concurrency=1` ishlating.
+Bu test EXEsi vaqtinchalik alohida SQLite bazalarda A→B→A almashish, qoralama/reply, forward, Ctrl+F, qidiruv natijalari va profil rasmlarini tekshiradi. Aynan shu test targeti alohida mutex va `Focus Tests` oynasidan foydalanadi: o‘rnatilgan Focus ochiq qolishi mumkin. Test targetini foydalanuvchiga tarqatmang; oddiy ilova uchun skriptni `-Target lib/main.dart -Mode Release` bilan qayta bajaring. Oddiy buildda test identifikatori o‘chiriladi va bitta nusxa himoyasi saqlanadi. C: diskida joy kam bo‘lsa, lokal testlarda ham `TEMP`/`TMP` ni shu `build/toolchain/temp` papkasiga yo‘naltiring; xotira cheklangan muhitda `flutter test --concurrency=1` ishlating.
 
 ## 2. Telegram kalitlari
 
@@ -55,6 +55,10 @@ flutter run -d windows --dart-define-from-file=secrets.json
    dart run tool\td_check.dart tdlib\tdjson.dll
    ```
    `TDLib ishlayapti. Versiya: 1.8.x` chiqishi kerak.
+
+## Profil rasmlari
+
+Chat sarlavhasidagi yoki ma’lumot panelidagi avatarni bosing. Katta rasm ochiladi; yon tugmalar yoki ←/→ bilan tarix bo‘ylab yuring, sichqoncha g‘ildiragi bilan kattalashtiring. Escape yoki × oynani yopadi. Telegram ruxsat bergan shaxsiy profil rasmlari va guruh/kanal rasmlari tarixi ko‘rsatiladi; maxfiylik bilan yashirilgan rasmlar olinmaydi. Akkaunt yoki chat almashganda rasm oynasi yopiladi. Animatsiyali avatarlarning statik rasmi ko‘rsatiladi.
 
 ## Tuzilma
 

@@ -5,13 +5,21 @@
 #include "flutter_window.h"
 #include "utils.h"
 
+#ifdef FOCUS_INTEGRATION_TEST_RUNNER
+static constexpr wchar_t kFocusMutex[] = L"Local\\FokusIntegrationTests";
+static constexpr wchar_t kFocusWindowTitle[] = L"Focus Tests";
+#else
+static constexpr wchar_t kFocusMutex[] = L"Local\\FokusSingleInstance";
+static constexpr wchar_t kFocusWindowTitle[] = L"Focus";
+#endif
+
 // Focus: one instance per Windows user. A second instance would share the
 // TDLib database, which TDLib locks, and hang on "Telegram'ga ulanmoqda".
 // Instead it brings the running window to the front and exits.
 static bool FocusRunningInstance() {
-  ::CreateMutexW(nullptr, TRUE, L"Local\\FokusSingleInstance");
+  ::CreateMutexW(nullptr, TRUE, kFocusMutex);
   if (::GetLastError() != ERROR_ALREADY_EXISTS) return false;
-  HWND other = ::FindWindowW(L"FLUTTER_RUNNER_WIN32_WINDOW", L"Focus");
+  HWND other = ::FindWindowW(L"FLUTTER_RUNNER_WIN32_WINDOW", kFocusWindowTitle);
   if (other) {
     if (::IsIconic(other)) ::ShowWindow(other, SW_RESTORE);
     ::SetForegroundWindow(other);
@@ -45,7 +53,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   FlutterWindow window(project);
   Win32Window::Point origin(10, 10);
   Win32Window::Size size(1280, 720);
-  if (!window.Create(L"Focus", origin, size)) {
+  if (!window.Create(kFocusWindowTitle, origin, size)) {
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);

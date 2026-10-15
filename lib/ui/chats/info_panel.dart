@@ -6,6 +6,7 @@ import '../../state/app_state.dart';
 import '../../theme.dart';
 import '../collections/collection_dialogs.dart';
 import '../common.dart';
+import 'profile_photos.dart';
 
 class InfoPanel extends StatelessWidget {
   const InfoPanel({super.key, required this.state, required this.onClose, this.width = 320});
@@ -50,7 +51,7 @@ class InfoPanel extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          Center(child: ChatAvatar(chat, size: 88, showOnline: false)),
+          Center(child: ProfilePhotoButton(chat: chat, source: state.source, size: 88)),
           const SizedBox(height: 10),
           Center(
             child: Padding(

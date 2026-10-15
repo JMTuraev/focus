@@ -92,7 +92,10 @@ try {
     }
     if (-not (Test-Path -LiteralPath 'windows/flutter/ephemeral/generated_config.cmake')) { throw 'Flutter config is missing.' }
     $instance = "$VisualStudioPath,version=$VisualStudioVersion"
-    & $cmake -S windows -B $buildRoot -G 'Visual Studio 17 2022' -A x64 "-DCMAKE_GENERATOR_INSTANCE=$instance" -DFLUTTER_TARGET_PLATFORM=windows-x64
+    # Only the known temporary-data harness gets a separate instance identity.
+    # Always reset this cache option for ordinary app builds.
+    $testRunner = if ($Target -eq 'integration_test/desktop_chat_test.dart' -and -not $RealTelegram) { 'ON' } else { 'OFF' }
+    & $cmake -S windows -B $buildRoot -G 'Visual Studio 17 2022' -A x64 "-DCMAKE_GENERATOR_INSTANCE=$instance" -DFLUTTER_TARGET_PLATFORM=windows-x64 "-DFOCUS_INTEGRATION_TEST_RUNNER=$testRunner"
     if ($LASTEXITCODE -ne 0) { throw 'CMake generation failed.' }
     & $cmake --build $buildRoot --config $Mode --target INSTALL --parallel 2
     if ($LASTEXITCODE -ne 0) { throw 'Windows compilation failed.' }

@@ -240,6 +240,20 @@ class MediaInfo {
   double get aspect => width > 0 && height > 0 ? width / height : 4 / 3;
 }
 
+class ProfilePhoto {
+  const ProfilePhoto({required this.id, required this.media, this.date});
+  final String id;
+  final MediaInfo media;
+  final DateTime? date;
+}
+
+class ProfilePhotoPage {
+  const ProfilePhotoPage({required this.photos, required this.total, this.nextCursor = ''});
+  final List<ProfilePhoto> photos;
+  final int total;
+  final String nextCursor;
+}
+
 class ReplyInfo {
   const ReplyInfo({required this.chatId, required this.messageId, required this.author, required this.text});
   final String chatId;
